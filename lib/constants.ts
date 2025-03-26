@@ -1,0 +1,1 @@
+export const POWER_SHELL_FEATURE = 'power_shell';

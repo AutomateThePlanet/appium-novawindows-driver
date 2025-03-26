@@ -1,0 +1,37 @@
+{
+  "name": "appium-novawindows-driver",
+  "version": "0.0.1",
+  "description": "Appium driver for Windows",
+  "main": "build/lib/driver.js",
+  "scripts": {
+    "build": "tsc -b",
+    "watch": "tsc -b --watch",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Automate The Planet",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "appium": "^2.16.2"
+  },
+  "dependencies": {
+    "@appium/base-driver": "^9.16.2",
+    "bezier-easing": "^2.1.0",
+    "koffi": "^2.10.1",
+    "xpath-analyzer": "^3.0.1"
+  },
+  "appium": {
+    "driverName": "novawindows",
+    "automationName": "NovaWindows",
+    "platformNames": [
+      "Windows"
+    ],
+    "mainClass": "NovaWindowsDriver"
+  },
+  "devDependencies": {
+    "@appium/eslint-config-appium-ts": "^1.0.3",
+    "@appium/tsconfig": "^0.3.4",
+    "@appium/types": "^0.25.1",
+    "@types/node": "^22.13.9"
+  }
+}
