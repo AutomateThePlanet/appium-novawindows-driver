@@ -20,6 +20,7 @@ export function pwsh(strings: TemplateStringsArray, ...values: string[]): string
 export function pwsh$(literals: TemplateStringsArray, ...substitutions: number[]) {
     const templateInstance = $(literals, ...substitutions);
     const defaultFormat = templateInstance.format.bind(templateInstance);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     templateInstance.format = (...args: any[]) => {
         const command = defaultFormat(...args);
         return /* ps1 */ `(Invoke-Expression -Command ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${btoa(command)}'))))`;
