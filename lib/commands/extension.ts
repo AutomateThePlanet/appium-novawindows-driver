@@ -24,7 +24,7 @@ import {
     convertStringToCondition,
     pwsh
 } from '../powershell';
-import { Enum, Key } from '../enums';
+import { ClickType, Enum, Key } from '../enums';
 
 const PLATFORM_COMMAND_PREFIX = 'windows:';
 
@@ -358,7 +358,7 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
     elementId?: string,
     x?: number,
     y?: number,
-    button?: 'left' | 'middle' | 'right' | 'back' | 'forward', // TODO: add types
+    button?: ClickType,
     modifierKeys?: ('shift' | 'ctrl' | 'alt' | 'win') | ('shift' | 'ctrl' | 'alt' | 'win')[], // TODO: add types
     durationMs?: number,
     times?: number,
@@ -367,7 +367,7 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
     const {
         elementId,
         x, y,
-        button = 'left',
+        button = ClickType.LEFT,
         modifierKeys = [],
         durationMs = 0,
         times = 1,
@@ -401,26 +401,14 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
         pos = [x!, y!];
     }
 
-    let mouseButton: number;
-    switch (button.toLowerCase()) {
-        case 'left':
-            mouseButton = 0;
-            break;
-        case 'middle':
-            mouseButton = 1;
-            break;
-        case 'right':
-            mouseButton = 2;
-            break;
-        case 'back':
-            mouseButton = 3;
-            break;
-        case 'forward':
-            mouseButton = 4;
-            break;
-        default:
-            throw new errors.InvalidArgumentError('Property button should be one of left, middle, right, back or forward.');
-    }
+    const clickTypeToButtonMapping: { [key in ClickType]: number} = {
+        [ClickType.LEFT]: 0,
+        [ClickType.MIDDLE]: 1,
+        [ClickType.RIGHT]: 2,
+        [ClickType.BACK]: 3,
+        [ClickType.FORWARD]: 4
+    };
+    const mouseButton: number = clickTypeToButtonMapping[button];
 
     await mouseMoveAbsolute(pos[0], pos[1], 0);
     for (let i = 0; i < times; i++) {
