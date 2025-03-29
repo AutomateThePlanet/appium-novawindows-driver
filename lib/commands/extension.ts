@@ -94,6 +94,7 @@ type KeyAction = {
     down?: boolean,
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function execute(this: NovaWindowsDriver, script: string, args: any[]) {
     if (script.startsWith(PLATFORM_COMMAND_PREFIX)) {
         script = script.replace(PLATFORM_COMMAND_PREFIX, '').trim();

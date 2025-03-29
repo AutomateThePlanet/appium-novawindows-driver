@@ -162,6 +162,7 @@ export class FalseCondition extends Condition {
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function assertPSObjectType(obj: PSObject, type: new (...args: any[]) => PSObject) {
     if (!(obj instanceof type)) {
         throw new errors.InvalidArgumentError(`Property expected type ${type.name} but got ${(obj as object)?.constructor.name}.`);

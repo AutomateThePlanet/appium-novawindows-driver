@@ -32,6 +32,10 @@
     "@appium/eslint-config-appium-ts": "^1.0.3",
     "@appium/tsconfig": "^0.3.4",
     "@appium/types": "^0.25.1",
-    "@types/node": "^22.13.9"
+    "@eslint/js": "^9.23.0",
+    "@types/node": "^22.13.9",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.28.0"
   }
 }
