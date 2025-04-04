@@ -1,6 +1,6 @@
 {
   "name": "appium-novawindows-driver",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Appium driver for Windows",
   "main": "build/lib/driver.js",
   "scripts": {
