@@ -22,6 +22,7 @@ type Commands = {
 };
 
 declare module '../driver' {
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface NovaWindowsDriver extends Commands {}
 }
 
