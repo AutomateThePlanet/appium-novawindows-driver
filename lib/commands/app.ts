@@ -47,11 +47,17 @@ export async function getPageSource(this: NovaWindowsDriver): Promise<string> {
 }
 
 export async function getScreenshot(this: NovaWindowsDriver): Promise<string> {
-    // TODO: check if it causes problem if child window is opened
     const automationRootId = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
-    await this.focusElement({
-        [W3C_ELEMENT_KEY]: automationRootId.trim(),
-    } satisfies Element);
+
+    if (this.caps.app && this.caps.app.toLowerCase() !== 'root') {
+        try {
+            await this.focusElement({
+                [W3C_ELEMENT_KEY]: automationRootId.trim(),
+            } satisfies Element);
+        } catch {
+            // noop
+        }
+    }
 
     return await this.sendPowerShellCommand(GET_SCREENSHOT_COMMAND);
 }
