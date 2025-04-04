@@ -12,10 +12,10 @@
   "author": "Automate The Planet",
   "license": "Apache-2.0",
   "peerDependencies": {
-    "appium": "^2.16.2"
+    "appium": "^2.17.1"
   },
   "dependencies": {
-    "@appium/base-driver": "^9.16.2",
+    "@appium/base-driver": "^9.16.4",
     "bezier-easing": "^2.1.0",
     "koffi": "^2.10.1",
     "xpath-analyzer": "^3.0.1"
@@ -30,8 +30,8 @@
   },
   "devDependencies": {
     "@appium/eslint-config-appium-ts": "^1.0.3",
-    "@appium/tsconfig": "^0.3.4",
-    "@appium/types": "^0.25.1",
-    "@types/node": "^22.13.9"
+    "@appium/tsconfig": "^0.3.5",
+    "@appium/types": "^0.25.2",
+    "@types/node": "^22.14.0"
   }
 }
