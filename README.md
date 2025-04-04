@@ -149,7 +149,7 @@ else:
 Appium Windows Driver supports the same location strategies [the WinAppDriver supports](https://github.com/microsoft/WinAppDriver/blob/master/Docs/AuthoringTestScripts.md#supported-locators-to-find-ui-elements), but also includes Windows UIAutomation conditoons:
 
 Name | Description | Example
---- | --- | --- | ---
+--- | --- | ---
 accessibility id | This strategy is AutomationId attribute in inspect.exe | AppNameTitle
 class name | This strategy is ClassName attribute in inspect.exe | TextBlock
 id | This strategy is RuntimeId (decimal) attribute in inspect.exe | 42.333896.3.1
