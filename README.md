@@ -35,13 +35,15 @@ Beside of standard Appium requirements NovaWindows Driver adds the following pre
 
 NovaWindows Driver supports the following capabilities:
 
-| Capability Name | Description |
-| --- | --- |
-| platformName | Must be set to `Windows` (case-insensitive). |
-| smoothPointerMove | CSS-like easing function (including valid Bezier curve). This controls the smooth movement of the mouse for `delayBeforeClick` ms. Example: `ease-in`, `cubic-bezier(0.42, 0, 0.58, 1)`. |
-| delayBeforeClick | Time in milliseconds before a click is performed. |
-| delayAfterClick | Time in milliseconds after a click is performed. |
-| appTopLevelWindow | The handle of an existing application top-level window to attach to. It can be a number or string (not necessarily hexadecimal). Example: `12345`, `0x12345`. |
+Capability Name | Description
+--- | ---
+platformName | Must be set to `Windows` (case-insensitive).
+automationName | Must be set to `NovaWindows` (case-insensitive).
+smoothPointerMove | CSS-like easing function (including valid Bezier curve). This controls the smooth movement of the mouse for `delayBeforeClick` ms. Example: `ease-in`, `cubic-bezier(0.42, 0, 0.58, 1)`.
+delayBeforeClick | Time in milliseconds before a click is performed.
+delayAfterClick | Time in milliseconds after a click is performed.
+appTopLevelWindow | The handle of an existing application top-level window to attach to. It can be a number or string (not necessarily hexadecimal). Example: `12345`, `0x12345`.
+shouldCloseApp | Whether to close the window of the application in test after the session finishes. Default is `true`.
 
 Please note that more capabilities will be added as the development of this driver progresses. Since it is still in its early stages, some features may be missing or subject to change. If you need a specific capability or encounter any issues, please feel free to open an issue.
 
@@ -94,8 +96,6 @@ def driver(request):
 def test_app_source_could_be_retrieved(driver):
     assert len(driver.page_source) > 0
 ```
-
-You could find more examples for different programming languages at https://github.com/microsoft/WinAppDriver/tree/master/Samples
 
 
 ## Power Shell commands execution
@@ -316,9 +316,11 @@ This is an asynchronous function that sends cache requests based on specific con
 
 #### Arguments
 
-| Name | Type | Required | Description | Example |
-| --- | --- | --- | --- | --- |
-| `cacheRequest` | `CacheRequest` | yes | The cache request containing various properties that control the cache behavior. | `{ treeFilter: "RawView", treeScope: "SubTree", automationElementMode: "Full" }` |
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+treeFilter | string | yes | Defines the filter that is applied when walking the automation tree. You can use any UI Automation conditions. For simplicity, you can omit the namespace and/or the Condition word at the end. | `RawView`
+treeScope | string | no | Defines the scope of the automation tree to be cached. It determines how far to search for elements, such as just the element itself, its children, descendants or the entire subtree. | `SubTree`
+automationElementMode | string | no | Specifies the mode of automation element (e.g., None, Full). Determines whether the UI element is fully cached or only partially cached. | `Full`
 
 ### windows: invoke
 
@@ -326,9 +328,9 @@ Invokes a UI element pattern, simulating an interaction like clicking or activat
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element on which the `InvokePattern` is called to simulate activation. | `element` |
+1 | `Element` | The UI element on which the `InvokePattern` is called to simulate activation. | `element`
 
 ### windows: expand
 
@@ -336,9 +338,9 @@ Expands a UI element that supports the `ExpandPattern`, typically used for eleme
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element on which the `ExpandPattern` is called to expand the element. | `element` |
+1 | `Element` | The UI element on which the `ExpandPattern` is called to expand the element. | `element`
 
 ### windows: collapse
 
@@ -346,9 +348,9 @@ Collapses a UI element that supports the `CollapsePattern`, typically used for c
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element on which the `CollapsePattern` is called to collapse the element. | `element` |
+1 | `Element` | The UI element on which the `CollapsePattern` is called to collapse the element. | `element`
 
 ### windows: scrollIntoView
 
@@ -356,9 +358,9 @@ Scrolls the UI element into view using the `ScrollItemPattern`, ensuring that th
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element on which the `ScrollItemPattern` is called to bring the element into view. | `element` |
+1 | `Element` | The UI element on which the `ScrollItemPattern` is called to bring the element into view. | `element`
 
 ### windows: isMultiple
 
@@ -366,9 +368,9 @@ Checks if a UI element supports multiple selection using the `SelectionPattern`.
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element to check for multiple selection support. | `element` |
+1 | `Element` | The UI element to check for multiple selection support. | `element`
 
 #### Returns
 
@@ -380,9 +382,9 @@ Gets the selected item from a UI element that supports the `SelectionPattern`.
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element from which to retrieve the selected item. | `element` |
+1 | `Element` | The UI element from which to retrieve the selected item. | `element`
 
 #### Returns
 
@@ -394,9 +396,9 @@ Gets all selected items from a UI element that supports the `SelectionPattern`, 
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element from which to retrieve all selected items. | `element` |
+1 | `Element` | The UI element from which to retrieve all selected items. | `element`
 
 #### Returns
 
@@ -408,9 +410,9 @@ Adds an element to the current selection on a UI element that supports the `Sele
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element to add to the selection. | `element` |
+1 | `Element` | The UI element to add to the selection. | `element`
 
 ### windows: removeFromSelection
 
@@ -418,9 +420,9 @@ Removes an element from the current selection on a UI element that supports the 
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element to remove from the selection. | `element` |
+1 | `Element` | The UI element to remove from the selection. | `element`
 
 ### windows: select
 
@@ -428,9 +430,9 @@ Selects a UI element using the `SelectionPattern`, simulating the action of choo
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element`   | The UI element to select. | `element` |
+1 | `Element`   | The UI element to select. | `element`
 
 ### windows: toggle
 
@@ -438,9 +440,9 @@ Toggles a UI element’s state using the `TogglePattern`, typically used for ele
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element`   | The UI element to toggle. | `element` |
+1 | `Element`   | The UI element to toggle. | `element`
 
 ### windows: setValue
 
@@ -448,10 +450,10 @@ Sets the value of a UI element using the `ValuePattern` (for elements like text 
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element whose value will be set. | `element` |
-| 2 | `string` | The value to be set on the element. | `"new value"` |
+1 | `Element` | The UI element whose value will be set. | `element`
+2 | `string` | The value to be set on the element. | `"new value"`
 
 ### windows: getValue
 
@@ -459,9 +461,9 @@ Gets the current value of a UI element that supports the `ValuePattern` (e.g., a
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element from which to retrieve the value. | `element` |
+1 | `Element` | The UI element from which to retrieve the value. | `element`
 
 ### windows: maximize
 
@@ -469,9 +471,9 @@ Maximizes a window or UI element using the `WindowPattern`.
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The window or UI element to maximize. | `element` |
+1 | `Element` | The window or UI element to maximize. | `element`
 
 ### windows: minimize
 
@@ -479,9 +481,9 @@ Minimizes a window or UI element using the `WindowPattern`.
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The window or UI element to minimize. | `element` |
+1 | `Element` | The window or UI element to minimize. | `element`
 
 ### windows: restore
 
@@ -489,9 +491,9 @@ Restores a window or UI element to its normal state (if it was maximized or mini
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The window or UI element to restore. | `element` |
+1 | `Element` | The window or UI element to restore. | `element`
 
 ### windows: close
 
@@ -499,9 +501,9 @@ Closes a window or UI element using the `WindowPattern`.
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The window or UI element to close. | `element` |
+1 | `Element` | The window or UI element to close. | `element`
 
 ### windows: setFocus
 
@@ -509,39 +511,42 @@ Sets focus to the specified UI element using UIAutomationElement's `SetFocus` me
 
 #### Arguments
 
-| Position | Type | Description | Example |
+Position | Type | Description | Example
 | --- | --- | --- | --- |
-| 1 | `Element` | The UI element to set focus on. | `element` |
+1 | `Element` | The UI element to set focus on. | `element`
 
 ### windows: startRecordingScreen
 
-Not implemented yet.
+To be implemented.
 
 ### windows: stopRecordingScreen
 
-Not implemented yet.
+To be implemented.
 
 ### windows: deleteFile
 
-Not implemented yet.
+To be implemented.
 
 ### windows: deleteFolder
 
-Not implemented yet.
+To be implemented.
 
 ### windows: launchApp
 
-Not implemented yet.
+To be implemented.
 
 ### windows: closeApp
 
-Not implemented yet.
+To be implemented.
 
 ### windows: clickAndDrag
 
-Not implemented yet.
+To be implemented.
 
 ## Development
+
+it is recommended to use Matt Bierner's [Comment tagged templates](https://marketplace.visualstudio.com/items?itemName=bierner.comment-tagged-templates)
+Visual Studio Code plugin so it highlights the powershell and C code used throughout the project.
 
 ```bash
 # Checkout the current repository and run

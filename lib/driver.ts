@@ -188,16 +188,15 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
     override async deleteSession(sessionId?: string | null | undefined): Promise<void> {
         this.log.debug('Deleting NovaWindows driver session...');
 
-        // TODO: add driver option to not close app before uncommenting
-        // if (this.caps.app && this.caps.app.toLowerCase() !== 'root') {
-        //     try {
-        //         const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
-        //         const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
-        //         elementId && await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
-        //     } catch {
-        //         // noop
-        //     }
-        // } // change to close the whole process, not only the window
+        if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
+            try {
+                const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
+                const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
+                elementId && await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+            } catch {
+                // noop
+            }
+        } // change to close the whole process, not only the window
         await this.terminatePowerShellSession();
         await super.deleteSession(sessionId);
     }
