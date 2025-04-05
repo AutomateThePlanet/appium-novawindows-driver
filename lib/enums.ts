@@ -86,3 +86,13 @@ export const Key = Object.freeze({
 } as const);
 
 export type Key = Enum<typeof Key>;
+
+export const ClickType = Object.freeze({
+    LEFT: 'left',
+    MIDDLE: 'middle',
+    RIGHT: 'right',
+    BACK: 'back',
+    FORWARD: 'forward'
+});
+
+export type ClickType = Enum<typeof ClickType>;
