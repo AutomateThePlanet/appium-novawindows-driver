@@ -2,6 +2,14 @@
   "name": "appium-novawindows-driver",
   "version": "0.0.2",
   "description": "Appium driver for Windows",
+  "keywords": [
+    "appium",
+    "novawindows",
+    "uiautomation",
+    "powershell",
+    "automated testing",
+    "windows"
+  ],
   "main": "build/lib/driver.js",
   "scripts": {
     "build": "tsc -b",
@@ -11,6 +19,13 @@
   },
   "author": "Automate The Planet",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AutomateThePlanet/appium-novawindows-driver.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AutomateThePlanet/appium-novawindows-driver/issues"
+  },
   "peerDependencies": {
     "appium": "^2.17.1"
   },
