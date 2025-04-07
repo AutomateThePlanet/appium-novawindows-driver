@@ -14,7 +14,7 @@ It’s designed to handle real-world scenarios where traditional drivers fall sh
 > This driver is built for Appium 2 and is not compatible with Appium 1. To get started,
 > clone the repository and run `npm install` to resolve dependencies. Then, use `npm run build`
 > to build the driver. Finally, add it to your Appium 2 distribution with the command:
-> `appium driver install --source=local /path/to/novawindows-driver`
+> `appium driver install --source=npm appium-novawindows-driver`
 
 
 ## Usage
