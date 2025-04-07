@@ -192,7 +192,9 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             try {
                 const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
                 const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
-                elementId && await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+                if (elementId) {
+                    await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+                }
             } catch {
                 // noop
             }
