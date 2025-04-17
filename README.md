@@ -54,8 +54,7 @@ Please note that more capabilities will be added as the development of this driv
 import pytest
 
 from appium import webdriver
-# Options are available in Python client since v2.6.0
-from appium.options.windows import WindowsOptions
+from appium.options.common.base import AppiumOptions
 
 def generate_options():
     uwp_options = AppiumOptions()
