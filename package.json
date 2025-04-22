@@ -32,7 +32,7 @@
   "dependencies": {
     "@appium/base-driver": "^9.16.4",
     "bezier-easing": "^2.1.0",
-    "koffi": "^2.10.1",
+    "koffi": "^2.11.0",
     "xpath-analyzer": "^3.0.1"
   },
   "appium": {
@@ -47,14 +47,14 @@
     "@appium/eslint-config-appium-ts": "^1.0.3",
     "@appium/tsconfig": "^0.3.5",
     "@appium/types": "^0.25.2",
-    "@eslint/js": "^9.23.0",
+    "@eslint/js": "^9.25.1",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@types/node": "^22.14.0",
+    "@types/node": "^22.14.1",
     "conventional-changelog-conventionalcommits": "^8.0.0",
-    "eslint": "^9.23.0",
+    "eslint": "^9.25.1",
     "semantic-release": "^24.2.3",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.28.0"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0"
   }
 }
