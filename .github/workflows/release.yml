@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: lts/*
+    - run: npm install --no-package-lock
+      name: Install dependencies
+    - run: npm run build
+      name: Run NPM Build
+    - run: npm run lint
+      name: Run NPM Lint
+    - run: |
+        rm -rf package-lock.json node_modules
+        # Remove dev and peer dependencies from node_modules
+        npm prune --omit=dev --omit=peer --no-package-lock
+      name: Remove dev dependencies and appium peer dependencies
+    - run: npm shrinkwrap --omit=dev --omit=peer
+      name: Create shrinkwrap
+    - run: npm install --only=dev --no-package-lock
+      name: Install dev dependencies for the release
+    - run: npx semantic-release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      name: Release
