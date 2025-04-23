@@ -54,22 +54,20 @@ Please note that more capabilities will be added as the development of this driv
 import pytest
 
 from appium import webdriver
-from appium.options.common.base import AppiumOptions
+from appium.options.windows import WindowsOptions
 
 def generate_options():
-    uwp_options = AppiumOptions()
+    uwp_options = WindowsOptions()
     # How to get the app ID for Universal Windows Apps (UWP):
     # https://www.securitylearningacademy.com/mod/book/view.php?id=13829&chapterid=678
     uwp_options.app = 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App'
     uwp_options.automation_name = 'NovaWindows'
-    uwp_options.platform_name = 'Windows'
 
-    classic_options = AppiumOptions()
+    classic_options = WindowsOptions()
     classic_options.app = 'C:\\Windows\\System32\\notepad.exe'
     classic_options.automation_name = 'NovaWindows'
-    classic_options.platform_name = 'Windows'
 
-    use_existing_app_options = AppiumOptions()
+    use_existing_app_options = WindowsOptions()
     # Active window handles could be retrieved from any compatible UI inspector app:
     # https://docs.microsoft.com/en-us/windows/win32/winauto/inspect-objects
     # or https://accessibilityinsights.io/.
@@ -80,7 +78,6 @@ def generate_options():
     # https://github.com/microsoft/WinAppDriver/blob/master/Samples/C%23/StickyNotesTest/StickyNotesSession.cs
     use_existing_app_options.app_top_level_window = hex(12345)
     use_existing_app_options.automation_name = 'NovaWindows'
-    use_existing_app_options.platform_name = 'Windows'
 
     return [uwp_options, classic_options, use_existing_app_options]
 
