@@ -3,5 +3,5 @@ import { NovaWindowsDriver } from '../driver';
 import { getDisplayOrientation } from '../winapi/user32';
 
 export function getOrientation(this: NovaWindowsDriver): Orientation {
-    return getDisplayOrientation() % 2 ? 'PORTRAIT' : 'LANDSCAPE';
+    return getDisplayOrientation();
 }
