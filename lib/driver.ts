@@ -114,7 +114,6 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
                 break;
             case 'name':
                 condition = new PropertyCondition(Property.NAME, new PSString(selector));
-                this.log.debug(condition);
                 break;
             case 'class name':
                 condition = new PropertyCondition(Property.CLASS_NAME, new PSString(selector));
