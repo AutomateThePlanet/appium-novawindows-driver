@@ -652,7 +652,7 @@ async function sendMouseMoveInput(args: { x: number, y: number, relative: boolea
     let { x, y, easingFunction, relative } = args;
     const screenResolutionAndRefreshRate = getScreenResolutionAndRefreshRate();
     const [, , refreshRate] = screenResolutionAndRefreshRate;
-    const updateInterval = 1000 / refreshRate; // this is not used if refreshRate is null
+    const updateInterval = 1000 / refreshRate;
     const iterations = Math.max(Math.floor(duration / updateInterval), 1);
 
     const cursorPosition = {
