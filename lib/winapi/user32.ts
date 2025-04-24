@@ -1,3 +1,4 @@
+import { Orientation } from '@appium/types';
 import {
     load,
     struct,
@@ -70,7 +71,7 @@ interface DeviceModeAnsi {
     dmDeviceName: string | null,
     dmSpecVersion: number,
     dmDriverVersion: number,
-    dmSize: 68,
+    dmSize: number,
     dmDriverExtra: number,
     dmFields: number,
     u1: {
@@ -213,7 +214,7 @@ const INPUT = struct('INPUT', {
     } satisfies InputUnion)
 });
 
-struct('DEVMODEA', {
+const DEVMODEA = struct('DEVMODEA', {
     dmDeviceName: array('char', 32, 'String'),
     dmSpecVersion: 'uint16',
     dmDriverVersion: 'uint16',
@@ -291,7 +292,7 @@ const GetSystemMetrics = user32.func(/* c */ `int __stdcall GetSystemMetrics(int
 const SetProcessDPIAware = user32.func(/* c */ `bool __stdcall SetProcessDPIAware()`) as () => boolean;
 const GetDpiForSystem = user32.func(/* c */ `unsigned int __stdcall GetDpiForSystem()`) as () => number;
 const GetCursorPos = user32.func(/* c */ `bool __stdcall GetCursorPos(_Out_ POINT *lpPoint)`) as (lpPoint: Point) => boolean;
-const EnumDisplaySettingsA = user32.func(/* c */ `bool __stdcall EnumDisplaySettingsA(str lpszDeviceName, uint iModeNum, _Out_ DEVMODEA *lpDevMode)`) as (lpszDeviceName: string | null, iModeNum: number, lpDevMode: DeviceModeAnsi) => boolean;
+const EnumDisplaySettingsA = user32.func(/* c */ `bool __stdcall EnumDisplaySettingsA(str lpszDeviceName, uint iModeNum, _Out_ DEVMODEA *lpDevMode)`) as (lpszDeviceName: string | null, iModeNum: number, lpDevMode: Buffer) => boolean;
 // end TODO
 
 const GetWindowThreadProcessId = user32.func(/* c */ `DWORD __stdcall GetWindowThreadProcessId(HWND hWnd, _Out_ LPDWORD lpdwProcessId)`) as (hWnd: HWND, lpdwProcessId: [LPDWORD | null]) => DWORD;
@@ -651,10 +652,14 @@ async function sendMouseMoveInput(args: { x: number, y: number, relative: boolea
     let { x, y, easingFunction, relative } = args;
     const screenResolutionAndRefreshRate = getScreenResolutionAndRefreshRate();
     const [, , refreshRate] = screenResolutionAndRefreshRate;
-    const updateInterval = 1000 / refreshRate;
+    const updateInterval = 1000 / refreshRate; // this is not used if refreshRate is null
     const iterations = Math.max(Math.floor(duration / updateInterval), 1);
 
-    const cursorPosition = {} as Point;
+    const cursorPosition = {
+        x: 0,
+        y: 0,
+    } satisfies Point;
+
     if (GetCursorPos(cursorPosition) && iterations > 1) {
         if (relative) {
             x += cursorPosition.x;
@@ -733,15 +738,26 @@ function getResolutionScalingFactor(): number {
 function getScreenResolutionAndRefreshRate(): [number, number, number] {
     const width = GetSystemMetrics(SystemMetric.SM_CXSCREEN);
     const height = GetSystemMetrics(SystemMetric.SM_CYSCREEN);
+    let refreshRate: number | null = null;
 
-    const deviceMode = {} as DeviceModeAnsi;
-    EnumDisplaySettingsA(null, -1, deviceMode);
+    const buffer = Buffer.alloc(sizeof(DEVMODEA));
+    EnumDisplaySettingsA(null, -1, buffer);
+    const deviceMode = { dmDisplayFrequency: buffer.readUInt32LE(120) } as DeviceModeAnsi;
+    refreshRate = deviceMode.dmDisplayFrequency;
 
-    const refreshRate = deviceMode.dmDisplayFrequency;
     const resolution = [width, height, refreshRate] satisfies ReturnType<typeof getScreenResolutionAndRefreshRate>;
 
-    // @ts-expect-error temporary quick and dirty version of memoization
-    getScreenResolutionAndRefreshRate = () => resolution;
+    const nonMemoizedMethod = getScreenResolutionAndRefreshRate;
+    const currentTime = new Date().getTime();
+
+    // @ts-expect-error memoizing the function to prevent repeated calls that might crash Node.js
+    getScreenResolutionAndRefreshRate = () => {
+        if (new Date().getTime() - currentTime > 1000) {
+            // @ts-expect-error reset memoization after 1 second
+            getScreenResolutionAndRefreshRate = nonMemoizedMethod;
+        }
+        return resolution;
+    };
 
     return resolution;
 }
@@ -774,12 +790,9 @@ export function mouseUp(button: number = 0): void {
     sendMouseButtonInput(button, false);
 }
 
-export function getDisplayOrientation(): number {
-    const deviceMode = {} as DeviceModeAnsi;
-    EnumDisplaySettingsA(null, -1, deviceMode);
-
-    const orientation = deviceMode.u1.s2.dmDisplayOrientation;
-    return orientation;
+export function getDisplayOrientation(): Orientation {
+    const resolution = getScreenResolutionAndRefreshRate();
+    return resolution[0] > resolution[1] ? 'LANDSCAPE' : 'PORTRAIT';
 }
 
 export function setDpiAwareness() {
