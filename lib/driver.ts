@@ -172,6 +172,9 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             if (caps.app && caps.appTopLevelWindow) {
                 throw new errors.InvalidArgumentError('Invalid capabilities. Specify either app or appTopLevelWindow.');
             }
+            if (this.caps.shouldCloseApp === undefined) {
+                this.caps.shouldCloseApp = true; // set default value
+            }
 
             await this.startPowerShellSession();
 
