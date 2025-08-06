@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.0.1...v1.1.0) (2025-08-06)
+
+### Features
+
+* adding appArguments option ([#26](https://github.com/AutomateThePlanet/appium-novawindows-driver/issues/26)) ([ded917b](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/ded917bdf2f8d224cc9cf917958177ed0e97078b))
+
 ## [1.0.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.0.0...v1.0.1) (2025-04-25)
 
 ### Bug Fixes
