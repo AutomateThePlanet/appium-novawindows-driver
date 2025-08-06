@@ -136,7 +136,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
 
     const path = pathOrNativeWindowHandle;
     if (path.includes('!') && path.includes('_') && !(path.includes('/') || path.includes('\\'))) {
-        await this.sendPowerShellCommand(/* ps1 */ `Start-Process 'explorer.exe' 'shell:AppsFolder\\${path}'`);
+        await this.sendPowerShellCommand(/* ps1 */ `Start-Process 'explorer.exe' 'shell:AppsFolder\\${path}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
         await sleep(500); // TODO: make a setting for the initial wait time
         for (let i = 1; i <= 20; i++) {
             const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
@@ -154,7 +154,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         }
     } else {
         const normalizedPath = normalize(path);
-        await this.sendPowerShellCommand(/* ps1 */ `Start-Process '${normalizedPath}'`);
+        await this.sendPowerShellCommand(/* ps1 */ `Start-Process '${normalizedPath}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
         await sleep(500); // TODO: make a setting for the initial wait time
         for (let i = 1; i <= 20; i++) {
             try {

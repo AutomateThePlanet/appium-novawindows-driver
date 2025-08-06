@@ -21,6 +21,9 @@ export const UI_AUTOMATION_DRIVER_CONSTRAINTS = {
     shouldCloseApp: {
         isBoolean: true,
     },
+    appArguments: {
+        isString: true
+    },
 } as const satisfies Constraints;
 
 export default UI_AUTOMATION_DRIVER_CONSTRAINTS;
