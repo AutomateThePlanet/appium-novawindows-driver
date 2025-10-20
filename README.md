@@ -25,7 +25,7 @@ Beside of standard Appium requirements NovaWindows Driver adds the following pre
 
 > **Note**
 >
-> The driver is currently uses a PowerShell session as a back-end, and
+> The driver currently uses a PowerShell session as a back-end, and
 > should not require Developer Mode to be on, or any other software.
 > There's a plan to update to a better, .NET-based backend for improved
 > realiability and better code and error management, as well as supporting
