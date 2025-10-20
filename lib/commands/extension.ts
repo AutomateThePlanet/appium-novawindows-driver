@@ -378,12 +378,8 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
         interClickDelayMs = 100,
     } = clickArgs;
 
-    if (!!elementId && ((x !== null && x !== undefined) || (y !== null && y !== undefined))) {
-        throw new errors.InvalidArgumentError('Either elementId or x and y must be provided.');
-    }
-
-    if ((x !== null && x !== undefined) !== (y !== null && y !== undefined)) {
-        throw new errors.InvalidArgumentError('Both x and y must be provided.');
+    if ((x != null) !== (y != null)) {
+        throw new errors.InvalidArgumentError('Both x and y must be provided if either is set.');
     }
 
     let pos: [number, number];
@@ -399,7 +395,10 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
 
         const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetElementRectCommand());
         const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-        pos = [rect.x + (rect.width / 2), rect.y + (rect.height / 2)];
+        pos = [
+            rect.x + (x ?? Math.trunc(rect.width / 2)),
+            rect.y + (y ?? Math.trunc(rect.height / 2)),
+        ];
     } else {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         pos = [x!, y!];
@@ -466,7 +465,7 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
     endElementId?: string,
     endX?: number,
     endY?: number,
-    modifierKeys?: ('shift' | 'ctrl' | 'alt' | 'win') | ('shift' | 'ctrl' | 'alt' | 'win')[], // TODO: add types
+    modifierKeys?: ('shift' | 'ctrl' | 'alt' | 'win') | ('shift' | 'ctrl' | 'alt' | 'win')[],
     durationMs?: number,
 }) {
     const {
@@ -478,20 +477,12 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
         durationMs = 500,
     } = hoverArgs;
 
-    if (!!startElementId && ((startX !== null && startX !== undefined) || (startY !== null && startY !== undefined))) {
-        throw new errors.InvalidArgumentError('Either startElementId or startX and startY must be provided.');
+    if ((startX != null) !== (startY != null)) {
+        throw new errors.InvalidArgumentError('Both startX and startY must be provided if either is set.');
     }
 
-    if (!!endElementId && ((endX !== null && endX !== undefined) || (endY !== null && endY !== undefined))) {
-        throw new errors.InvalidArgumentError('Either endElementId or endX and endY must be provided.');
-    }
-
-    if ((startX !== null && startX !== undefined) !== (startY !== null && startY !== undefined)) {
-        throw new errors.InvalidArgumentError('Both startX and startY must be provided.');
-    }
-
-    if ((endX !== null && endX !== undefined) !== (endY !== null && endY !== undefined)) {
-        throw new errors.InvalidArgumentError('Both endX and endY must be provided.');
+    if ((endX != null) !== (endY != null)) {
+        throw new errors.InvalidArgumentError('Both endX and endY must be provided if either is set.');
     }
 
     const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
@@ -508,12 +499,14 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
 
         const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(startElementId).buildGetElementRectCommand());
         const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-        startPos = [rect.x + (rect.width / 2), rect.y + (rect.height / 2)];
+        startPos = [
+            rect.x + (startX ?? rect.width / 2),
+            rect.y + (startY ?? rect.height / 2)
+        ];
     } else {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         startPos = [startX!, startY!];
     }
-
 
     let endPos: [number, number];
     if (endElementId) {
@@ -528,7 +521,10 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
 
         const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(endElementId).buildGetElementRectCommand());
         const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-        endPos = [rect.x + (rect.width / 2), rect.y + (rect.height / 2)];
+        endPos = [
+            rect.x + (endX ?? rect.width / 2),
+            rect.y + (endY ?? rect.height / 2)
+        ];
     } else {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         endPos = [endX!, endY!];
