@@ -1,12 +1,11 @@
 // @ts-check
 
+import { defineConfig } from 'eslint/config';
 import eslint from '@eslint/js';
-import { config, configs } from 'typescript-eslint';
 import appiumConfig from '@appium/eslint-config-appium-ts';
 
 
-export default config(
-  ...appiumConfig,
+export default defineConfig(
   eslint.configs.recommended,
-  configs.recommended,
+  ...appiumConfig,
 );

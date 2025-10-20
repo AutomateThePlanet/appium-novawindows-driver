@@ -23,11 +23,24 @@ import {
 const GET_PAGE_SOURCE_COMMAND = pwsh$ /* ps1 */ `
     $el = ${0}
 
+    if ($el -eq $null) {
+        $dummy = [xml]'<DummyRoot></DummyRoot>'
+        return $dummy.OuterXml
+    }
+
     Get-PageSource $el |
     ForEach-Object { $_.OuterXml }
 `;
 
 const GET_SCREENSHOT_COMMAND = pwsh /* ps1 */ `
+    if ($rootElement -eq $null) {
+        $bitmap = New-Object Drawing.Bitmap 1,1
+        $stream = New-Object IO.MemoryStream
+        $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
+        $bitmap.Dispose()
+        return [Convert]::ToBase64String($stream.ToArray())
+    }
+
     $rect = $rootElement.Current.BoundingRectangle
     $bitmap = New-Object Drawing.Bitmap([int32]$rect.Width, [int32]$rect.Height)
 
@@ -104,12 +117,13 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
         const elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN, condition).buildCommand());
 
         if (elementId.trim() !== '') {
+            this.log.info(`Found window with name '${name}'. Setting it as the root element.`);
             await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
             trySetForegroundWindow(handle);
             return;
         }
 
-        this.log.info(`Failed to locate window. Sleeping for 500 milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
+        this.log.info(`Failed to locate window with name '${name}'. Sleeping for 500 milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
         await sleep(500); // TODO: make a setting for the sleep timeout
     }
 
@@ -136,12 +150,14 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
 
     const path = pathOrNativeWindowHandle;
     if (path.includes('!') && path.includes('_') && !(path.includes('/') || path.includes('\\'))) {
+        this.log.debug('Detected app path to be in the UWP format.');
         await this.sendPowerShellCommand(/* ps1 */ `Start-Process 'explorer.exe' 'shell:AppsFolder\\${path}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
         await sleep(500); // TODO: make a setting for the initial wait time
         for (let i = 1; i <= 20; i++) {
             const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
             const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
 
+            this.log.debug('Process IDs of ApplicationFrameHost processes: ' + processIds.join(', '));
             try {
                 await this.attachToApplicationWindow(processIds);
                 return;
@@ -153,6 +169,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
             await sleep(500); // TODO: make a setting for the sleep timeout
         }
     } else {
+        this.log.debug('Detected app path to be in the classic format.');
         const normalizedPath = normalize(path);
         await this.sendPowerShellCommand(/* ps1 */ `Start-Process '${normalizedPath}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
         await sleep(500); // TODO: make a setting for the initial wait time
@@ -163,6 +180,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
                 const processName = executable.endsWith('.exe') ? executable.slice(0, executable.length - 4) : executable;
                 const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name '${processName}' | Sort-Object StartTime -Descending).Id`);
                 const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
+                this.log.debug(`Process IDs of '${processName}' processes: ` + processIds.join(', '));
 
                 await this.attachToApplicationWindow(processIds);
                 return;
@@ -182,6 +200,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
 
 export async function attachToApplicationWindow(this: NovaWindowsDriver, processIds: number[]): Promise<void> {
     const nativeWindowHandles = getWindowAllHandlesForProcessIds(processIds);
+    this.log.debug(`Detected the following native window handles for the given process IDs: ${nativeWindowHandles.map((handle) => `0x${handle.toString(16).padStart(8, '0')}`).join(', ')}`);
 
     if (nativeWindowHandles.length !== 0) {
         const elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN, new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(nativeWindowHandles[0]))).buildCommand());
