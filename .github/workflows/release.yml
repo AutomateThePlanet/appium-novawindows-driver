@@ -3,18 +3,20 @@ name: Release
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
 
 jobs:
   build:
     runs-on: ubuntu-latest
     environment: Release
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v5
     - name: Use Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v6
       with:
-        node-version: lts/*
+        node-version: 24.x
     - run: npm install --no-package-lock
       name: Install dependencies
     - run: npm run build
