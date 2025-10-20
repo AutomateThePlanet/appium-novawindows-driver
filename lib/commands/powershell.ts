@@ -8,6 +8,7 @@ const ADD_NECESSARY_ASSEMBLIES = /* ps1 */ `Add-Type -AssemblyName UIAutomationC
 const USE_UI_AUTOMATION_CLIENT = /* ps1 */ `using namespace System.Windows.Automation`;
 const INIT_CACHE_REQUEST = /* ps1 */ `($cacheRequest = New-Object System.Windows.Automation.CacheRequest).TreeFilter = [AndCondition]::new([Automation]::ControlViewCondition, [NotCondition]::new([PropertyCondition]::new([AutomationElement]::FrameworkIdProperty, 'Chrome'))); $cacheRequest.Push()`;
 const INIT_ROOT_ELEMENT = /* ps1 */ `$rootElement = [AutomationElement]::RootElement`;
+const NULL_ROOT_ELEMENT = /* ps1 */ `$rootElement = $null`;
 const INIT_ELEMENT_TABLE = /* ps1 */ `$elementTable = New-Object System.Collections.Generic.Dictionary[[string]\`,[AutomationElement]]`;
 
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
@@ -49,11 +50,15 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
     await this.sendPowerShellCommand(PAGE_SOURCE);
     await this.sendPowerShellCommand(FIND_CHILDREN_RECURSIVELY);
 
-    if ((!this.caps.app && !this.caps.appTopLevelWindow) || (!this.caps.app || this.caps.app.toLowerCase() === 'root')) {
+    if ((!this.caps.app && !this.caps.appTopLevelWindow) || (!this.caps.app || this.caps.app.toLowerCase() === 'none')) {
+        await this.sendPowerShellCommand(NULL_ROOT_ELEMENT);
+    }
+
+    if (this.caps.app && this.caps.app.toLowerCase() !== 'none' && this.caps.app.toLowerCase() === 'root') {
         await this.sendPowerShellCommand(INIT_ROOT_ELEMENT);
     }
 
-    if (this.caps.app && this.caps.app.toLowerCase() !== 'root') {
+    if (this.caps.app && this.caps.app.toLowerCase() !== 'none' && this.caps.app.toLowerCase() !== 'root') {
         const envVarsSet: Set<string> = new Set();
         const matches = this.caps.app.matchAll(/%([^%]+)%/g);
 

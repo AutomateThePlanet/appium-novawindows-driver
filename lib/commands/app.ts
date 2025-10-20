@@ -23,11 +23,24 @@ import {
 const GET_PAGE_SOURCE_COMMAND = pwsh$ /* ps1 */ `
     $el = ${0}
 
+    if ($el -eq $null) {
+        $dummy = [xml]'<DummyRoot></DummyRoot>'
+        return $dummy.OuterXml
+    }
+
     Get-PageSource $el |
     ForEach-Object { $_.OuterXml }
 `;
 
 const GET_SCREENSHOT_COMMAND = pwsh /* ps1 */ `
+    if ($rootElement -eq $null) {
+        $bitmap = New-Object Drawing.Bitmap 1,1
+        $stream = New-Object IO.MemoryStream
+        $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
+        $bitmap.Dispose()
+        return [Convert]::ToBase64String($stream.ToArray())
+    }
+
     $rect = $rootElement.Current.BoundingRectangle
     $bitmap = New-Object Drawing.Bitmap([int32]$rect.Width, [int32]$rect.Height)
 
