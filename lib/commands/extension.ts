@@ -292,7 +292,11 @@ export async function executePowerShellScript(this: NovaWindowsDriver, script: s
     }
 
     const scriptToExecute = pwsh`${script}`;
-    return await this.sendPowerShellCommand(scriptToExecute);
+    if (this.caps.isolatedScriptExecution) {
+        return await this.sendIsolatedPowerShellCommand(scriptToExecute);
+    } else {
+        return await this.sendPowerShellCommand(scriptToExecute);
+    }
 }
 
 export async function executeKeys(this: NovaWindowsDriver, keyActions: { actions: KeyAction | KeyAction[], forceUnicode: boolean }) {

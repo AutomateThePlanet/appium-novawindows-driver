@@ -25,6 +25,20 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
 
     this.powerShell = powerShell;
 
+    if (this.caps.appWorkingDir) {
+        const envVarsSet: Set<string> = new Set();
+        const matches = this.caps.appWorkingDir.matchAll(/%([^%]+)%/g);
+
+        for (const match of matches) {
+            envVarsSet.add(match[1]);
+        }
+        const envVars = Array.from(envVarsSet);
+        for (const envVar of envVars) {
+            this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+        }
+        this.sendPowerShellCommand(`Set-Location -Path '${this.caps.appWorkingDir}'`);
+    }
+
     await this.sendPowerShellCommand(SET_UTF8_ENCODING);
     await this.sendPowerShellCommand(ADD_NECESSARY_ASSEMBLIES);
     await this.sendPowerShellCommand(USE_UI_AUTOMATION_CLIENT);
@@ -65,6 +79,75 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
         }
 
         await this.changeRootElement(nativeWindowHandle);
+    }
+}
+
+export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
+    const magicNumber = 0xF2EE;
+
+    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+    try {
+        powerShell.stdout.setEncoding('utf8');
+        powerShell.stdout.setEncoding('utf8');
+
+        powerShell.stdout.on('data', (chunk: any) => {
+            this.powerShellStdOut += chunk.toString();
+        });
+
+        powerShell.stderr.on('data', (chunk: any) => {
+            this.powerShellStdErr += chunk.toString();
+        });
+
+        const result = await new Promise<string>((resolve, reject) => {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const powerShell = this.powerShell!;
+
+            this.powerShellStdOut = '';
+            this.powerShellStdErr = '';
+
+            powerShell.stdin.write(`${SET_UTF8_ENCODING}\n`);
+            if (this.caps.appWorkingDir) {
+                const envVarsSet: Set<string> = new Set();
+                const matches = this.caps.appWorkingDir.matchAll(/%([^%]+)%/g);
+
+                for (const match of matches) {
+                    envVarsSet.add(match[1]);
+                }
+                const envVars = Array.from(envVarsSet);
+                for (const envVar of envVars) {
+                    this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+                }
+                powerShell.stdin.write(`Set-Location -Path '${this.caps.appWorkingDir}'\n`);
+            }
+            powerShell.stdin.write(`${command}\n`);
+            powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
+
+            const onData: Parameters<typeof powerShell.stdout.on>[1] = ((chunk: any) => {
+                const magicChar = String.fromCharCode(magicNumber);
+                if (chunk.toString().includes(magicChar)) {
+                    powerShell.stdout.off('data', onData);
+                    if (this.powerShellStdErr) {
+                        reject(new errors.UnknownError(this.powerShellStdErr));
+                    } else {
+                        resolve(this.powerShellStdOut.replace(`${magicChar}`, '').trim());
+                    }
+                }
+            }).bind(this);
+
+            powerShell.stdout.on('data', onData);
+        });
+
+        // commented out for now to avoid cluttering the logs with long command outputs
+        // this.log.debug(`PowerShell command executed:\n${command}\n\nCommand output below:\n${result}\n   --------`);
+
+        return result;
+    } finally {
+        // Ensure the isolated PowerShell process is terminated
+        try {
+            powerShell.kill();
+        } catch (e) {
+            this.log.warn(`Failed to terminate isolated PowerShell process: ${e}`);
+        }
     }
 }
 

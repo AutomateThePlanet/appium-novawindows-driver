@@ -22,8 +22,20 @@ export const UI_AUTOMATION_DRIVER_CONSTRAINTS = {
         isBoolean: true,
     },
     appArguments: {
-        isString: true
+        isString: true,
     },
+    appWorkingDir: {
+        isString: true,
+    },
+    prerun: {
+        isObject: true,
+    },
+    postrun: {
+        isObject: true,
+    },
+    isolatedScriptExecution: {
+        isBoolean: true,
+    }
 } as const satisfies Constraints;
 
 export default UI_AUTOMATION_DRIVER_CONSTRAINTS;
