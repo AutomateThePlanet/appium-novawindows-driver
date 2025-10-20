@@ -414,22 +414,23 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
     };
     const mouseButton: number = clickTypeToButtonMapping[button];
 
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
     await mouseMoveAbsolute(pos[0], pos[1], 0);
     for (let i = 0; i < times; i++) {
         if (i !== 0) {
             await sleep(interClickDelayMs);
         }
 
-        if (modifierKeys.includes('ctrl')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
             keyDown(Key.CONTROL);
         }
-        if (modifierKeys.includes('alt')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
             keyDown(Key.ALT);
         }
-        if (modifierKeys.includes('shift')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
             keyDown(Key.SHIFT);
         }
-        if (modifierKeys.includes('win')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
             keyDown(Key.META);
         }
 
@@ -439,16 +440,16 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
         }
         mouseUp(mouseButton);
 
-        if (modifierKeys.includes('ctrl')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
             keyUp(Key.CONTROL);
         }
-        if (modifierKeys.includes('alt')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
             keyUp(Key.ALT);
         }
-        if (modifierKeys.includes('shift')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
             keyUp(Key.SHIFT);
         }
-        if (modifierKeys.includes('win')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
             keyUp(Key.META);
         }
     }
@@ -493,6 +494,7 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
         throw new errors.InvalidArgumentError('Both endX and endY must be provided.');
     }
 
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
     let startPos: [number, number];
     if (startElementId) {
         if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(startElementId).toString()}`)) {
@@ -534,31 +536,31 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
 
     await mouseMoveAbsolute(startPos[0], startPos[1], 0);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyDown(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyDown(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyDown(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyDown(Key.META);
     }
 
     await mouseMoveAbsolute(endPos[0], endPos[1], durationMs, this.caps.smoothPointerMove);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyUp(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyUp(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyUp(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyUp(Key.META);
     }
 }
@@ -586,6 +588,7 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
         throw new errors.InvalidArgumentError('Both x and y must be provided.');
     }
 
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
     let pos: [number, number];
     if (elementId) {
         if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(elementId).toString()}`)) {
@@ -607,31 +610,31 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
 
     await mouseMoveAbsolute(pos[0], pos[1], 0);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyDown(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyDown(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyDown(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyDown(Key.META);
     }
 
     mouseScroll(deltaX ?? 0, deltaY ?? 0);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyUp(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyUp(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyUp(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyUp(Key.META);
     }
 }
