@@ -4,9 +4,7 @@ type Enumerate<N extends number, Acc extends number[] = []> = Acc['length'] exte
 
 type IntRange<F extends number, T extends number> = Exclude<Enumerate<T>, Enumerate<F>> | T
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AllFlagsValue<N extends number, A extends any[] = []> = [N] extends [Partial<A>['length']] ? A['length'] : UnionFlags<N, [0, ...A, ...A]>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type UnionFlags<N extends number, A extends any[] = []> = IntRange<0, AllFlagsValue<N, A>>;
 
 export type Enum<T> = T[keyof T];

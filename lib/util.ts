@@ -41,7 +41,6 @@ export class DeferredStringTemplate {
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     format(...args: any[]): string {
         const out: string[] = [];
         for (let i = 0, k = 0; i < this.literals.length; i++, k++) {

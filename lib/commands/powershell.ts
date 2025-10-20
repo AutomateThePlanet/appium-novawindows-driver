@@ -15,12 +15,10 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
     powerShell.stdout.setEncoding('utf8');
     powerShell.stdout.setEncoding('utf8');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     powerShell.stdout.on('data', (chunk: any) => {
         this.powerShellStdOut += chunk.toString();
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     powerShell.stderr.on('data', (chunk: any) => {
         this.powerShellStdErr += chunk.toString();
     });
@@ -88,7 +86,6 @@ export async function sendPowerShellCommand(this: NovaWindowsDriver, command: st
         powerShell.stdin.write(`${command}\n`);
         powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const onData: Parameters<typeof powerShell.stdout.on>[1] = ((chunk: any) => {
             const magicChar = String.fromCharCode(magicNumber);
             if (chunk.toString().includes(magicChar)) {
