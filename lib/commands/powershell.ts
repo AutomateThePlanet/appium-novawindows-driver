@@ -51,14 +51,17 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
     await this.sendPowerShellCommand(FIND_CHILDREN_RECURSIVELY);
 
     if ((!this.caps.app && !this.caps.appTopLevelWindow) || (!this.caps.app || this.caps.app.toLowerCase() === 'none')) {
+        this.log.info(`No app or top-level window specified in capabilities. Setting root element to null.`);
         await this.sendPowerShellCommand(NULL_ROOT_ELEMENT);
     }
 
-    if (this.caps.app && this.caps.app.toLowerCase() !== 'none' && this.caps.app.toLowerCase() === 'root') {
+    if (this.caps.app && this.caps.app.toLowerCase() === 'root') {
+        this.log.info(`'root' specified as app in capabilities. Setting root element to desktop root.`);
         await this.sendPowerShellCommand(INIT_ROOT_ELEMENT);
     }
 
     if (this.caps.app && this.caps.app.toLowerCase() !== 'none' && this.caps.app.toLowerCase() !== 'root') {
+        this.log.info(`Application path specified in capabilities: ${this.caps.app}`);
         const envVarsSet: Set<string> = new Set();
         const matches = this.caps.app.matchAll(/%([^%]+)%/g);
 
