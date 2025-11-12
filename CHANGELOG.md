@@ -1,3 +1,9 @@
+## [1.2.0-preview.2](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.2.0-preview.1...v1.2.0-preview.2) (2025-11-12)
+
+### Bug Fixes
+
+* version bump ([a872a23](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a872a23fec5f10f692b9c61ba7f8d671f360211f))
+
 ## [1.2.0-preview.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.1.0...v1.2.0-preview.1) (2025-10-20)
 
 ### Features
