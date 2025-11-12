@@ -203,7 +203,16 @@ export async function attachToApplicationWindow(this: NovaWindowsDriver, process
     this.log.debug(`Detected the following native window handles for the given process IDs: ${nativeWindowHandles.map((handle) => `0x${handle.toString(16).padStart(8, '0')}`).join(', ')}`);
 
     if (nativeWindowHandles.length !== 0) {
-        const elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN, new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(nativeWindowHandles[0]))).buildCommand());
+        let elementId = '';
+        for (let i = 1; i <= 20; i++) {
+            elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN, new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(nativeWindowHandles[0]))).buildCommand());
+            if (elementId) {
+                break;
+            }
+            this.log.info(`The window with handle 0x${nativeWindowHandles[0].toString(16).padStart(8, '0')} is not yet available in the UI Automation tree. Sleeping for 500 milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
+            await sleep(500); // TODO: make a setting for the sleep timeout
+        }
+
         await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
         if ((await this.sendPowerShellCommand(/* ps1 */ `$null -ne $rootElement`)).toLowerCase() === 'true') {
             const nativeWindowHandle = Number(await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetPropertyCommand(Property.NATIVE_WINDOW_HANDLE)));
