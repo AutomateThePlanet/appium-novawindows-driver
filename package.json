@@ -27,7 +27,7 @@
     "url": "https://github.com/AutomateThePlanet/appium-novawindows-driver/issues"
   },
   "peerDependencies": {
-    "appium": "^3.1.0"
+    "appium": "^3.0.0-rc.2"
   },
   "dependencies": {
     "@appium/base-driver": "^10.1.0",
