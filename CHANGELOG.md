@@ -1,3 +1,26 @@
+## [1.2.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.1.0...v1.2.0) (2026-01-09)
+
+### Features
+
+* add "none" session option to start without attaching to any element ([22586a2](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/22586a237f20e975adee25c13fba8c649420574d))
+* add appWorkingDir, prerun, postrun, and isolatedScriptExecution capabilities ([5a581ae](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/5a581ae7ae1e1a013cb8e332454f70762f8749c7))
+
+### Bug Fixes
+
+* allow elementId with optional x/y offsets for click/hover ([2d01246](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/2d01246e009e2c7fd67165fc1d313446870021d3))
+* **deps:** downgrade appium peer dependency to 3.0.0-rc.2 ([98262d2](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/98262d297268cf40259946e4a52038103618f3b4))
+* make modifierKeys case-insensitive ([7a05300](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/7a05300ef4a0792a9c1160dfab55537c96967f08))
+* update ESLint config ([2e08f8d](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/2e08f8d5a1df9bf277b2c521584dddb5b0935e72))
+* version bump ([a872a23](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a872a23fec5f10f692b9c61ba7f8d671f360211f))
+
+### Miscellaneous Chores
+
+* add extra logging ([5da452f](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/5da452fa71608d3f52a92c7ea6f82a78ff3139a6))
+* bump peerDependency appium to ^3.1.0 ([cdee0ca](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/cdee0ca44a1423312351449b3227035976ba396f))
+* configure semantic-release branches for stable and preview releases ([a4a1fa2](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a4a1fa2b0b20c4494919699e8d307793cf18dc04))
+* remove unnecessary ESLint ignore comments ([4c70038](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/4c7003809c6b6668315ed7e036b5ee6cf3595e51))
+* upgrade dependencies and devDependencies to latest versions ([4fd016c](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/4fd016c5adc091305974b3a41c22423cadf6e3ab))
+
 ## [1.1.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.0.1...v1.1.0) (2025-08-06)
 
 ### Features
