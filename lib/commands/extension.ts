@@ -94,7 +94,6 @@ type KeyAction = {
     down?: boolean,
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function execute(this: NovaWindowsDriver, script: string, args: any[]) {
     if (script.startsWith(PLATFORM_COMMAND_PREFIX)) {
         script = script.replace(PLATFORM_COMMAND_PREFIX, '').trim();
@@ -293,7 +292,11 @@ export async function executePowerShellScript(this: NovaWindowsDriver, script: s
     }
 
     const scriptToExecute = pwsh`${script}`;
-    return await this.sendPowerShellCommand(scriptToExecute);
+    if (this.caps.isolatedScriptExecution) {
+        return await this.sendIsolatedPowerShellCommand(scriptToExecute);
+    } else {
+        return await this.sendPowerShellCommand(scriptToExecute);
+    }
 }
 
 export async function executeKeys(this: NovaWindowsDriver, keyActions: { actions: KeyAction | KeyAction[], forceUnicode: boolean }) {
@@ -375,12 +378,8 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
         interClickDelayMs = 100,
     } = clickArgs;
 
-    if (!!elementId && ((x !== null && x !== undefined) || (y !== null && y !== undefined))) {
-        throw new errors.InvalidArgumentError('Either elementId or x and y must be provided.');
-    }
-
-    if ((x !== null && x !== undefined) !== (y !== null && y !== undefined)) {
-        throw new errors.InvalidArgumentError('Both x and y must be provided.');
+    if ((x != null) !== (y != null)) {
+        throw new errors.InvalidArgumentError('Both x and y must be provided if either is set.');
     }
 
     let pos: [number, number];
@@ -396,7 +395,10 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
 
         const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetElementRectCommand());
         const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-        pos = [rect.x + (rect.width / 2), rect.y + (rect.height / 2)];
+        pos = [
+            rect.x + (x ?? Math.trunc(rect.width / 2)),
+            rect.y + (y ?? Math.trunc(rect.height / 2)),
+        ];
     } else {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         pos = [x!, y!];
@@ -411,22 +413,23 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
     };
     const mouseButton: number = clickTypeToButtonMapping[button];
 
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
     await mouseMoveAbsolute(pos[0], pos[1], 0);
     for (let i = 0; i < times; i++) {
         if (i !== 0) {
             await sleep(interClickDelayMs);
         }
 
-        if (modifierKeys.includes('ctrl')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
             keyDown(Key.CONTROL);
         }
-        if (modifierKeys.includes('alt')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
             keyDown(Key.ALT);
         }
-        if (modifierKeys.includes('shift')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
             keyDown(Key.SHIFT);
         }
-        if (modifierKeys.includes('win')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
             keyDown(Key.META);
         }
 
@@ -436,16 +439,16 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
         }
         mouseUp(mouseButton);
 
-        if (modifierKeys.includes('ctrl')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
             keyUp(Key.CONTROL);
         }
-        if (modifierKeys.includes('alt')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
             keyUp(Key.ALT);
         }
-        if (modifierKeys.includes('shift')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
             keyUp(Key.SHIFT);
         }
-        if (modifierKeys.includes('win')) {
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
             keyUp(Key.META);
         }
     }
@@ -462,7 +465,7 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
     endElementId?: string,
     endX?: number,
     endY?: number,
-    modifierKeys?: ('shift' | 'ctrl' | 'alt' | 'win') | ('shift' | 'ctrl' | 'alt' | 'win')[], // TODO: add types
+    modifierKeys?: ('shift' | 'ctrl' | 'alt' | 'win') | ('shift' | 'ctrl' | 'alt' | 'win')[],
     durationMs?: number,
 }) {
     const {
@@ -474,22 +477,15 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
         durationMs = 500,
     } = hoverArgs;
 
-    if (!!startElementId && ((startX !== null && startX !== undefined) || (startY !== null && startY !== undefined))) {
-        throw new errors.InvalidArgumentError('Either startElementId or startX and startY must be provided.');
+    if ((startX != null) !== (startY != null)) {
+        throw new errors.InvalidArgumentError('Both startX and startY must be provided if either is set.');
     }
 
-    if (!!endElementId && ((endX !== null && endX !== undefined) || (endY !== null && endY !== undefined))) {
-        throw new errors.InvalidArgumentError('Either endElementId or endX and endY must be provided.');
+    if ((endX != null) !== (endY != null)) {
+        throw new errors.InvalidArgumentError('Both endX and endY must be provided if either is set.');
     }
 
-    if ((startX !== null && startX !== undefined) !== (startY !== null && startY !== undefined)) {
-        throw new errors.InvalidArgumentError('Both startX and startY must be provided.');
-    }
-
-    if ((endX !== null && endX !== undefined) !== (endY !== null && endY !== undefined)) {
-        throw new errors.InvalidArgumentError('Both endX and endY must be provided.');
-    }
-
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
     let startPos: [number, number];
     if (startElementId) {
         if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(startElementId).toString()}`)) {
@@ -503,12 +499,14 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
 
         const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(startElementId).buildGetElementRectCommand());
         const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-        startPos = [rect.x + (rect.width / 2), rect.y + (rect.height / 2)];
+        startPos = [
+            rect.x + (startX ?? rect.width / 2),
+            rect.y + (startY ?? rect.height / 2)
+        ];
     } else {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         startPos = [startX!, startY!];
     }
-
 
     let endPos: [number, number];
     if (endElementId) {
@@ -523,7 +521,10 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
 
         const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(endElementId).buildGetElementRectCommand());
         const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-        endPos = [rect.x + (rect.width / 2), rect.y + (rect.height / 2)];
+        endPos = [
+            rect.x + (endX ?? rect.width / 2),
+            rect.y + (endY ?? rect.height / 2)
+        ];
     } else {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         endPos = [endX!, endY!];
@@ -531,31 +532,31 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
 
     await mouseMoveAbsolute(startPos[0], startPos[1], 0);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyDown(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyDown(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyDown(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyDown(Key.META);
     }
 
     await mouseMoveAbsolute(endPos[0], endPos[1], durationMs, this.caps.smoothPointerMove);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyUp(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyUp(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyUp(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyUp(Key.META);
     }
 }
@@ -583,6 +584,7 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
         throw new errors.InvalidArgumentError('Both x and y must be provided.');
     }
 
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
     let pos: [number, number];
     if (elementId) {
         if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(elementId).toString()}`)) {
@@ -604,31 +606,31 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
 
     await mouseMoveAbsolute(pos[0], pos[1], 0);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyDown(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyDown(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyDown(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyDown(Key.META);
     }
 
     mouseScroll(deltaX ?? 0, deltaY ?? 0);
 
-    if (modifierKeys.includes('ctrl')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyUp(Key.CONTROL);
     }
-    if (modifierKeys.includes('alt')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
         keyUp(Key.ALT);
     }
-    if (modifierKeys.includes('shift')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
         keyUp(Key.SHIFT);
     }
-    if (modifierKeys.includes('win')) {
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyUp(Key.META);
     }
 }

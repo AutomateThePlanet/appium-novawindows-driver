@@ -178,6 +178,11 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
 
             await this.startPowerShellSession();
 
+            if (this.caps.prerun) {
+                this.log.info('Executing prerun PowerShell script...');
+                await this.executePowerShellScript(this.caps.prerun as Exclude<Parameters<typeof commands['executePowerShellScript']>[0], string>);
+            }
+
             setDpiAwareness();
             this.log.debug(`Started session ${sessionId}.`);
             return [sessionId, caps];
@@ -202,6 +207,12 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             }
         } // change to close the whole process, not only the window
         await this.terminatePowerShellSession();
+
+        if (this.caps.postrun) {
+            this.log.info('Executing postrun PowerShell script...');
+            await this.executePowerShellScript(this.caps.postrun as Exclude<Parameters<typeof commands['executePowerShellScript']>[0], string>);
+        }
+
         await super.deleteSession(sessionId);
     }
 

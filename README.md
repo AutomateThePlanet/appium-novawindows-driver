@@ -11,9 +11,8 @@ It’s designed to handle real-world scenarios where traditional drivers fall sh
 
 > **Note**
 >
-> This driver is built for Appium 2 and is not compatible with Appium 1. To get started,
-> clone the repository and run `npm install` to resolve dependencies. Then, use `npm run build`
-> to build the driver. Finally, add it to your Appium 2 distribution with the command:
+> This driver is built for Appium 2/3 and is not compatible with Appium 1. To install
+> the driver, simply run:
 > `appium driver install --source=npm appium-novawindows-driver`
 
 
@@ -25,7 +24,7 @@ Beside of standard Appium requirements NovaWindows Driver adds the following pre
 
 > **Note**
 >
-> The driver is currently uses a PowerShell session as a back-end, and
+> The driver currently uses a PowerShell session as a back-end, and
 > should not require Developer Mode to be on, or any other software.
 > There's a plan to update to a better, .NET-based backend for improved
 > realiability and better code and error management, as well as supporting
@@ -44,6 +43,11 @@ delayBeforeClick | Time in milliseconds before a click is performed.
 delayAfterClick | Time in milliseconds after a click is performed.
 appTopLevelWindow | The handle of an existing application top-level window to attach to. It can be a number or string (not necessarily hexadecimal). Example: `12345`, `0x12345`.
 shouldCloseApp | Whether to close the window of the application in test after the session finishes. Default is `true`.
+appArguments | Optional string of arguments to pass to the app on launch.
+appWorkingDir | Optional working directory path for the application.
+prerun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed prior to the WinAppDriver session startup. See [Power Shell commands execution](#power-shell-commands-execution) for more details. Example: `{script: 'Get-Process outlook -ErrorAction SilentlyContinue'}`
+postrun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed after WinAppDriver session is stopped. See [Power Shell commands execution](#power-shell-commands-execution) for more details.
+isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session. Default is `false`.
 
 Please note that more capabilities will be added as the development of this driver progresses. Since it is still in its early stages, some features may be missing or subject to change. If you need a specific capability or encounter any issues, please feel free to open an issue.
 
@@ -103,8 +107,7 @@ key to the listof enabled insecure features. Refer to [Appium Security document]
 It is possible to ether execute a single Power Shell command or a whole script
 and get its stdout in response. If the script execution returns non-zero exit code then an exception
 is going to be thrown. The exception message will contain the actual stderr. Unlike, Appium Windows Driver,
-there is no difference if you paste the script with `command` or `script` argument. For ease of use, you
-can even pass the script as a string only, it will work the same way.
+there is no difference if you paste the script with `command` or `script` argument. For ease of use, you can pass the script as a string when executing a PowerShell command directly via the driver. Note: This shorthand does not work when using the prerun or postrun capabilities, which require full object syntax.
 Here's an example code of how to control the Notepad process:
 
 ```java
