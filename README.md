@@ -532,11 +532,58 @@ To be implemented.
 
 ### windows: launchApp
 
-To be implemented.
+Launches an application and waits for it to start. Supports both classic Win32 apps (by path) and UWP apps (by App User Model ID).
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+app | string | yes | Path to the executable or UWP App User Model ID (AUMID). Classic format: `C:\Path\To\app.exe`. UWP format: `Microsoft.WindowsCalculator_8wekyb3d8bbwe!App` | notepad.exe
+appArguments | string | no | Command-line arguments to pass to the application. | --some-flag
+
+#### Example
+
+```csharp
+// Launch Notepad
+driver.ExecuteScript("windows: launchApp", new Dictionary<string, object> { { "app", "notepad.exe" } });
+
+// Launch Calculator (UWP)
+driver.ExecuteScript("windows: launchApp", new Dictionary<string, object> {
+    { "app", "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" }
+});
+
+// Launch with arguments
+driver.ExecuteScript("windows: launchApp", new Dictionary<string, object> {
+    { "app", "notepad.exe" },
+    { "appArguments", "C:\\path\\to\\file.txt" }
+});
+```
 
 ### windows: closeApp
 
-To be implemented.
+Terminates a running application by process ID, process name, or window handle. All three methods force-kill the process (same outcome). For graceful window close, use `windows: close` with an element. Exactly one identifier must be provided.
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+processId | number | no | Process ID (PID) of the application to terminate. Uses `Stop-Process -Id`. | 12345
+processName | string | no | Process name (e.g. executable name without extension). Terminates all processes with that name. Uses `Stop-Process -Name`. | notepad
+windowHandle | string or number | no | Native window handle of the application window. Resolves the window to its process ID, then terminates it via `Stop-Process -Id`. Accepts hex string (e.g. `"0x12345678"`) or number. | 0x12345678
+
+
+#### Example
+
+```csharp
+// Close by process ID
+driver.ExecuteScript("windows: closeApp", new Dictionary<string, object> { { "processId", 12345 } });
+
+// Close by process name (e.g. all Notepad instances)
+driver.ExecuteScript("windows: closeApp", new Dictionary<string, object> { { "processName", "notepad" } });
+
+// Close by window handle (e.g. from getWindowHandle)
+driver.ExecuteScript("windows: closeApp", new Dictionary<string, object> { { "windowHandle", "0x12345678" } });
+```
 
 ### windows: clickAndDrag
 
