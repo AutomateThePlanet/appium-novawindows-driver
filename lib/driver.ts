@@ -73,8 +73,10 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         this.locatorStrategies = [...LOCATION_STRATEGIES];
         this.desiredCapConstraints = UI_AUTOMATION_DRIVER_CONSTRAINTS;
 
+        // Bind commands to this instance (not prototype) so each driver instance uses its own
+        // PowerShell session and state when multiple sessions exist
         for (const key in commands) { // TODO: create a decorator that will do that for the class
-            NovaWindowsDriver.prototype[key] = commands[key].bind(this);
+            (this as any)[key] = commands[key].bind(this);
         }
     }
 
