@@ -66,6 +66,8 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         meta: false,
         shift: false,
     };
+    recordingProcess?: ChildProcessWithoutNullStreams;
+    recordingOutputPath?: string;
 
     constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
         super(opts, shouldValidateCaps);

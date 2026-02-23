@@ -516,19 +516,32 @@ Position | Type | Description | Example
 
 ### windows: startRecordingScreen
 
-To be implemented.
+Starts screen recording using the **bundled ffmpeg** included with the driver. There is no system PATH fallback: if the bundle is not present (e.g. driver was not installed via npm with dependencies), screen recording is not available and the driver reports a clear error.
 
 ### windows: stopRecordingScreen
 
-To be implemented.
+Stops the current screen recording and returns the video (base64 or uploads to a remote path if specified).
 
 ### windows: deleteFile
 
-To be implemented.
+Deletes a file on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force`. Paths containing `[`, `]`, or `?` use `-LiteralPath` for correct interpretation.
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+path | string | yes | Absolute or relative path to the file to delete. | `C:\Temp\file.txt`
 
 ### windows: deleteFolder
 
-To be implemented.
+Deletes a folder on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force` with optional `-Recurse`. Paths containing `[`, `]`, or `?` use `-LiteralPath`.
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+path | string | yes | Absolute or relative path to the folder to delete. | `C:\Temp\MyFolder`
+recursive | boolean | no | If true (default), delete contents recursively. If false, only remove the folder when empty. | `true`
 
 ### windows: launchApp
 
@@ -587,7 +600,23 @@ driver.ExecuteScript("windows: closeApp", new Dictionary<string, object> { { "wi
 
 ### windows: clickAndDrag
 
-To be implemented.
+Performs a click-and-drag: move to the start position, press the mouse button, move to the end position over the given duration, then release. Start and end can be specified by element (center or offset) or by screen coordinates. Uses the same Windows input APIs as other pointer actions.
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+startElementId | string | no* | Element ID for drag start. Use *or* startX/startY. | `1.2.3.4.5`
+startX | number | no* | X coordinate for drag start (with startY). | `100`
+startY | number | no* | Y coordinate for drag start (with startX). | `200`
+endElementId | string | no* | Element ID for drag end. Use *or* endX/endY. | `1.2.3.4.6`
+endX | number | no* | X coordinate for drag end (with endY). | `300`
+endY | number | no* | Y coordinate for drag end (with endX). | `400`
+modifierKeys | string or string[] | no | Keys to hold during drag: `shift`, `ctrl`, `alt`, `win`. | `["ctrl"]`
+durationMs | number | no | Duration of the move from start to end (default: 500). | `300`
+button | string | no | Mouse button: `left` (default), `middle`, `right`, `back`, `forward`. | `left`
+
+\* Provide either startElementId or both startX and startY; and either endElementId or both endX and endY.
 
 ## Development
 

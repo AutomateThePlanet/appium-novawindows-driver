@@ -1,4 +1,7 @@
-import { normalize } from 'node:path';
+import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { readFile, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, normalize } from 'node:path';
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
 import { NovaWindowsDriver } from '../driver';
@@ -27,6 +30,7 @@ import {
     pwsh
 } from '../powershell';
 import { ClickType, Enum, Key } from '../enums';
+import { getBundledFfmpegPath } from '../util';
 
 const PLATFORM_COMMAND_PREFIX = 'windows:';
 
@@ -58,6 +62,11 @@ const EXTENSION_COMMANDS = Object.freeze({
     setFocus: 'focusElement',
     getClipboard: 'getClipboardBase64',
     setClipboard: 'setClipboardFromBase64',
+    startRecordingScreen: 'startRecordingScreen',
+    stopRecordingScreen: 'stopRecordingScreen',
+    deleteFile: 'deleteFile',
+    deleteFolder: 'deleteFolder',
+    clickAndDrag: 'executeClickAndDrag',
 } as const);
 
 const ContentType = Object.freeze({
@@ -689,6 +698,257 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
     }
 
     mouseScroll(deltaX ?? 0, deltaY ?? 0);
+
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
+        keyUp(Key.CONTROL);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
+        keyUp(Key.ALT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
+        keyUp(Key.SHIFT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
+        keyUp(Key.META);
+    }
+}
+
+export async function startRecordingScreen(this: NovaWindowsDriver, args?: {
+    outputPath?: string,
+    timeLimit?: number,
+    videoSize?: string,
+    videoFps?: number,
+    forceRestart?: boolean,
+}): Promise<void> {
+    const {
+        outputPath = join(tmpdir(), `novawindows-recording-${Date.now()}.mp4`),
+        timeLimit = 180,
+        videoSize,
+        videoFps = 15,
+        forceRestart = false,
+    } = args ?? {};
+
+    if (this.recordingProcess && !forceRestart) {
+        throw new errors.InvalidArgumentError('Screen recording is already in progress. Use forceRestart to start a new recording.');
+    }
+
+    if (this.recordingProcess && forceRestart) {
+        const oldProc = this.recordingProcess;
+        this.recordingProcess = undefined;
+        this.recordingOutputPath = undefined;
+        oldProc.stdin?.write('q');
+        try {
+            await new Promise<void>((resolve) => {
+                oldProc.on('exit', () => resolve());
+                setTimeout(() => {
+                    oldProc.kill('SIGKILL');
+                    resolve();
+                }, 3000);
+            });
+        } catch {
+            oldProc.kill('SIGKILL');
+        }
+    }
+
+    const ffmpegPath = getBundledFfmpegPath();
+    if (!ffmpegPath) {
+        throw new errors.UnknownError(
+            'Screen recording is not available: the bundled ffmpeg is missing. Reinstall the driver.'
+        );
+    }
+
+    const ffmpegArgs = [
+        '-f', 'gdigrab',
+        '-framerate', String(videoFps),
+        '-i', 'desktop',
+        '-t', String(timeLimit),
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-y',
+        outputPath,
+    ];
+    if (videoSize) {
+        const sizeIdx = ffmpegArgs.indexOf('-i');
+        ffmpegArgs.splice(sizeIdx, 0, '-video_size', videoSize);
+    }
+
+    const proc = spawn(ffmpegPath, ffmpegArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
+    proc.on('error', (err) => {
+        this.log.error(
+            `Screen recording failed: ${err.message}. The bundled ffmpeg may be missing or invalid; try reinstalling the driver.`
+        );
+    });
+    proc.stderr?.on('data', () => { /* suppress ffmpeg progress output */ });
+
+    this.recordingProcess = proc as ChildProcessWithoutNullStreams;
+    this.recordingOutputPath = outputPath;
+}
+
+export async function stopRecordingScreen(this: NovaWindowsDriver, args?: { remotePath?: string }): Promise<string> {
+    const { remotePath } = args ?? {};
+
+    if (!this.recordingProcess || !this.recordingOutputPath) {
+        throw new errors.InvalidArgumentError('No screen recording in progress.');
+    }
+
+    const proc = this.recordingProcess;
+    const outputPath = this.recordingOutputPath;
+    this.recordingProcess = undefined;
+    this.recordingOutputPath = undefined;
+
+    proc.stdin?.write('q');
+
+    await new Promise<void>((resolve) => {
+        proc.on('exit', () => resolve());
+        setTimeout(() => resolve(), 5000);
+    });
+
+    if (remotePath) {
+        // TODO: upload to remotePath; for now return empty per Appium convention
+        try {
+            await unlink(outputPath);
+        } catch {
+            /* ignore */
+        }
+        return '';
+    }
+
+    try {
+        const buffer = await readFile(outputPath);
+        await unlink(outputPath);
+        return buffer.toString('base64');
+    } catch (err) {
+        throw new errors.UnknownError(`Failed to read recording: ${(err as Error).message}`);
+    }
+}
+
+export async function deleteFile(this: NovaWindowsDriver, args: { path: string }): Promise<void> {
+    if (!args || typeof args !== 'object' || !args.path) {
+        throw new errors.InvalidArgumentError("'path' must be provided.");
+    }
+    const escapedPath = args.path.replace(/'/g, "''");
+    const useLiteralPath = /[\[\]?]/.test(args.path);
+    const pathParam = useLiteralPath ? `-LiteralPath '${escapedPath}'` : `-Path '${escapedPath}'`;
+    await this.sendPowerShellCommand(`Remove-Item ${pathParam} -Force -ErrorAction Stop`);
+}
+
+export async function deleteFolder(this: NovaWindowsDriver, args: { path: string, recursive?: boolean }): Promise<void> {
+    if (!args || typeof args !== 'object' || !args.path) {
+        throw new errors.InvalidArgumentError("'path' must be provided.");
+    }
+    const { path: pathArg, recursive = true } = args;
+    const escapedPath = pathArg.replace(/'/g, "''");
+    const useLiteralPath = /[\[\]?]/.test(pathArg);
+    const pathParam = useLiteralPath ? `-LiteralPath '${escapedPath}'` : `-Path '${escapedPath}'`;
+    const recurseFlag = recursive ? ' -Recurse' : '';
+    await this.sendPowerShellCommand(`Remove-Item ${pathParam} -Force${recurseFlag} -ErrorAction Stop`);
+}
+
+export async function executeClickAndDrag(this: NovaWindowsDriver, dragArgs: {
+    startElementId?: string,
+    startX?: number,
+    startY?: number,
+    endElementId?: string,
+    endX?: number,
+    endY?: number,
+    modifierKeys?: ('shift' | 'ctrl' | 'alt' | 'win') | ('shift' | 'ctrl' | 'alt' | 'win')[],
+    durationMs?: number,
+    button?: ClickType,
+}) {
+    const {
+        startElementId,
+        startX, startY,
+        endElementId,
+        endX, endY,
+        modifierKeys = [],
+        durationMs = 500,
+        button = ClickType.LEFT,
+    } = dragArgs ?? {};
+
+    if ((startX != null) !== (startY != null)) {
+        throw new errors.InvalidArgumentError('Both startX and startY must be provided if either is set.');
+    }
+
+    if ((endX != null) !== (endY != null)) {
+        throw new errors.InvalidArgumentError('Both endX and endY must be provided if either is set.');
+    }
+
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
+    const clickTypeToButtonMapping: { [key in ClickType]: number } = {
+        [ClickType.LEFT]: 0,
+        [ClickType.MIDDLE]: 1,
+        [ClickType.RIGHT]: 2,
+        [ClickType.BACK]: 3,
+        [ClickType.FORWARD]: 4,
+    };
+    const mouseButton = clickTypeToButtonMapping[button];
+
+    let startPos: [number, number];
+    if (startElementId) {
+        if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(startElementId).toString()}`)) {
+            const condition = new PropertyCondition(Property.RUNTIME_ID, new PSInt32Array(startElementId.split('.').map(Number)));
+            const elId = await this.sendPowerShellCommand(AutomationElement.automationRoot.findFirst(TreeScope.SUBTREE, condition).buildCommand());
+
+            if (elId.trim() === '') {
+                throw new errors.NoSuchElementError();
+            }
+        }
+
+        const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(startElementId).buildGetElementRectCommand());
+        const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+        startPos = [
+            rect.x + (startX ?? rect.width / 2),
+            rect.y + (startY ?? rect.height / 2)
+        ];
+    } else {
+        if (startX == null || startY == null) {
+            throw new errors.InvalidArgumentError('Either startElementId or startX and startY must be provided.');
+        }
+        startPos = [startX, startY];
+    }
+
+    let endPos: [number, number];
+    if (endElementId) {
+        if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(endElementId).toString()}`)) {
+            const condition = new PropertyCondition(Property.RUNTIME_ID, new PSInt32Array(endElementId.split('.').map(Number)));
+            const elId = await this.sendPowerShellCommand(AutomationElement.automationRoot.findFirst(TreeScope.SUBTREE, condition).buildCommand());
+
+            if (elId.trim() === '') {
+                throw new errors.NoSuchElementError();
+            }
+        }
+
+        const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(endElementId).buildGetElementRectCommand());
+        const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+        endPos = [
+            rect.x + (endX ?? rect.width / 2),
+            rect.y + (endY ?? rect.height / 2)
+        ];
+    } else {
+        if (endX == null || endY == null) {
+            throw new errors.InvalidArgumentError('Either endElementId or endX and endY must be provided.');
+        }
+        endPos = [endX, endY];
+    }
+
+    await mouseMoveAbsolute(startPos[0], startPos[1], 0);
+
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
+        keyDown(Key.CONTROL);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
+        keyDown(Key.ALT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
+        keyDown(Key.SHIFT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
+        keyDown(Key.META);
+    }
+
+    mouseDown(mouseButton);
+    await mouseMoveAbsolute(endPos[0], endPos[1], durationMs, this.caps.smoothPointerMove);
+    mouseUp(mouseButton);
 
     if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
         keyUp(Key.CONTROL);
