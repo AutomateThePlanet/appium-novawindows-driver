@@ -35,7 +35,9 @@ describe('stopRecordingScreen', () => {
         driver.recordingProcess = {
             stdin: mockStdin,
             on: vi.fn((event: string, cb: () => void) => {
-                if (event === 'exit') setTimeout(cb, 0);
+                if (event === 'exit') {
+                    setTimeout(cb, 0);
+                }
             }),
         };
         driver.recordingOutputPath = 'C:\\temp\\rec.mp4';
@@ -54,7 +56,9 @@ describe('stopRecordingScreen', () => {
         driver.recordingProcess = {
             stdin: mockStdin,
             on: vi.fn((event: string, cb: () => void) => {
-                if (event === 'exit') setTimeout(cb, 0);
+                if (event === 'exit') {
+                    setTimeout(cb, 0);
+                }
             }),
         };
         driver.recordingOutputPath = 'C:\\temp\\rec.mp4';
@@ -70,7 +74,9 @@ describe('stopRecordingScreen', () => {
         driver.recordingProcess = {
             stdin: { write: vi.fn() },
             on: vi.fn((event: string, cb: () => void) => {
-                if (event === 'exit') setTimeout(cb, 0);
+                if (event === 'exit') {
+                    setTimeout(cb, 0);
+                }
             }),
         };
         driver.recordingOutputPath = 'C:\\temp\\rec.mp4';

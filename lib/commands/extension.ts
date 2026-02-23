@@ -5,7 +5,7 @@ import { join, normalize } from 'node:path';
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
 import { NovaWindowsDriver } from '../driver';
-import { $, sleep } from '../util';
+import { $, getBundledFfmpegPath, sleep } from '../util';
 import { POWER_SHELL_FEATURE } from '../constants';
 import { keyDown,
     keyUp,
@@ -30,7 +30,6 @@ import {
     pwsh
 } from '../powershell';
 import { ClickType, Enum, Key } from '../enums';
-import { getBundledFfmpegPath } from '../util';
 
 const PLATFORM_COMMAND_PREFIX = 'windows:';
 
@@ -827,7 +826,7 @@ export async function deleteFile(this: NovaWindowsDriver, args: { path: string }
         throw new errors.InvalidArgumentError("'path' must be provided.");
     }
     const escapedPath = args.path.replace(/'/g, "''");
-    const useLiteralPath = /[\[\]?]/.test(args.path);
+    const useLiteralPath = /[[\][]?]/.test(args.path);
     const pathParam = useLiteralPath ? `-LiteralPath '${escapedPath}'` : `-Path '${escapedPath}'`;
     await this.sendPowerShellCommand(`Remove-Item ${pathParam} -Force -ErrorAction Stop`);
 }
@@ -838,7 +837,7 @@ export async function deleteFolder(this: NovaWindowsDriver, args: { path: string
     }
     const { path: pathArg, recursive = true } = args;
     const escapedPath = pathArg.replace(/'/g, "''");
-    const useLiteralPath = /[\[\]?]/.test(pathArg);
+    const useLiteralPath = /[[\][]?]/.test(pathArg);
     const pathParam = useLiteralPath ? `-LiteralPath '${escapedPath}'` : `-Path '${escapedPath}'`;
     const recurseFlag = recursive ? ' -Recurse' : '';
     await this.sendPowerShellCommand(`Remove-Item ${pathParam} -Force${recurseFlag} -ErrorAction Stop`);

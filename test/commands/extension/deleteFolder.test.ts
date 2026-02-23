@@ -22,7 +22,7 @@ describe('deleteFolder', () => {
         const driver = createMockDriver();
         await deleteFolder.call(driver, { path: 'C:\\temp\\folder' });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("-Recurse")
+            expect.stringContaining('-Recurse')
         );
     });
 
@@ -37,7 +37,7 @@ describe('deleteFolder', () => {
         const driver = createMockDriver();
         await deleteFolder.call(driver, { path: 'C:\\temp\\folder[1]' });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("-LiteralPath")
+            expect.stringContaining('-LiteralPath')
         );
     });
 });

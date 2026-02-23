@@ -23,8 +23,7 @@ import {
     focusElement,
 } from '../../../lib/commands/extension';
 import { W3C_ELEMENT_KEY } from '@appium/base-driver';
-import { createMockDriver } from '../../fixtures/driver';
-import { MOCK_ELEMENT } from '../../fixtures/driver';
+import { createMockDriver, MOCK_ELEMENT } from '../../fixtures/driver';
 
 const PATTERN_COMMANDS = [
     { name: 'patternInvoke', fn: patternInvoke, expectInCommand: 'InvokePattern' },

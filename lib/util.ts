@@ -6,7 +6,6 @@ import { errors } from '@appium/base-driver';
  */
 export function getBundledFfmpegPath(): string | null {
     try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const mod = require('ffmpeg-static') as string | { default?: string } | undefined;
         const path = typeof mod === 'string' ? mod : mod?.default;
         return typeof path === 'string' && path.length > 0 ? path : null;

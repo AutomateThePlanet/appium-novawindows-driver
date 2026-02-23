@@ -25,13 +25,13 @@ describe('deleteFile', () => {
         const driver = createMockDriver();
         await deleteFile.call(driver, { path: 'C:\\temp\\file.txt' });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("Remove-Item")
+            expect.stringContaining('Remove-Item')
         );
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("-Path 'C:\\temp\\file.txt'")
+            expect.stringContaining('-Path \'C:\\temp\\file.txt\'')
         );
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("-Force")
+            expect.stringContaining('-Force')
         );
     });
 
@@ -39,7 +39,7 @@ describe('deleteFile', () => {
         const driver = createMockDriver();
         await deleteFile.call(driver, { path: 'C:\\temp\\file[1].txt' });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("-LiteralPath")
+            expect.stringContaining('-LiteralPath')
         );
     });
 
@@ -47,7 +47,7 @@ describe('deleteFile', () => {
         const driver = createMockDriver();
         await deleteFile.call(driver, { path: "C:\\temp\\file's.txt" });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("file''s.txt")
+            expect.stringContaining('file\'\'s.txt')
         );
     });
 });

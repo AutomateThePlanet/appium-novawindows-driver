@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as extension from '../../../lib/commands/extension';
-import { createMockDriver } from '../../fixtures/driver';
-import { MOCK_ELEMENT } from '../../fixtures/driver';
+import { createMockDriver, MOCK_ELEMENT } from '../../fixtures/driver';
 
 describe('execute (command router)', () => {
     let driver: ReturnType<typeof createMockDriver> & Record<string, any>;
@@ -30,7 +29,7 @@ describe('execute (command router)', () => {
     it('routes windows:deleteFile to deleteFile with args', async () => {
         await extension.execute.call(driver, 'windows: deleteFile', [{ path: 'C:\\temp\\file.txt' }]);
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("Remove-Item")
+            expect.stringContaining('Remove-Item')
         );
     });
 

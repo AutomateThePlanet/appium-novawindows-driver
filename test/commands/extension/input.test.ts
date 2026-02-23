@@ -85,8 +85,12 @@ describe('executeClick', () => {
         let callCount = 0;
         driver.sendPowerShellCommand.mockImplementation(() => {
             callCount++;
-            if (callCount === 1) return Promise.resolve('True');
-            if (callCount === 2) return Promise.resolve('1.2.3.4.5');
+            if (callCount === 1) {
+                return Promise.resolve('True');
+            }
+            if (callCount === 2) {
+                return Promise.resolve('1.2.3.4.5');
+            }
             return Promise.resolve(rectJson);
         });
         const { mouseMoveAbsolute } = await import('../../../lib/winapi/user32');
