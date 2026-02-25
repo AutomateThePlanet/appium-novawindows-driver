@@ -21,7 +21,7 @@ describe('executeClickAndDrag', () => {
     });
 
     it('throws when only startX is provided without startY', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         (driver as any).caps = {};
         await expect(
             executeClickAndDrag.call(driver, { startX: 100, endX: 200, endY: 200 })
@@ -29,7 +29,7 @@ describe('executeClickAndDrag', () => {
     });
 
     it('throws when only endX is provided without endY', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         (driver as any).caps = {};
         await expect(
             executeClickAndDrag.call(driver, { startX: 0, startY: 0, endX: 100 })
@@ -37,7 +37,7 @@ describe('executeClickAndDrag', () => {
     });
 
     it('throws when neither start coords nor startElementId provided', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         (driver as any).caps = {};
         await expect(
             executeClickAndDrag.call(driver, { endX: 100, endY: 100 })
@@ -45,7 +45,7 @@ describe('executeClickAndDrag', () => {
     });
 
     it('drags from start to end coordinates with mouseDown/mouseUp', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         (driver as any).caps = {};
         const { mouseMoveAbsolute, mouseDown, mouseUp } = await import('../../../lib/winapi/user32');
 
@@ -62,7 +62,7 @@ describe('executeClickAndDrag', () => {
     });
 
     it('drags with elementId when element exists', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         (driver as any).caps = {};
         const rectJson = '{"x":10,"y":20,"width":100,"height":50}';
         const returnValues = ['True', '1.2.3.4.5', rectJson, 'True', '1.2.3.4.5', rectJson];

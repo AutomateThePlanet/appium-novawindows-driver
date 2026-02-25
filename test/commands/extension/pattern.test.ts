@@ -46,7 +46,7 @@ describe('pattern commands', () => {
     });
 
     it.each(PATTERN_COMMANDS)('$name sends sendPowerShellCommand with element id and correct command', async ({ fn, expectInCommand }) => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await fn.call(driver, MOCK_ELEMENT);
         expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
         const callArg = driver.sendPowerShellCommand.mock.calls[0][0];
@@ -56,34 +56,34 @@ describe('pattern commands', () => {
     });
 
     it('patternIsMultiple returns true when result is true', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         driver.sendPowerShellCommand.mockResolvedValue('true');
         const result = await patternIsMultiple.call(driver, MOCK_ELEMENT);
         expect(result).toBe(true);
     });
 
     it('patternIsMultiple returns false when result is false', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         driver.sendPowerShellCommand.mockResolvedValue('false');
         const result = await patternIsMultiple.call(driver, MOCK_ELEMENT);
         expect(result).toBe(false);
     });
 
     it('patternGetSelectedItem returns element when selection exists', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         driver.sendPowerShellCommand.mockResolvedValue('2.3.4.5.6');
         const result = await patternGetSelectedItem.call(driver, MOCK_ELEMENT);
         expect(result).toEqual({ [W3C_ELEMENT_KEY]: '2.3.4.5.6' });
     });
 
     it('patternGetSelectedItem throws when no selection', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         driver.sendPowerShellCommand.mockResolvedValue('');
         await expect(patternGetSelectedItem.call(driver, MOCK_ELEMENT)).rejects.toThrow();
     });
 
     it('patternGetAllSelectedItems returns array of elements', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         driver.sendPowerShellCommand.mockResolvedValue('2.3.4.5.6\n3.4.5.6.7');
         const result = await patternGetAllSelectedItems.call(driver, MOCK_ELEMENT);
         expect(result).toHaveLength(2);
@@ -91,7 +91,7 @@ describe('pattern commands', () => {
     });
 
     it('patternSetValue sends setValue or setRangeValue command', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await patternSetValue.call(driver, MOCK_ELEMENT, 'test value');
         const callArg = driver.sendPowerShellCommand.mock.calls[0][0];
         const base64Match = callArg.match(/FromBase64String\('([^']+)'\)/);
@@ -101,7 +101,7 @@ describe('pattern commands', () => {
     });
 
     it('patternGetValue sends getValue command', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await patternGetValue.call(driver, MOCK_ELEMENT);
         expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
         const callArg = driver.sendPowerShellCommand.mock.calls[0][0];
@@ -112,7 +112,7 @@ describe('pattern commands', () => {
     });
 
     it('focusElement sends setFocus command', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await focusElement.call(driver, MOCK_ELEMENT);
         expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
         const callArg = driver.sendPowerShellCommand.mock.calls[0][0];

@@ -11,9 +11,9 @@ describe('deleteFile', () => {
     });
 
     it('throws when path is not provided', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await expect(
-            deleteFile.call(driver, {})
+            deleteFile.call(driver, {} as any)
         ).rejects.toThrow("'path' must be provided");
         await expect(
             deleteFile.call(driver, { path: '' })
@@ -22,7 +22,7 @@ describe('deleteFile', () => {
     });
 
     it('sends Remove-Item with -Path for simple paths', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await deleteFile.call(driver, { path: 'C:\\temp\\file.txt' });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
             expect.stringContaining('Remove-Item')
@@ -36,7 +36,7 @@ describe('deleteFile', () => {
     });
 
     it('uses -LiteralPath when path contains brackets', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await deleteFile.call(driver, { path: 'C:\\temp\\file[1].txt' });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
             expect.stringContaining('-LiteralPath')
@@ -44,7 +44,7 @@ describe('deleteFile', () => {
     });
 
     it('escapes single quotes in path', async () => {
-        const driver = createMockDriver();
+        const driver = createMockDriver() as any;
         await deleteFile.call(driver, { path: "C:\\temp\\file's.txt" });
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
             expect.stringContaining('file\'\'s.txt')
