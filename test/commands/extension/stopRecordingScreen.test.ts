@@ -3,87 +3,75 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { stopRecordingScreen } from '../../../lib/commands/extension';
+import { uploadRecordedMedia } from '../../../lib/commands/screen-recorder';
 import { createMockDriver } from '../../fixtures/driver';
 
-const mockReadFile = vi.fn();
-const mockUnlink = vi.fn();
-vi.mock('node:fs/promises', () => ({
-    readFile: (...args: unknown[]) => mockReadFile(...args),
-    unlink: (...args: unknown[]) => mockUnlink(...args),
+vi.mock('../../../lib/commands/screen-recorder', () => ({
+    ScreenRecorder: vi.fn(),
+    DEFAULT_EXT: 'mp4',
+    uploadRecordedMedia: vi.fn(),
 }));
+
+const mockUploadRecordedMedia = vi.mocked(uploadRecordedMedia);
 
 describe('stopRecordingScreen', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockReadFile.mockResolvedValue(Buffer.from('video-data'));
-        mockUnlink.mockResolvedValue(undefined);
+        mockUploadRecordedMedia.mockResolvedValue('base64data');
     });
 
-    it('throws when no recording in progress', async () => {
+    it('returns empty string when no recording in progress', async () => {
         const driver = createMockDriver() as any;
-        driver.recordingProcess = undefined;
-        driver.recordingOutputPath = undefined;
+        driver._screenRecorder = null;
 
-        await expect(
-            stopRecordingScreen.call(driver, {})
-        ).rejects.toThrow('No screen recording in progress');
+        const result = await stopRecordingScreen.call(driver);
+
+        expect(result).toBe('');
     });
 
     it('returns base64 video content', async () => {
         const driver = createMockDriver() as any;
-        const mockStdin = { write: vi.fn() };
-        driver.recordingProcess = {
-            stdin: mockStdin,
-            on: vi.fn((event: string, cb: () => void) => {
-                if (event === 'exit') {
-                    setTimeout(cb, 0);
-                }
-            }),
-        };
-        driver.recordingOutputPath = 'C:\\temp\\rec.mp4';
+        const mockRecorder = { stop: vi.fn().mockResolvedValue('C:\\temp\\rec.mp4') };
+        driver._screenRecorder = mockRecorder;
+        mockUploadRecordedMedia.mockResolvedValue('dmlkZW8tZGF0YQ==');
 
-        const result = await stopRecordingScreen.call(driver, {});
+        const result = await stopRecordingScreen.call(driver);
 
-        expect(mockStdin.write).toHaveBeenCalledWith('q');
-        expect(mockReadFile).toHaveBeenCalledWith('C:\\temp\\rec.mp4');
-        expect(mockUnlink).toHaveBeenCalledWith('C:\\temp\\rec.mp4');
-        expect(result).toBe(Buffer.from('video-data').toString('base64'));
+        expect(mockRecorder.stop).toHaveBeenCalledWith();
+        expect(mockUploadRecordedMedia).toHaveBeenCalledWith(
+            'C:\\temp\\rec.mp4',
+            undefined,
+            expect.any(Object),
+        );
+        expect(result).toBe('dmlkZW8tZGF0YQ==');
     });
 
-    it('returns empty string when remotePath is set', async () => {
+    it('returns empty string when stop() returns no file path', async () => {
         const driver = createMockDriver() as any;
-        const mockStdin = { write: vi.fn() };
-        driver.recordingProcess = {
-            stdin: mockStdin,
-            on: vi.fn((event: string, cb: () => void) => {
-                if (event === 'exit') {
-                    setTimeout(cb, 0);
-                }
-            }),
-        };
-        driver.recordingOutputPath = 'C:\\temp\\rec.mp4';
+        const mockRecorder = { stop: vi.fn().mockResolvedValue('') };
+        driver._screenRecorder = mockRecorder;
 
-        const result = await stopRecordingScreen.call(driver, { remotePath: 'http://upload.example.com' });
+        const result = await stopRecordingScreen.call(driver);
 
         expect(result).toBe('');
-        expect(mockUnlink).toHaveBeenCalledWith('C:\\temp\\rec.mp4');
+        expect(mockUploadRecordedMedia).not.toHaveBeenCalled();
     });
 
-    it('clears recording state on driver', async () => {
+    it('passes remotePath and upload options to uploadRecordedMedia', async () => {
         const driver = createMockDriver() as any;
-        driver.recordingProcess = {
-            stdin: { write: vi.fn() },
-            on: vi.fn((event: string, cb: () => void) => {
-                if (event === 'exit') {
-                    setTimeout(cb, 0);
-                }
-            }),
-        };
-        driver.recordingOutputPath = 'C:\\temp\\rec.mp4';
+        const mockRecorder = { stop: vi.fn().mockResolvedValue('C:\\temp\\rec.mp4') };
+        driver._screenRecorder = mockRecorder;
 
-        await stopRecordingScreen.call(driver, {});
+        await stopRecordingScreen.call(driver, {
+            remotePath: 'https://example.com/upload',
+            user: 'admin',
+            pass: 'secret',
+        });
 
-        expect(driver.recordingProcess).toBeUndefined();
-        expect(driver.recordingOutputPath).toBeUndefined();
+        expect(mockUploadRecordedMedia).toHaveBeenCalledWith(
+            'C:\\temp\\rec.mp4',
+            'https://example.com/upload',
+            expect.objectContaining({ user: 'admin', pass: 'secret' }),
+        );
     });
 });

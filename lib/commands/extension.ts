@@ -1,21 +1,10 @@
-import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
-import { readFile, unlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, normalize } from 'node:path';
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
-import { NovaWindowsDriver } from '../driver';
-import { $, getBundledFfmpegPath, sleep } from '../util';
+import { tmpdir } from 'node:os';
+import { join, normalize } from 'node:path';
 import { POWER_SHELL_FEATURE } from '../constants';
-import { keyDown,
-    keyUp,
-    mouseDown,
-    mouseMoveAbsolute,
-    mouseScroll,
-    mouseUp,
-    sendKeyboardEvents
-} from '../winapi/user32';
-import { KeyEventFlags, VirtualKey } from '../winapi/types';
+import { NovaWindowsDriver } from '../driver';
+import { ClickType, Enum, Key } from '../enums';
 import {
     AutomationElement,
     AutomationElementMode,
@@ -29,7 +18,18 @@ import {
     convertStringToCondition,
     pwsh
 } from '../powershell';
-import { ClickType, Enum, Key } from '../enums';
+import { $, sleep } from '../util';
+import { DEFAULT_EXT, ScreenRecorder, UploadOptions, uploadRecordedMedia } from './screen-recorder';
+import { KeyEventFlags, VirtualKey } from '../winapi/types';
+import {
+    keyDown,
+    keyUp,
+    mouseDown,
+    mouseMoveAbsolute,
+    mouseScroll,
+    mouseUp,
+    sendKeyboardEvents
+} from '../winapi/user32';
 
 const PLATFORM_COMMAND_PREFIX = 'windows:';
 
@@ -715,110 +715,73 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
 export async function startRecordingScreen(this: NovaWindowsDriver, args?: {
     outputPath?: string,
     timeLimit?: number,
-    videoSize?: string,
     videoFps?: number,
+    videoFilter?: string,
+    preset?: string,
+    captureCursor?: boolean,
+    captureClicks?: boolean,
+    audioInput?: string,
     forceRestart?: boolean,
 }): Promise<void> {
     const {
-        outputPath = join(tmpdir(), `novawindows-recording-${Date.now()}.mp4`),
-        timeLimit = 180,
-        videoSize,
-        videoFps = 15,
-        forceRestart = false,
+        outputPath,
+        timeLimit,
+        videoFps: fps,
+        videoFilter,
+        preset,
+        captureCursor,
+        captureClicks,
+        audioInput,
+        forceRestart = true,
     } = args ?? {};
 
-    if (this.recordingProcess && !forceRestart) {
-        throw new errors.InvalidArgumentError('Screen recording is already in progress. Use forceRestart to start a new recording.');
-    }
-
-    if (this.recordingProcess && forceRestart) {
-        const oldProc = this.recordingProcess;
-        this.recordingProcess = undefined;
-        this.recordingOutputPath = undefined;
-        oldProc.stdin?.write('q');
-        try {
-            await new Promise<void>((resolve) => {
-                oldProc.on('exit', () => resolve());
-                setTimeout(() => {
-                    oldProc.kill('SIGKILL');
-                    resolve();
-                }, 3000);
-            });
-        } catch {
-            oldProc.kill('SIGKILL');
+    if (this._screenRecorder?.isRunning()) {
+        this.log.debug('The screen recording is already running');
+        if (!forceRestart) {
+            this.log.debug('Doing nothing');
+            return;
         }
+        this.log.debug('Forcing the active screen recording to stop');
+        await this._screenRecorder.stop(true);
+    } else if (this._screenRecorder) {
+        this.log.debug('Clearing the recent screen recording');
+        await this._screenRecorder.stop(true);
     }
+    this._screenRecorder = null;
 
-    const ffmpegPath = getBundledFfmpegPath();
-    if (!ffmpegPath) {
-        throw new errors.UnknownError(
-            'Screen recording is not available: the bundled ffmpeg is missing. Reinstall the driver.'
-        );
-    }
-
-    const ffmpegArgs = [
-        '-f', 'gdigrab',
-        '-framerate', String(videoFps),
-        '-i', 'desktop',
-        '-t', String(timeLimit),
-        '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-y',
-        outputPath,
-    ];
-    if (videoSize) {
-        const sizeIdx = ffmpegArgs.indexOf('-i');
-        ffmpegArgs.splice(sizeIdx, 0, '-video_size', videoSize);
-    }
-
-    const proc = spawn(ffmpegPath, ffmpegArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
-    proc.on('error', (err) => {
-        this.log.error(
-            `Screen recording failed: ${err.message}. The bundled ffmpeg may be missing or invalid; try reinstalling the driver.`
-        );
+    const videoPath = outputPath ?? join(tmpdir(), `novawindows-recording-${Date.now()}.${DEFAULT_EXT}`);
+    this._screenRecorder = new ScreenRecorder(videoPath, this.log, {
+        fps: fps !== undefined ? parseInt(String(fps), 10) : undefined,
+        timeLimit: timeLimit !== undefined ? parseInt(String(timeLimit), 10) : undefined,
+        preset,
+        captureCursor,
+        captureClicks,
+        videoFilter,
+        audioInput,
     });
-    proc.stderr?.on('data', () => { /* suppress ffmpeg progress output */ });
-
-    this.recordingProcess = proc as ChildProcessWithoutNullStreams;
-    this.recordingOutputPath = outputPath;
+    try {
+        await this._screenRecorder.start();
+    } catch (e) {
+        this._screenRecorder = null;
+        throw e;
+    }
 }
 
-export async function stopRecordingScreen(this: NovaWindowsDriver, args?: { remotePath?: string }): Promise<string> {
-    const { remotePath } = args ?? {};
-
-    if (!this.recordingProcess || !this.recordingOutputPath) {
-        throw new errors.InvalidArgumentError('No screen recording in progress.');
-    }
-
-    const proc = this.recordingProcess;
-    const outputPath = this.recordingOutputPath;
-    this.recordingProcess = undefined;
-    this.recordingOutputPath = undefined;
-
-    proc.stdin?.write('q');
-
-    await new Promise<void>((resolve) => {
-        proc.on('exit', () => resolve());
-        setTimeout(() => resolve(), 5000);
-    });
-
-    if (remotePath) {
-        // TODO: upload to remotePath; for now return empty per Appium convention
-        try {
-            await unlink(outputPath);
-        } catch {
-            /* ignore */
-        }
+export async function stopRecordingScreen(this: NovaWindowsDriver, args?: UploadOptions): Promise<string> {
+    if (!this._screenRecorder) {
+        this.log.debug('No screen recording has been started. Doing nothing');
         return '';
     }
 
-    try {
-        const buffer = await readFile(outputPath);
-        await unlink(outputPath);
-        return buffer.toString('base64');
-    } catch (err) {
-        throw new errors.UnknownError(`Failed to read recording: ${(err as Error).message}`);
+    this.log.debug('Retrieving the resulting video data');
+    const videoPath = await this._screenRecorder.stop();
+    if (!videoPath) {
+        this.log.debug('No video data is found. Returning an empty string');
+        return '';
     }
+
+    const { remotePath, ...uploadOpts } = args ?? {};
+    return await uploadRecordedMedia(videoPath, remotePath, uploadOpts);
 }
 
 export async function deleteFile(this: NovaWindowsDriver, args: { path: string }): Promise<void> {

@@ -3,101 +3,116 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { startRecordingScreen } from '../../../lib/commands/extension';
-import { getBundledFfmpegPath } from '../../../lib/util';
+import { ScreenRecorder } from '../../../lib/commands/screen-recorder';
 import { createMockDriver } from '../../fixtures/driver';
 
-const BUNDLED_FFMPEG = 'C:\\path\\to\\bundled\\ffmpeg.exe';
-
-const mockSpawn = vi.fn();
-vi.mock('node:child_process', () => ({
-    spawn: (...args: unknown[]) => mockSpawn(...args),
-}));
-vi.mock('../../../lib/util', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../../lib/util')>();
+vi.mock('../../../lib/commands/screen-recorder', () => {
+    const MockScreenRecorder = vi.fn();
     return {
-        ...actual,
-        getBundledFfmpegPath: vi.fn(() => BUNDLED_FFMPEG),
+        ScreenRecorder: MockScreenRecorder,
+        DEFAULT_EXT: 'mp4',
+        uploadRecordedMedia: vi.fn(),
     };
 });
 
+const MockScreenRecorder = vi.mocked(ScreenRecorder);
+
 describe('startRecordingScreen', () => {
+    let mockRecorderInstance: { isRunning: ReturnType<typeof vi.fn>; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> };
+
     beforeEach(() => {
         vi.clearAllMocks();
-        mockSpawn.mockReturnValue({
-            stdin: { write: vi.fn() },
-            stderr: { on: vi.fn() },
-            on: vi.fn(),
-        });
+        mockRecorderInstance = {
+            isRunning: vi.fn().mockReturnValue(false),
+            start: vi.fn().mockResolvedValue(undefined),
+            stop: vi.fn().mockResolvedValue(''),
+        };
+        MockScreenRecorder.mockImplementation(() => mockRecorderInstance as any);
     });
 
-    it('spawns bundled ffmpeg with default args', async () => {
+    it('creates a ScreenRecorder and starts recording', async () => {
         const driver = createMockDriver() as any;
-        driver.recordingProcess = undefined;
-        driver.recordingOutputPath = undefined;
+        driver._screenRecorder = null;
 
         await startRecordingScreen.call(driver, { outputPath: 'C:\\temp\\rec.mp4' });
 
-        expect(mockSpawn).toHaveBeenCalledWith(BUNDLED_FFMPEG, expect.arrayContaining([
-            '-f', 'gdigrab',
-            '-framerate', '15',
-            '-i', 'desktop',
-            '-t', '180',
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast',
-            '-y',
+        expect(MockScreenRecorder).toHaveBeenCalledWith(
             'C:\\temp\\rec.mp4',
-        ]), expect.any(Object));
+            driver.log,
+            expect.any(Object),
+        );
+        expect(mockRecorderInstance.start).toHaveBeenCalledOnce();
+        expect(driver._screenRecorder).toBe(mockRecorderInstance);
     });
 
-    it('spawns ffmpeg with custom options', async () => {
+    it('passes options to ScreenRecorder', async () => {
         const driver = createMockDriver() as any;
-        driver.recordingProcess = undefined;
+        driver._screenRecorder = null;
 
         await startRecordingScreen.call(driver, {
-            outputPath: 'C:\\recordings\\test.mp4',
+            outputPath: 'C:\\rec.mp4',
             timeLimit: 60,
             videoFps: 30,
-            videoSize: '1280x720',
+            preset: 'ultrafast',
+            captureCursor: true,
+            captureClicks: true,
+            audioInput: 'Microphone',
+            videoFilter: 'scale=1280:-2',
         });
 
-        expect(mockSpawn).toHaveBeenCalledWith(BUNDLED_FFMPEG, expect.arrayContaining([
-            '-framerate', '30',
-            '-t', '60',
-            '-video_size', '1280x720',
-            'C:\\recordings\\test.mp4',
-        ]), expect.any(Object));
+        expect(MockScreenRecorder).toHaveBeenCalledWith(
+            'C:\\rec.mp4',
+            driver.log,
+            expect.objectContaining({
+                fps: 30,
+                timeLimit: 60,
+                preset: 'ultrafast',
+                captureCursor: true,
+                captureClicks: true,
+                audioInput: 'Microphone',
+                videoFilter: 'scale=1280:-2',
+            }),
+        );
     });
 
-    it('throws when bundled ffmpeg is missing', async () => {
-        vi.mocked(getBundledFfmpegPath).mockReturnValueOnce(null);
-
+    it('does nothing when already recording and forceRestart=false', async () => {
         const driver = createMockDriver() as any;
-        driver.recordingProcess = undefined;
+        const existingRecorder = {
+            isRunning: vi.fn().mockReturnValue(true),
+            stop: vi.fn(),
+        };
+        driver._screenRecorder = existingRecorder;
+
+        await startRecordingScreen.call(driver, { forceRestart: false });
+
+        expect(existingRecorder.stop).not.toHaveBeenCalled();
+        expect(MockScreenRecorder).not.toHaveBeenCalled();
+    });
+
+    it('force-stops existing recording when forceRestart=true (default)', async () => {
+        const driver = createMockDriver() as any;
+        const existingRecorder = {
+            isRunning: vi.fn().mockReturnValue(true),
+            stop: vi.fn().mockResolvedValue(''),
+        };
+        driver._screenRecorder = existingRecorder;
+
+        await startRecordingScreen.call(driver, { outputPath: 'C:\\new.mp4' });
+
+        expect(existingRecorder.stop).toHaveBeenCalledWith(true);
+        expect(MockScreenRecorder).toHaveBeenCalled();
+        expect(mockRecorderInstance.start).toHaveBeenCalled();
+    });
+
+    it('clears _screenRecorder if start() throws', async () => {
+        const driver = createMockDriver() as any;
+        driver._screenRecorder = null;
+        mockRecorderInstance.start.mockRejectedValue(new Error('ffmpeg failed'));
 
         await expect(
             startRecordingScreen.call(driver, { outputPath: 'C:\\out.mp4' })
-        ).rejects.toThrow('bundled ffmpeg is missing');
-    });
+        ).rejects.toThrow('ffmpeg failed');
 
-    it('throws when already recording without forceRestart', async () => {
-        const driver = createMockDriver() as any;
-        driver.recordingProcess = { stdin: { write: vi.fn() } };
-        driver.recordingOutputPath = 'C:\\tmp\\rec.mp4';
-
-        await expect(
-            startRecordingScreen.call(driver, { outputPath: 'C:\\other.mp4' })
-        ).rejects.toThrow('Screen recording is already in progress');
-    });
-
-    it('stores process and path on driver', async () => {
-        const driver = createMockDriver() as any;
-        driver.recordingProcess = undefined;
-        const proc = { stdin: { write: vi.fn() }, stderr: { on: vi.fn() }, on: vi.fn() };
-        mockSpawn.mockReturnValue(proc);
-
-        await startRecordingScreen.call(driver, { outputPath: 'C:\\out.mp4' });
-
-        expect(driver.recordingProcess).toBe(proc);
-        expect(driver.recordingOutputPath).toBe('C:\\out.mp4');
+        expect(driver._screenRecorder).toBeNull();
     });
 });
