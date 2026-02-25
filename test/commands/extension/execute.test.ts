@@ -6,7 +6,7 @@ import * as extension from '../../../lib/commands/extension';
 import { createMockDriver, MOCK_ELEMENT } from '../../fixtures/driver';
 
 describe('execute (command router)', () => {
-    let driver: ReturnType<typeof createMockDriver> & Record<string, any>;
+    let driver: any;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -14,16 +14,16 @@ describe('execute (command router)', () => {
         Object.assign(driver, extension);
     });
 
-    it('routes windows:launchApp to launchApp with args', async () => {
-        await extension.execute.call(driver, 'windows: launchApp', [{ app: 'notepad.exe' }]);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining("Start-Process 'notepad.exe'")
-        );
+    it('routes windows:launchApp to windowsLaunchApp', async () => {
+        driver.launchApp = vi.fn().mockResolvedValue(undefined);
+        await extension.execute.call(driver, 'windows: launchApp', []);
+        expect(driver.launchApp).toHaveBeenCalledOnce();
     });
 
-    it('routes windows:closeApp to closeApp with args', async () => {
-        await extension.execute.call(driver, 'windows: closeApp', [{ processId: 12345 }]);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith('Stop-Process -Id 12345');
+    it('routes windows:closeApp to windowsCloseApp', async () => {
+        driver.closeApp = vi.fn().mockResolvedValue(undefined);
+        await extension.execute.call(driver, 'windows: closeApp', []);
+        expect(driver.closeApp).toHaveBeenCalledOnce();
     });
 
     it('routes windows:deleteFile to deleteFile with args', async () => {

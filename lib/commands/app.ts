@@ -130,6 +130,23 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
     throw new errors.NoSuchWindowError(`No window was found with name or handle '${nameOrHandle}'.`);
 }
 
+export async function closeApp(this: NovaWindowsDriver): Promise<void> {
+    const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
+    const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active app window is found for this session.');
+    }
+    await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+    await this.sendPowerShellCommand(/* ps1 */ `$rootElement = $null`);
+}
+
+export async function launchApp(this: NovaWindowsDriver): Promise<void> {
+    if (!this.caps.app || ['root', 'none'].includes(this.caps.app.toLowerCase())) {
+        throw new errors.InvalidArgumentError('No app capability is set for this session.');
+    }
+    await this.changeRootElement(this.caps.app);
+}
+
 export async function changeRootElement(this: NovaWindowsDriver, path: string): Promise<void>
 export async function changeRootElement(this: NovaWindowsDriver, nativeWindowHandle: number): Promise<void>
 export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWindowHandle: string | number): Promise<void> {

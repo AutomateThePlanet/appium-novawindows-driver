@@ -1,7 +1,7 @@
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
 import { tmpdir } from 'node:os';
-import { join, normalize } from 'node:path';
+import { join } from 'node:path';
 import { POWER_SHELL_FEATURE } from '../constants';
 import { NovaWindowsDriver } from '../driver';
 import { ClickType, Enum, Key } from '../enums';
@@ -9,7 +9,6 @@ import {
     AutomationElement,
     AutomationElementMode,
     FoundAutomationElement,
-    PSInt32,
     PSInt32Array,
     Property,
     PropertyCondition,
@@ -52,8 +51,8 @@ const EXTENSION_COMMANDS = Object.freeze({
     minimize: 'patternMinimize',
     restore: 'patternRestore',
     close: 'patternClose',
-    closeApp: 'closeApp',
-    launchApp: 'launchApp',
+    closeApp: 'windowsCloseApp',
+    launchApp: 'windowsLaunchApp',
     keys: 'executeKeys',
     click: 'executeClick',
     hover: 'executeHover',
@@ -256,69 +255,12 @@ export async function patternClose(this: NovaWindowsDriver, element: Element): P
     await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildCloseCommand());
 }
 
-export async function closeApp(this: NovaWindowsDriver, args: {
-    processId?: number,
-    processName?: string,
-    windowHandle?: string | number,
-}): Promise<void> {
-    const { processId, processName, windowHandle } = args ?? {};
-    const provided = [processId, processName, windowHandle].filter((v) => v != null).length;
-
-    if (provided !== 1) {
-        throw new errors.InvalidArgumentError(
-            'Exactly one of processId, processName, or windowHandle must be provided.'
-        );
-    }
-
-    if (processId != null) {
-        await this.sendPowerShellCommand(`Stop-Process -Id ${processId}`);
-        return;
-    }
-
-    if (processName != null) {
-        await this.sendPowerShellCommand(`Stop-Process -Name '${processName}'`);
-        return;
-    }
-
-    if (windowHandle != null) {
-        const handle = typeof windowHandle === 'string' ? parseInt(windowHandle, 16) : windowHandle;
-        const condition = new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(handle));
-        const elementId = await this.sendPowerShellCommand(
-            AutomationElement.rootElement
-                .findFirst(TreeScope.CHILDREN_OR_SELF, condition)
-                .buildCommand()
-        );
-        if (!elementId?.trim()) {
-            throw new errors.NoSuchWindowError(`No window found with handle ${windowHandle}`);
-        }
-        const processId = await this.sendPowerShellCommand(
-            new FoundAutomationElement(elementId.trim()).buildGetPropertyCommand(Property.PROCESS_ID)
-        );
-        if (!processId?.trim()) {
-            throw new errors.UnknownError(`Could not get process ID for window handle ${windowHandle}`);
-        }
-        await this.sendPowerShellCommand(`Stop-Process -Id ${processId.trim()}`);
-    }
+export async function windowsCloseApp(this: NovaWindowsDriver): Promise<void> {
+    return await this.closeApp();
 }
 
-export async function launchApp(this: NovaWindowsDriver, args: {
-    app: string,
-    appArguments?: string,
-}): Promise<void> {
-    if (!args || typeof args !== 'object' || !args.app) {
-        throw new errors.InvalidArgumentError("'app' must be provided.");
-    }
-
-    const { app, appArguments } = args;
-    if (app.includes('!') && app.includes('_') && !(app.includes('/') || app.includes('\\'))) {
-        this.log.debug('Detected app path to be in the UWP format.');
-        await this.sendPowerShellCommand(/* ps1 */ `Start-Process 'explorer.exe' 'shell:AppsFolder\\${app}'${appArguments ? ` -ArgumentList '${appArguments}'` : ''}`);
-    } else {
-        this.log.debug('Detected app path to be in the classic format.');
-        const normalizedPath = normalize(app);
-        await this.sendPowerShellCommand(/* ps1 */ `Start-Process '${normalizedPath}'${appArguments ? ` -ArgumentList '${appArguments}'` : ''}`);
-    }
-    await sleep(1500); // Wait for the app to start
+export async function windowsLaunchApp(this: NovaWindowsDriver): Promise<void> {
+    return await this.launchApp();
 }
 
 export async function focusElement(this: NovaWindowsDriver, element: Element): Promise<void> {
