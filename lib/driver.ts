@@ -217,13 +217,12 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
                 // noop
             }
         }
-        await this.terminatePowerShellSession();
-
         if (this.caps.postrun) {
             this.log.info('Executing postrun PowerShell script...');
             await this.executePowerShellScript(this.caps.postrun as Exclude<Parameters<typeof commands['executePowerShellScript']>[0], string>);
         }
 
+        await this.terminatePowerShellSession();
         await super.deleteSession(sessionId);
     }
 
