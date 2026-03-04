@@ -16,7 +16,7 @@
     "watch": "tsc -b --watch",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "author": "Automate The Planet",
   "license": "Apache-2.0",
@@ -58,6 +58,7 @@
     "semantic-release": "^25.0.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.1",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "webdriverio": "^9.0.0"
   }
 }

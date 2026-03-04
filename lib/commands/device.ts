@@ -4,9 +4,9 @@ import { PSString, pwsh$ } from '../powershell';
 const GET_SYSTEM_TIME_COMMAND = pwsh$ /* ps1 */ `(Get-Date).ToString(${0})`;
 const ISO_8061_FORMAT = 'yyyy-MM-ddTHH:mm:sszzz';
 
-export async function getDeviceTime(this: NovaWindowsDriver, format?: string): Promise<string> {
-    format = format ? new PSString(format).toString() : `'${ISO_8061_FORMAT}'`;
-    return await this.sendPowerShellCommand(GET_SYSTEM_TIME_COMMAND.format(format));
+export async function getDeviceTime(this: NovaWindowsDriver, _sessionId?: string, format?: string): Promise<string> {
+    const fmt = format ? new PSString(format).toString() : `'${ISO_8061_FORMAT}'`;
+    return await this.sendPowerShellCommand(GET_SYSTEM_TIME_COMMAND.format(fmt));
 }
 
 // command: 'hideKeyboard'

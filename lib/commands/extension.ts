@@ -65,6 +65,8 @@ const EXTENSION_COMMANDS = Object.freeze({
     deleteFile: 'deleteFile',
     deleteFolder: 'deleteFolder',
     clickAndDrag: 'executeClickAndDrag',
+    getDeviceTime: 'windowsGetDeviceTime',
+    getWindowElement: 'getWindowElement',
 } as const);
 
 const ContentType = Object.freeze({
@@ -78,7 +80,7 @@ const TREE_FILTER_COMMAND = $ /* ps1 */ `$cacheRequest.Pop(); $cacheRequest.Tree
 const TREE_SCOPE_COMMAND = $ /* ps1 */ `$cacheRequest.Pop(); $cacheRequest.TreeScope = ${0}; $cacheRequest.Push()`;
 const AUTOMATION_ELEMENT_MODE = $ /* ps1 */ `$cacheRequest.Pop(); $cacheRequest.AutomationElementMode = ${0}; $cacheRequest.Push()`;
 
-const SET_PLAINTEXT_CLIPBOARD_FROM_BASE64 = $ /* ps1 */ `Set-Clipboard -Value [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(${0}))`;
+const SET_PLAINTEXT_CLIPBOARD_FROM_BASE64 = $ /* ps1 */ `Set-Clipboard -Value ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(${0})))`;
 const GET_PLAINTEXT_CLIPBOARD_BASE64 = /* ps1 */ `[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Clipboard)))`;
 
 const SET_IMAGE_CLIPBOARD_FROM_BASE64 = $ /* ps1 */ `$b = [Convert]::FromBase64String(${0}); $s = New-Object IO.MemoryStream; $s.Write($b, 0, $b.Length); $s.Position = 0; $i = [System.Windows.Media.Imaging.BitmapFrame]::Create($s); [Windows.Clipboard]::SetImage($i); $s.Close()`;
@@ -148,7 +150,7 @@ export async function pushCacheRequest(this: NovaWindowsDriver, cacheRequest: Ca
     }
 
     if (cacheRequest.treeScope) {
-        const treeScope = TREE_SCOPE_REGEX.exec(cacheRequest.treeScope)?.groups?.[0];
+        const treeScope = TREE_SCOPE_REGEX.exec(cacheRequest.treeScope)?.[1];
         if (!treeScope || (Number(cacheRequest.treeScope) < 1 && Number(cacheRequest.treeScope) > 16)) {
             throw new errors.InvalidArgumentError(`Invalid value '${cacheRequest.treeScope}' passed to TreeScope for cache request.`);
         }
@@ -157,7 +159,7 @@ export async function pushCacheRequest(this: NovaWindowsDriver, cacheRequest: Ca
     }
 
     if (cacheRequest.automationElementMode) {
-        const treeScope = AUTOMATION_ELEMENT_MODE_REGEX.exec(cacheRequest.automationElementMode)?.groups?.[0];
+        const treeScope = AUTOMATION_ELEMENT_MODE_REGEX.exec(cacheRequest.automationElementMode)?.[1];
 
         if (!treeScope || (Number(cacheRequest.automationElementMode) < 0 && Number(cacheRequest.automationElementMode) > 1)) {
             throw new errors.InvalidArgumentError(`Invalid value '${cacheRequest.automationElementMode}' passed to AutomationElementMode for cache request.`);
@@ -235,8 +237,8 @@ export async function patternSetValue(this: NovaWindowsDriver, element: Element,
     }
 }
 
-export async function patternGetValue(this: NovaWindowsDriver, element: Element): Promise<void> {
-    await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildGetValueCommand());
+export async function patternGetValue(this: NovaWindowsDriver, element: Element): Promise<string> {
+    return await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildGetValueCommand());
 }
 
 export async function patternMaximize(this: NovaWindowsDriver, element: Element): Promise<void> {
@@ -291,9 +293,9 @@ export async function setClipboardFromBase64(this: NovaWindowsDriver, args: { co
 
     switch (contentType.toLowerCase()) {
         case ContentType.PLAINTEXT:
-            return await this.sendPowerShellCommand(SET_PLAINTEXT_CLIPBOARD_FROM_BASE64.format(args.b64Content));
+            return await this.sendPowerShellCommand(SET_PLAINTEXT_CLIPBOARD_FROM_BASE64.format(`'${args.b64Content}'`));
         case ContentType.IMAGE:
-            return await this.sendPowerShellCommand(SET_IMAGE_CLIPBOARD_FROM_BASE64.format(args.b64Content));
+            return await this.sendPowerShellCommand(SET_IMAGE_CLIPBOARD_FROM_BASE64.format(`'${args.b64Content}'`));
         default:
             throw new errors.InvalidArgumentError(`Unsupported content type '${contentType}'.`);
     }
@@ -866,4 +868,17 @@ export async function executeClickAndDrag(this: NovaWindowsDriver, dragArgs: {
     if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyUp(Key.META);
     }
+}
+
+export async function windowsGetDeviceTime(this: NovaWindowsDriver, args?: { format?: string }): Promise<string> {
+    return this.getDeviceTime(undefined, args?.format);
+}
+
+export async function getWindowElement(this: NovaWindowsDriver): Promise<Element> {
+    const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
+    const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active app window is found for this session.');
+    }
+    return { [W3C_ELEMENT_KEY]: elementId };
 }

@@ -545,57 +545,28 @@ recursive | boolean | no | If true (default), delete contents recursively. If fa
 
 ### windows: launchApp
 
-Launches an application and waits for it to start. Supports both classic Win32 apps (by path) and UWP apps (by App User Model ID).
+Re-launches the application configured in the `app` session capability. The app path or App User Model ID (AUMID) must have been set when the session was created. Typically used to reopen an app after it has been closed with `windows: closeApp`.
 
-#### Arguments
-
-Name | Type | Required | Description | Example
---- | --- | --- | --- | ---
-app | string | yes | Path to the executable or UWP App User Model ID (AUMID). Classic format: `C:\Path\To\app.exe`. UWP format: `Microsoft.WindowsCalculator_8wekyb3d8bbwe!App` | notepad.exe
-appArguments | string | no | Command-line arguments to pass to the application. | --some-flag
+This command takes no arguments.
 
 #### Example
 
-```csharp
-// Launch Notepad
-driver.ExecuteScript("windows: launchApp", new Dictionary<string, object> { { "app", "notepad.exe" } });
-
-// Launch Calculator (UWP)
-driver.ExecuteScript("windows: launchApp", new Dictionary<string, object> {
-    { "app", "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" }
-});
-
-// Launch with arguments
-driver.ExecuteScript("windows: launchApp", new Dictionary<string, object> {
-    { "app", "notepad.exe" },
-    { "appArguments", "C:\\path\\to\\file.txt" }
-});
+```javascript
+// Re-launch the app set in the session capability
+await driver.executeScript('windows: launchApp', []);
 ```
 
 ### windows: closeApp
 
-Terminates a running application by process ID, process name, or window handle. All three methods force-kill the process (same outcome). For graceful window close, use `windows: close` with an element. Exactly one identifier must be provided.
+Closes the current root application window by sending a close command via the Windows UI Automation WindowPattern. Clears the root element reference in the session afterward. Throws a `NoSuchWindowError` if no active window is found.
 
-#### Arguments
-
-Name | Type | Required | Description | Example
---- | --- | --- | --- | ---
-processId | number | no | Process ID (PID) of the application to terminate. Uses `Stop-Process -Id`. | 12345
-processName | string | no | Process name (e.g. executable name without extension). Terminates all processes with that name. Uses `Stop-Process -Name`. | notepad
-windowHandle | string or number | no | Native window handle of the application window. Resolves the window to its process ID, then terminates it via `Stop-Process -Id`. Accepts hex string (e.g. `"0x12345678"`) or number. | 0x12345678
-
+This command takes no arguments.
 
 #### Example
 
-```csharp
-// Close by process ID
-driver.ExecuteScript("windows: closeApp", new Dictionary<string, object> { { "processId", 12345 } });
-
-// Close by process name (e.g. all Notepad instances)
-driver.ExecuteScript("windows: closeApp", new Dictionary<string, object> { { "processName", "notepad" } });
-
-// Close by window handle (e.g. from getWindowHandle)
-driver.ExecuteScript("windows: closeApp", new Dictionary<string, object> { { "windowHandle", "0x12345678" } });
+```javascript
+// Close the current app window
+await driver.executeScript('windows: closeApp', []);
 ```
 
 ### windows: clickAndDrag

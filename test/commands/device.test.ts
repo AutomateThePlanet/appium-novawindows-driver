@@ -32,14 +32,13 @@ describe('getDeviceTime', () => {
         expect(cmd).toContain('yyyy-MM-ddTHH:mm:sszzz');
     });
 
-    it('uses custom format when provided', async () => {
+    it('uses custom format when provided as second argument', async () => {
         const driver = createMockDriver() as any;
         driver.sendPowerShellCommand.mockResolvedValue('25/02/2026');
-        const result = await getDeviceTime.call(driver, 'dd/MM/yyyy');
+        const result = await getDeviceTime.call(driver, undefined, 'dd/MM/yyyy');
         expect(result).toBe('25/02/2026');
         const cmd = decodeCommand(driver.sendPowerShellCommand.mock.calls[0][0]);
         expect(cmd).toContain('Get-Date');
-        // The custom format is embedded as a PSString (unicode-escaped)
         expect(cmd).toContain('ToString');
     });
 });

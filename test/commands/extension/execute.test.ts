@@ -26,6 +26,20 @@ describe('execute (command router)', () => {
         expect(driver.closeApp).toHaveBeenCalledOnce();
     });
 
+    it('routes windows:getDeviceTime with format arg', async () => {
+        driver.getDeviceTime = vi.fn().mockResolvedValue('2026');
+        const result = await extension.execute.call(driver, 'windows: getDeviceTime', [{ format: 'yyyy' }]);
+        expect(driver.getDeviceTime).toHaveBeenCalledWith(undefined, 'yyyy');
+        expect(result).toBe('2026');
+    });
+
+    it('routes windows:getDeviceTime without format defaults to ISO 8601', async () => {
+        driver.getDeviceTime = vi.fn().mockResolvedValue('2026-03-03T10:00:00+00:00');
+        const result = await extension.execute.call(driver, 'windows: getDeviceTime', []);
+        expect(driver.getDeviceTime).toHaveBeenCalledWith(undefined, undefined);
+        expect(result).toBe('2026-03-03T10:00:00+00:00');
+    });
+
     it('routes windows:deleteFile to deleteFile with args', async () => {
         await extension.execute.call(driver, 'windows: deleteFile', [{ path: 'C:\\temp\\file.txt' }]);
         expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
