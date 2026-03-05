@@ -17,8 +17,11 @@ import { sleep } from '../util';
 import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
 import {
     getWindowAllHandlesForProcessIds,
+    keyDown,
+    keyUp,
     trySetForegroundWindow,
 } from '../winapi/user32';
+import { Key } from '../enums';
 
 const GET_PAGE_SOURCE_COMMAND = pwsh$ /* ps1 */ `
     $el = ${0}
@@ -213,6 +216,68 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
     }
 
     throw new errors.UnknownError('Failed to locate window of the app.');
+}
+
+export async function back(this: NovaWindowsDriver): Promise<void> {
+    const elementId = (await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand())).trim();
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active window found for this session.');
+    }
+    keyDown(Key.ALT);
+    keyDown(Key.LEFT);
+    keyUp(Key.LEFT);
+    keyUp(Key.ALT);
+}
+
+export async function forward(this: NovaWindowsDriver): Promise<void> {
+    const elementId = (await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand())).trim();
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active window found for this session.');
+    }
+    keyDown(Key.ALT);
+    keyDown(Key.RIGHT);
+    keyUp(Key.RIGHT);
+    keyUp(Key.ALT);
+}
+
+export async function title(this: NovaWindowsDriver): Promise<string> {
+    const elementId = (await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand())).trim();
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active window found for this session.');
+    }
+    return await this.sendPowerShellCommand(
+        AutomationElement.automationRoot.buildGetPropertyCommand(Property.NAME)
+    );
+}
+
+export async function setWindowRect(
+    this: NovaWindowsDriver,
+    x: number | null,
+    y: number | null,
+    width: number | null,
+    height: number | null
+): Promise<Rect> {
+    if (width !== null && width < 0) {
+        throw new errors.InvalidArgumentError('width must be a non-negative integer.');
+    }
+    if (height !== null && height < 0) {
+        throw new errors.InvalidArgumentError('height must be a non-negative integer.');
+    }
+
+    const elementId = (await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand())).trim();
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active window found for this session.');
+    }
+
+    const el = new FoundAutomationElement(elementId);
+    if (x !== null && y !== null) {
+        await this.sendPowerShellCommand(el.buildMoveCommand(x, y));
+    }
+    if (width !== null && height !== null) {
+        await this.sendPowerShellCommand(el.buildResizeCommand(width, height));
+    }
+
+    return await this.getWindowRect();
 }
 
 export async function attachToApplicationWindow(this: NovaWindowsDriver, processIds: number[]): Promise<void> {

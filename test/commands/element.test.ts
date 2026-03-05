@@ -13,6 +13,7 @@ import {
     elementDisplayed,
     elementSelected,
     elementEnabled,
+    getElementScreenshot,
 } from '../../lib/commands/element';
 import { createMockDriver } from '../fixtures/driver';
 import { W3C_ELEMENT_KEY } from '@appium/base-driver';
@@ -216,5 +217,47 @@ describe('elementEnabled', () => {
         driver.sendPowerShellCommand.mockResolvedValue('false');
         const result = await elementEnabled.call(driver, ELEMENT_ID);
         expect(result).toBe(false);
+    });
+});
+
+describe('getElementScreenshot', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    const ROOT_ID = '0.1.2.3';
+    const FAKE_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+    it('returns base64 PNG from the screenshot command', async () => {
+        const driver = createMockDriver() as any;
+        driver.sendPowerShellCommand
+            .mockResolvedValueOnce(ROOT_ID)        // window check
+            .mockResolvedValueOnce(FAKE_BASE64);   // screenshot
+
+        const result = await getElementScreenshot.call(driver, ELEMENT_ID);
+
+        expect(result).toBe(FAKE_BASE64);
+        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws NoSuchWindowError when no active window', async () => {
+        const driver = createMockDriver() as any;
+        driver.sendPowerShellCommand.mockResolvedValue('');
+
+        await expect(getElementScreenshot.call(driver, ELEMENT_ID)).rejects.toThrow('No active window found');
+    });
+
+    it('the screenshot PS command references the element and BoundingRectangle', async () => {
+        const driver = createMockDriver() as any;
+        driver.sendPowerShellCommand
+            .mockResolvedValueOnce(ROOT_ID)
+            .mockResolvedValueOnce(FAKE_BASE64);
+
+        await getElementScreenshot.call(driver, ELEMENT_ID);
+
+        const screenshotCmd = driver.sendPowerShellCommand.mock.calls[1][0] as string;
+        const decoded = screenshotCmd.replace(/FromBase64String\('([^']+)'\)/g, (_, b64) =>
+            Buffer.from(b64, 'base64').toString('utf8')
+        );
+        expect(decoded).toContain('BoundingRectangle');
+        expect(decoded).toContain('CopyFromScreen');
     });
 });
