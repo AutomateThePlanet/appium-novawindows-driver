@@ -1,7 +1,7 @@
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { extname, join } from 'node:path';
 import { POWER_SHELL_FEATURE } from '../constants';
 import { NovaWindowsDriver } from '../driver';
 import { ClickType, Enum, Key } from '../enums';
@@ -693,6 +693,14 @@ export async function startRecordingScreen(this: NovaWindowsDriver, args?: {
     }
     this._screenRecorder = null;
 
+    if (outputPath) {
+        const ext = extname(outputPath).toLowerCase();
+        if (ext !== `.${DEFAULT_EXT}`) {
+            throw new errors.InvalidArgumentError(
+                `outputPath must be a path to a .${DEFAULT_EXT} file, got: '${outputPath}'`,
+            );
+        }
+    }
     const videoPath = outputPath ?? join(tmpdir(), `novawindows-recording-${Date.now()}.${DEFAULT_EXT}`);
     this._screenRecorder = new ScreenRecorder(videoPath, this.log, {
         fps: fps !== undefined ? parseInt(String(fps), 10) : undefined,

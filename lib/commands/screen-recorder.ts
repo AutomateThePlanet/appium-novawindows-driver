@@ -95,7 +95,16 @@ export class ScreenRecorder {
     }
 
     async getVideoPath(): Promise<string> {
-        return (await fs.exists(this._videoPath)) ? this._videoPath : '';
+        if (!(await fs.exists(this._videoPath))) {
+            return '';
+        }
+        const stat = await fs.stat(this._videoPath);
+        if (!stat.isFile()) {
+            throw new Error(
+                `The video path '${this._videoPath}' does not point to a regular file and will not be deleted`,
+            );
+        }
+        return this._videoPath;
     }
 
     isRunning(): boolean {

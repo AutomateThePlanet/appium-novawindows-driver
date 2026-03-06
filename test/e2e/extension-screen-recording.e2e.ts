@@ -1,3 +1,6 @@
+import { existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import type { Browser } from 'webdriverio';
 import { createCalculatorSession, quitSession, resetCalculator } from './helpers/session.js';
@@ -92,6 +95,28 @@ describe('windows: screen recording', () => {
 
             const result = await driver.executeScript('windows: stopRecordingScreen', [{}]) as string;
             expect(result.length).toBeGreaterThan(100);
+        });
+
+        it('rejects outputPath with a non-mp4 extension with an explanatory error', async () => {
+            const outputPath = join(tmpdir(), `novawindows-test-recording-${Date.now()}.avi`);
+            await expect(
+                driver.executeScript('windows: startRecordingScreen', [{ outputPath }])
+            ).rejects.toThrow(/\.mp4/);
+        });
+
+        it('recording is saved to the specified outputPath', async () => {
+            const outputPath = join(tmpdir(), `novawindows-test-recording-${Date.now()}.mp4`);
+            try {
+                await driver.executeScript('windows: startRecordingScreen', [{ outputPath }]);
+                await resetCalculator(driver);
+                await driver.executeScript('windows: stopRecordingScreen', [{}]);
+
+                expect(existsSync(outputPath)).toBe(true);
+            } finally {
+                if (existsSync(outputPath)) {
+                    rmSync(outputPath);
+                }
+            }
         });
     });
 });
