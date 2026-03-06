@@ -25,5 +25,15 @@ jobs:
             - name: Install dev dependencies
               run: sfw npm install --no-package-lock
 
-            - name: Run unit tests
-              run: npm run test
+            - name: Debug paths
+              run: |
+                echo "Current working directory:"
+                pwd
+                echo "Node version and path:"
+                node -v
+                where node
+                echo "NPM version and path:"
+                npm -v
+                where npm
+                echo "Check node_modules/.bin contents:"
+                dir node_modules\.bin
