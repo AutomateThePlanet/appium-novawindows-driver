@@ -1,3 +1,24 @@
+## [1.3.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.2.0...v1.3.0) (2026-03-06)
+
+### Features
+
+* **commands:** add extra W3C commands ([57c654a](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/57c654a1e1e43c8a5d31ed8103aba338883efaa9))
+* **commands:** add support for close app and launch app ([26db919](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/26db919c17ce74ff3c5ef2776544affecb32e2fc))
+* **commands:** implement waitForAppLaunch and forceQuit ([6cce956](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/6cce9565ce51b9f0e354b14819f41a6fc39ffc50))
+* **tests:** add unit tests and missing commands - recording, deletion and click and drag ([a8989c0](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a8989c06816b3f9b5b5de82d85895106ab062aca))
+
+### Bug Fixes
+
+* Bind commands to this instance (not prototype) so each driver instance uses its own powershell session ([#56](https://github.com/AutomateThePlanet/appium-novawindows-driver/issues/56)) [skip ci] ([6dc2125](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/6dc2125c505b392f100036d532326202c0a9c8d4))
+* **capability:** fix post run script ([97b57af](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/97b57af2fe05803ecb66548b8a32202fbe9a45e6))
+* **commands:** add allow-insecure check for fs operations ([4662035](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/466203585796fe08fdb4b119991363246cb00dab))
+* **commands:** match closeApp and launchApp implementation with appium windows driver ([073c566](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/073c566edb3528380196640eb33ee803b4fe2029))
+* fix bugs and implemented end to end tests ([47efa4c](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/47efa4cf00fbac2e15e07e572cdf3e4453ec1020))
+* lint ([fb6ebc8](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/fb6ebc83b1ed5c0fd0c5230d2948d4f5cb156b17))
+* **lint:** lint ([acf7271](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/acf727179dfe1380d42a33a6d38f5175b22cb90d))
+* **recorder:** fix screen recording ([9da1025](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/9da1025c994cb0c3221119690f01a0584b3cf333))
+* **recorder:** validate outputPath before rimraf ([8aa49dd](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/8aa49dd27b2b9bb54329efa0555bb5ef21dc36b5))
+
 ## [1.2.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.1.0...v1.2.0) (2026-01-09)
 
 ### Features
