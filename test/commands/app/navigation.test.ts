@@ -78,7 +78,7 @@ describe('title (getTitle)', () => {
     it('returns the window title from the Name property', async () => {
         const driver = createMockDriver() as any;
         driver.sendPowerShellCommand
-            .mockResolvedValueOnce(ELEMENT_ID)       // window check
+            .mockResolvedValueOnce(ELEMENT_ID) // window check
             .mockResolvedValueOnce('Untitled - Notepad'); // Name property
 
         const result = await title.call(driver);

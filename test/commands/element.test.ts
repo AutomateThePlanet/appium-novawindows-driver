@@ -229,8 +229,8 @@ describe('getElementScreenshot', () => {
     it('returns base64 PNG from the screenshot command', async () => {
         const driver = createMockDriver() as any;
         driver.sendPowerShellCommand
-            .mockResolvedValueOnce(ROOT_ID)        // window check
-            .mockResolvedValueOnce(FAKE_BASE64);   // screenshot
+            .mockResolvedValueOnce(ROOT_ID) // window check
+            .mockResolvedValueOnce(FAKE_BASE64); // screenshot
 
         const result = await getElementScreenshot.call(driver, ELEMENT_ID);
 
