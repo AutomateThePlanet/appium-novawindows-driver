@@ -15,8 +15,8 @@
     "build": "tsc -b",
     "watch": "tsc -b --watch",
     "lint": "eslint .",
-    "test": "vitest run",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+    "test": "npx vitest run",
+    "test:e2e": "npx vitest run --config vitest.e2e.config.ts"
   },
   "author": "Automate The Planet",
   "license": "Apache-2.0",

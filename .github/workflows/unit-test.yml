@@ -26,7 +26,4 @@ jobs:
               run: sfw npm install --no-package-lock
 
             - name: Run unit tests
-              run: |
-                $env:PATH="$PWD\node_modules\.bin;$env:PATH"
-                npm run test
-              shell: pwsh
+              run: npm run test
