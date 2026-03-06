@@ -2,7 +2,7 @@ import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
-import { POWER_SHELL_FEATURE } from '../constants';
+import { MODIFY_FS_FEATURE, POWER_SHELL_FEATURE } from '../constants';
 import { NovaWindowsDriver } from '../driver';
 import { ClickType, Enum, Key } from '../enums';
 import {
@@ -737,6 +737,7 @@ export async function stopRecordingScreen(this: NovaWindowsDriver, args?: Upload
 }
 
 export async function deleteFile(this: NovaWindowsDriver, args: { path: string }): Promise<void> {
+    this.assertFeatureEnabled(MODIFY_FS_FEATURE);
     if (!args || typeof args !== 'object' || !args.path) {
         throw new errors.InvalidArgumentError("'path' must be provided.");
     }
@@ -747,6 +748,7 @@ export async function deleteFile(this: NovaWindowsDriver, args: { path: string }
 }
 
 export async function deleteFolder(this: NovaWindowsDriver, args: { path: string, recursive?: boolean }): Promise<void> {
+    this.assertFeatureEnabled(MODIFY_FS_FEATURE);
     if (!args || typeof args !== 'object' || !args.path) {
         throw new errors.InvalidArgumentError("'path' must be provided.");
     }
