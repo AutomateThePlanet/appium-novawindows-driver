@@ -8,4 +8,7 @@ import appiumConfig from '@appium/eslint-config-appium-ts';
 export default defineConfig(
   eslint.configs.recommended,
   ...appiumConfig,
+  {
+    files: ['test/e2e/**/*.ts'],
+  },
 );

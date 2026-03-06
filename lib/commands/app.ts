@@ -130,6 +130,23 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
     throw new errors.NoSuchWindowError(`No window was found with name or handle '${nameOrHandle}'.`);
 }
 
+export async function closeApp(this: NovaWindowsDriver): Promise<void> {
+    const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
+    const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active app window is found for this session.');
+    }
+    await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+    await this.sendPowerShellCommand(/* ps1 */ `$rootElement = $null`);
+}
+
+export async function launchApp(this: NovaWindowsDriver): Promise<void> {
+    if (!this.caps.app || ['root', 'none'].includes(this.caps.app.toLowerCase())) {
+        throw new errors.InvalidArgumentError('No app capability is set for this session.');
+    }
+    await this.changeRootElement(this.caps.app);
+}
+
 export async function changeRootElement(this: NovaWindowsDriver, path: string): Promise<void>
 export async function changeRootElement(this: NovaWindowsDriver, nativeWindowHandle: number): Promise<void>
 export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWindowHandle: string | number): Promise<void> {
@@ -152,7 +169,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
     if (path.includes('!') && path.includes('_') && !(path.includes('/') || path.includes('\\'))) {
         this.log.debug('Detected app path to be in the UWP format.');
         await this.sendPowerShellCommand(/* ps1 */ `Start-Process 'explorer.exe' 'shell:AppsFolder\\${path}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
-        await sleep(500); // TODO: make a setting for the initial wait time
+        await sleep((this.caps['ms:waitForAppLaunch'] ?? 0) * 1000 || 500);
         for (let i = 1; i <= 20; i++) {
             const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
             const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
@@ -172,7 +189,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         this.log.debug('Detected app path to be in the classic format.');
         const normalizedPath = normalize(path);
         await this.sendPowerShellCommand(/* ps1 */ `Start-Process '${normalizedPath}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
-        await sleep(500); // TODO: make a setting for the initial wait time
+        await sleep((this.caps['ms:waitForAppLaunch'] ?? 0) * 1000 || 500);
         for (let i = 1; i <= 20; i++) {
             try {
                 const breadcrumbs = normalizedPath.toLowerCase().split('\\').flatMap((x) => x.split('/'));

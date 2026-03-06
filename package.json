@@ -15,7 +15,8 @@
     "build": "tsc -b",
     "watch": "tsc -b --watch",
     "lint": "eslint .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "author": "Automate The Planet",
   "license": "Apache-2.0",
@@ -32,6 +33,7 @@
   "dependencies": {
     "@appium/base-driver": "^10.1.0",
     "bezier-easing": "^2.1.0",
+    "ffmpeg-static": "^5.2.0",
     "koffi": "^2.14.1",
     "xpath-analyzer": "^3.0.1"
   },
@@ -55,6 +57,8 @@
     "eslint": "^9.38.0",
     "semantic-release": "^25.0.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.1"
+    "typescript-eslint": "^8.46.1",
+    "vitest": "^2.1.0",
+    "webdriverio": "^9.0.0"
   }
 }

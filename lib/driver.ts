@@ -1,28 +1,29 @@
-import { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { BaseDriver, W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { system } from 'appium/support';
+import { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { ScreenRecorder } from './commands/screen-recorder';
 import commands from './commands';
 import {
-    UI_AUTOMATION_DRIVER_CONSTRAINTS,
-    NovaWindowsDriverConstraints
+    NovaWindowsDriverConstraints,
+    UI_AUTOMATION_DRIVER_CONSTRAINTS
 } from './constraints';
+import {
+    AutomationElement,
+    Condition,
+    FoundAutomationElement,
+    PSControlType,
+    PSInt32Array,
+    PSString,
+    Property,
+    PropertyCondition,
+    TreeScope,
+    convertStringToCondition,
+} from './powershell';
 import {
     assertSupportedEasingFunction
 } from './util';
-import {
-    Condition,
-    PropertyCondition,
-    AutomationElement,
-    FoundAutomationElement,
-    TreeScope,
-    Property,
-    convertStringToCondition,
-    PSString,
-    PSControlType,
-    PSInt32Array,
-} from './powershell';
-import { xpathToElIdOrIds } from './xpath';
 import { setDpiAwareness } from './winapi/user32';
+import { xpathToElIdOrIds } from './xpath';
 
 import type {
     DefaultCreateSessionResult,
@@ -66,6 +67,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         meta: false,
         shift: false,
     };
+    _screenRecorder: ScreenRecorder | null = null;
 
     constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
         super(opts, shouldValidateCaps);
@@ -199,22 +201,30 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
 
         if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
             try {
-                const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
-                const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
-                if (elementId) {
-                    await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+                if (this.caps['ms:forcequit'] === true) {
+                    await this.sendPowerShellCommand(/* ps1 */ `
+                        if ($null -ne $rootElement) {
+                            $processId = $rootElement.Current.ProcessId
+                            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                        }
+                    `);
+                } else {
+                    const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
+                    const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
+                    if (elementId) {
+                        await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+                    }
                 }
             } catch {
                 // noop
             }
-        } // change to close the whole process, not only the window
-        await this.terminatePowerShellSession();
-
+        }
         if (this.caps.postrun) {
             this.log.info('Executing postrun PowerShell script...');
             await this.executePowerShellScript(this.caps.postrun as Exclude<Parameters<typeof commands['executePowerShellScript']>[0], string>);
         }
 
+        await this.terminatePowerShellSession();
         await super.deleteSession(sessionId);
     }
 

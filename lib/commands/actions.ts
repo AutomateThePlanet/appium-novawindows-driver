@@ -227,3 +227,33 @@ export async function handleKeyAction(this: NovaWindowsDriver, action: KeyAction
             }
     }
 }
+
+export async function releaseActions(this: NovaWindowsDriver): Promise<void> {
+    if (this.keyboardState.shift) {
+        keyUp(Key.SHIFT);
+        keyUp(Key.R_SHIFT);
+        this.keyboardState.shift = false;
+    }
+    if (this.keyboardState.ctrl) {
+        keyUp(Key.CONTROL);
+        keyUp(Key.R_CONTROL);
+        this.keyboardState.ctrl = false;
+    }
+    if (this.keyboardState.meta) {
+        keyUp(Key.META);
+        keyUp(Key.R_META);
+        this.keyboardState.meta = false;
+    }
+    if (this.keyboardState.alt) {
+        keyUp(Key.ALT);
+        keyUp(Key.R_ALT);
+        this.keyboardState.alt = false;
+    }
+    for (const key of this.keyboardState.pressed) {
+        keyUp(key);
+    }
+    this.keyboardState.pressed.clear();
+    mouseUp(0);
+    mouseUp(1);
+    mouseUp(2);
+}

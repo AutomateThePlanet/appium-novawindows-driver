@@ -1,17 +1,10 @@
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
+import { tmpdir } from 'node:os';
+import { extname, join } from 'node:path';
+import { MODIFY_FS_FEATURE, POWER_SHELL_FEATURE } from '../constants';
 import { NovaWindowsDriver } from '../driver';
-import { $, sleep } from '../util';
-import { POWER_SHELL_FEATURE } from '../constants';
-import { keyDown,
-    keyUp,
-    mouseDown,
-    mouseMoveAbsolute,
-    mouseScroll,
-    mouseUp,
-    sendKeyboardEvents
-} from '../winapi/user32';
-import { KeyEventFlags, VirtualKey } from '../winapi/types';
+import { ClickType, Enum, Key } from '../enums';
 import {
     AutomationElement,
     AutomationElementMode,
@@ -24,7 +17,18 @@ import {
     convertStringToCondition,
     pwsh
 } from '../powershell';
-import { ClickType, Enum, Key } from '../enums';
+import { $, sleep } from '../util';
+import { DEFAULT_EXT, ScreenRecorder, UploadOptions, uploadRecordedMedia } from './screen-recorder';
+import { KeyEventFlags, VirtualKey } from '../winapi/types';
+import {
+    keyDown,
+    keyUp,
+    mouseDown,
+    mouseMoveAbsolute,
+    mouseScroll,
+    mouseUp,
+    sendKeyboardEvents
+} from '../winapi/user32';
 
 const PLATFORM_COMMAND_PREFIX = 'windows:';
 
@@ -47,6 +51,8 @@ const EXTENSION_COMMANDS = Object.freeze({
     minimize: 'patternMinimize',
     restore: 'patternRestore',
     close: 'patternClose',
+    closeApp: 'windowsCloseApp',
+    launchApp: 'windowsLaunchApp',
     keys: 'executeKeys',
     click: 'executeClick',
     hover: 'executeHover',
@@ -54,6 +60,13 @@ const EXTENSION_COMMANDS = Object.freeze({
     setFocus: 'focusElement',
     getClipboard: 'getClipboardBase64',
     setClipboard: 'setClipboardFromBase64',
+    startRecordingScreen: 'startRecordingScreen',
+    stopRecordingScreen: 'stopRecordingScreen',
+    deleteFile: 'deleteFile',
+    deleteFolder: 'deleteFolder',
+    clickAndDrag: 'executeClickAndDrag',
+    getDeviceTime: 'windowsGetDeviceTime',
+    getWindowElement: 'getWindowElement',
 } as const);
 
 const ContentType = Object.freeze({
@@ -67,7 +80,7 @@ const TREE_FILTER_COMMAND = $ /* ps1 */ `$cacheRequest.Pop(); $cacheRequest.Tree
 const TREE_SCOPE_COMMAND = $ /* ps1 */ `$cacheRequest.Pop(); $cacheRequest.TreeScope = ${0}; $cacheRequest.Push()`;
 const AUTOMATION_ELEMENT_MODE = $ /* ps1 */ `$cacheRequest.Pop(); $cacheRequest.AutomationElementMode = ${0}; $cacheRequest.Push()`;
 
-const SET_PLAINTEXT_CLIPBOARD_FROM_BASE64 = $ /* ps1 */ `Set-Clipboard -Value [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(${0}))`;
+const SET_PLAINTEXT_CLIPBOARD_FROM_BASE64 = $ /* ps1 */ `Set-Clipboard -Value ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(${0})))`;
 const GET_PLAINTEXT_CLIPBOARD_BASE64 = /* ps1 */ `[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Clipboard)))`;
 
 const SET_IMAGE_CLIPBOARD_FROM_BASE64 = $ /* ps1 */ `$b = [Convert]::FromBase64String(${0}); $s = New-Object IO.MemoryStream; $s.Write($b, 0, $b.Length); $s.Position = 0; $i = [System.Windows.Media.Imaging.BitmapFrame]::Create($s); [Windows.Clipboard]::SetImage($i); $s.Close()`;
@@ -137,7 +150,7 @@ export async function pushCacheRequest(this: NovaWindowsDriver, cacheRequest: Ca
     }
 
     if (cacheRequest.treeScope) {
-        const treeScope = TREE_SCOPE_REGEX.exec(cacheRequest.treeScope)?.groups?.[0];
+        const treeScope = TREE_SCOPE_REGEX.exec(cacheRequest.treeScope)?.[1];
         if (!treeScope || (Number(cacheRequest.treeScope) < 1 && Number(cacheRequest.treeScope) > 16)) {
             throw new errors.InvalidArgumentError(`Invalid value '${cacheRequest.treeScope}' passed to TreeScope for cache request.`);
         }
@@ -146,7 +159,7 @@ export async function pushCacheRequest(this: NovaWindowsDriver, cacheRequest: Ca
     }
 
     if (cacheRequest.automationElementMode) {
-        const treeScope = AUTOMATION_ELEMENT_MODE_REGEX.exec(cacheRequest.automationElementMode)?.groups?.[0];
+        const treeScope = AUTOMATION_ELEMENT_MODE_REGEX.exec(cacheRequest.automationElementMode)?.[1];
 
         if (!treeScope || (Number(cacheRequest.automationElementMode) < 0 && Number(cacheRequest.automationElementMode) > 1)) {
             throw new errors.InvalidArgumentError(`Invalid value '${cacheRequest.automationElementMode}' passed to AutomationElementMode for cache request.`);
@@ -224,8 +237,8 @@ export async function patternSetValue(this: NovaWindowsDriver, element: Element,
     }
 }
 
-export async function patternGetValue(this: NovaWindowsDriver, element: Element): Promise<void> {
-    await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildGetValueCommand());
+export async function patternGetValue(this: NovaWindowsDriver, element: Element): Promise<string> {
+    return await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildGetValueCommand());
 }
 
 export async function patternMaximize(this: NovaWindowsDriver, element: Element): Promise<void> {
@@ -242,6 +255,14 @@ export async function patternRestore(this: NovaWindowsDriver, element: Element):
 
 export async function patternClose(this: NovaWindowsDriver, element: Element): Promise<void> {
     await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildCloseCommand());
+}
+
+export async function windowsCloseApp(this: NovaWindowsDriver): Promise<void> {
+    return await this.closeApp();
+}
+
+export async function windowsLaunchApp(this: NovaWindowsDriver): Promise<void> {
+    return await this.launchApp();
 }
 
 export async function focusElement(this: NovaWindowsDriver, element: Element): Promise<void> {
@@ -272,9 +293,9 @@ export async function setClipboardFromBase64(this: NovaWindowsDriver, args: { co
 
     switch (contentType.toLowerCase()) {
         case ContentType.PLAINTEXT:
-            return await this.sendPowerShellCommand(SET_PLAINTEXT_CLIPBOARD_FROM_BASE64.format(args.b64Content));
+            return await this.sendPowerShellCommand(SET_PLAINTEXT_CLIPBOARD_FROM_BASE64.format(`'${args.b64Content}'`));
         case ContentType.IMAGE:
-            return await this.sendPowerShellCommand(SET_IMAGE_CLIPBOARD_FROM_BASE64.format(args.b64Content));
+            return await this.sendPowerShellCommand(SET_IMAGE_CLIPBOARD_FROM_BASE64.format(`'${args.b64Content}'`));
         default:
             throw new errors.InvalidArgumentError(`Unsupported content type '${contentType}'.`);
     }
@@ -633,4 +654,241 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
     if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
         keyUp(Key.META);
     }
+}
+
+export async function startRecordingScreen(this: NovaWindowsDriver, args?: {
+    outputPath?: string,
+    timeLimit?: number,
+    videoFps?: number,
+    videoFilter?: string,
+    preset?: string,
+    captureCursor?: boolean,
+    captureClicks?: boolean,
+    audioInput?: string,
+    forceRestart?: boolean,
+}): Promise<void> {
+    const {
+        outputPath,
+        timeLimit,
+        videoFps: fps,
+        videoFilter,
+        preset,
+        captureCursor,
+        captureClicks,
+        audioInput,
+        forceRestart = true,
+    } = args ?? {};
+
+    if (this._screenRecorder?.isRunning()) {
+        this.log.debug('The screen recording is already running');
+        if (!forceRestart) {
+            this.log.debug('Doing nothing');
+            return;
+        }
+        this.log.debug('Forcing the active screen recording to stop');
+        await this._screenRecorder.stop(true);
+    } else if (this._screenRecorder) {
+        this.log.debug('Clearing the recent screen recording');
+        await this._screenRecorder.stop(true);
+    }
+    this._screenRecorder = null;
+
+    if (outputPath) {
+        const ext = extname(outputPath).toLowerCase();
+        if (ext !== `.${DEFAULT_EXT}`) {
+            throw new errors.InvalidArgumentError(
+                `outputPath must be a path to a .${DEFAULT_EXT} file, got: '${outputPath}'`,
+            );
+        }
+    }
+    const videoPath = outputPath ?? join(tmpdir(), `novawindows-recording-${Date.now()}.${DEFAULT_EXT}`);
+    this._screenRecorder = new ScreenRecorder(videoPath, this.log, {
+        fps: fps !== undefined ? parseInt(String(fps), 10) : undefined,
+        timeLimit: timeLimit !== undefined ? parseInt(String(timeLimit), 10) : undefined,
+        preset,
+        captureCursor,
+        captureClicks,
+        videoFilter,
+        audioInput,
+    });
+    try {
+        await this._screenRecorder.start();
+    } catch (e) {
+        this._screenRecorder = null;
+        throw e;
+    }
+}
+
+export async function stopRecordingScreen(this: NovaWindowsDriver, args?: UploadOptions): Promise<string> {
+    if (!this._screenRecorder) {
+        this.log.debug('No screen recording has been started. Doing nothing');
+        return '';
+    }
+
+    this.log.debug('Retrieving the resulting video data');
+    const videoPath = await this._screenRecorder.stop();
+    if (!videoPath) {
+        this.log.debug('No video data is found. Returning an empty string');
+        return '';
+    }
+
+    const { remotePath, ...uploadOpts } = args ?? {};
+    return await uploadRecordedMedia(videoPath, remotePath, uploadOpts);
+}
+
+export async function deleteFile(this: NovaWindowsDriver, args: { path: string }): Promise<void> {
+    this.assertFeatureEnabled(MODIFY_FS_FEATURE);
+    if (!args || typeof args !== 'object' || !args.path) {
+        throw new errors.InvalidArgumentError("'path' must be provided.");
+    }
+    const escapedPath = args.path.replace(/'/g, "''");
+    const useLiteralPath = /[[\][]?]/.test(args.path);
+    const pathParam = useLiteralPath ? `-LiteralPath '${escapedPath}'` : `-Path '${escapedPath}'`;
+    await this.sendPowerShellCommand(`Remove-Item ${pathParam} -Force -ErrorAction Stop`);
+}
+
+export async function deleteFolder(this: NovaWindowsDriver, args: { path: string, recursive?: boolean }): Promise<void> {
+    this.assertFeatureEnabled(MODIFY_FS_FEATURE);
+    if (!args || typeof args !== 'object' || !args.path) {
+        throw new errors.InvalidArgumentError("'path' must be provided.");
+    }
+    const { path: pathArg, recursive = true } = args;
+    const escapedPath = pathArg.replace(/'/g, "''");
+    const useLiteralPath = /[[\][]?]/.test(pathArg);
+    const pathParam = useLiteralPath ? `-LiteralPath '${escapedPath}'` : `-Path '${escapedPath}'`;
+    const recurseFlag = recursive ? ' -Recurse' : '';
+    await this.sendPowerShellCommand(`Remove-Item ${pathParam} -Force${recurseFlag} -ErrorAction Stop`);
+}
+
+export async function executeClickAndDrag(this: NovaWindowsDriver, dragArgs: {
+    startElementId?: string,
+    startX?: number,
+    startY?: number,
+    endElementId?: string,
+    endX?: number,
+    endY?: number,
+    modifierKeys?: ('shift' | 'ctrl' | 'alt' | 'win') | ('shift' | 'ctrl' | 'alt' | 'win')[],
+    durationMs?: number,
+    button?: ClickType,
+}) {
+    const {
+        startElementId,
+        startX, startY,
+        endElementId,
+        endX, endY,
+        modifierKeys = [],
+        durationMs = 500,
+        button = ClickType.LEFT,
+    } = dragArgs ?? {};
+
+    if ((startX != null) !== (startY != null)) {
+        throw new errors.InvalidArgumentError('Both startX and startY must be provided if either is set.');
+    }
+
+    if ((endX != null) !== (endY != null)) {
+        throw new errors.InvalidArgumentError('Both endX and endY must be provided if either is set.');
+    }
+
+    const processesModifierKeys = Array.isArray(modifierKeys) ? modifierKeys : [modifierKeys];
+    const clickTypeToButtonMapping: { [key in ClickType]: number } = {
+        [ClickType.LEFT]: 0,
+        [ClickType.MIDDLE]: 1,
+        [ClickType.RIGHT]: 2,
+        [ClickType.BACK]: 3,
+        [ClickType.FORWARD]: 4,
+    };
+    const mouseButton = clickTypeToButtonMapping[button];
+
+    let startPos: [number, number];
+    if (startElementId) {
+        if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(startElementId).toString()}`)) {
+            const condition = new PropertyCondition(Property.RUNTIME_ID, new PSInt32Array(startElementId.split('.').map(Number)));
+            const elId = await this.sendPowerShellCommand(AutomationElement.automationRoot.findFirst(TreeScope.SUBTREE, condition).buildCommand());
+
+            if (elId.trim() === '') {
+                throw new errors.NoSuchElementError();
+            }
+        }
+
+        const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(startElementId).buildGetElementRectCommand());
+        const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+        startPos = [
+            rect.x + (startX ?? rect.width / 2),
+            rect.y + (startY ?? rect.height / 2)
+        ];
+    } else {
+        if (startX == null || startY == null) {
+            throw new errors.InvalidArgumentError('Either startElementId or startX and startY must be provided.');
+        }
+        startPos = [startX, startY];
+    }
+
+    let endPos: [number, number];
+    if (endElementId) {
+        if (await this.sendPowerShellCommand(/* ps1 */ `$null -eq ${new FoundAutomationElement(endElementId).toString()}`)) {
+            const condition = new PropertyCondition(Property.RUNTIME_ID, new PSInt32Array(endElementId.split('.').map(Number)));
+            const elId = await this.sendPowerShellCommand(AutomationElement.automationRoot.findFirst(TreeScope.SUBTREE, condition).buildCommand());
+
+            if (elId.trim() === '') {
+                throw new errors.NoSuchElementError();
+            }
+        }
+
+        const rectJson = await this.sendPowerShellCommand(new FoundAutomationElement(endElementId).buildGetElementRectCommand());
+        const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+        endPos = [
+            rect.x + (endX ?? rect.width / 2),
+            rect.y + (endY ?? rect.height / 2)
+        ];
+    } else {
+        if (endX == null || endY == null) {
+            throw new errors.InvalidArgumentError('Either endElementId or endX and endY must be provided.');
+        }
+        endPos = [endX, endY];
+    }
+
+    await mouseMoveAbsolute(startPos[0], startPos[1], 0);
+
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
+        keyDown(Key.CONTROL);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
+        keyDown(Key.ALT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
+        keyDown(Key.SHIFT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
+        keyDown(Key.META);
+    }
+
+    mouseDown(mouseButton);
+    await mouseMoveAbsolute(endPos[0], endPos[1], durationMs, this.caps.smoothPointerMove);
+    mouseUp(mouseButton);
+
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {
+        keyUp(Key.CONTROL);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {
+        keyUp(Key.ALT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {
+        keyUp(Key.SHIFT);
+    }
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {
+        keyUp(Key.META);
+    }
+}
+
+export async function windowsGetDeviceTime(this: NovaWindowsDriver, args?: { format?: string }): Promise<string> {
+    return this.getDeviceTime(undefined, args?.format);
+}
+
+export async function getWindowElement(this: NovaWindowsDriver): Promise<Element> {
+    const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
+    const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
+    if (!elementId) {
+        throw new errors.NoSuchWindowError('No active app window is found for this session.');
+    }
+    return { [W3C_ELEMENT_KEY]: elementId };
 }
