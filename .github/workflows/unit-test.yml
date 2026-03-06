@@ -18,22 +18,8 @@ jobs:
               with:
                   node-version: '24.x'
 
-            - uses: SocketDev/action@v1
-              with:
-                  mode: firewall-free
-
             - name: Install dev dependencies
-              run: sfw npm install --no-package-lock
+              run: npm install --no-package-lock
 
-            - name: Debug paths
-              run: |
-                echo "Current working directory:"
-                pwd
-                echo "Node version and path:"
-                node -v
-                where node
-                echo "NPM version and path:"
-                npm -v
-                where npm
-                echo "Check node_modules/.bin contents:"
-                dir node_modules\.bin
+            - name: Run unit tests
+              run: npm run test
