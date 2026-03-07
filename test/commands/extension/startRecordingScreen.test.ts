@@ -2,6 +2,12 @@
  * Unit tests for startRecordingScreen extension command.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock(import('node:path'), async (importOriginal) => {
+    const actual = await importOriginal();
+    return { ...actual };
+});
+
 import { startRecordingScreen } from '../../../lib/commands/extension';
 import { ScreenRecorder } from '../../../lib/commands/screen-recorder';
 import { createMockDriver } from '../../fixtures/driver';
