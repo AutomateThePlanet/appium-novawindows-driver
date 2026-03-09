@@ -14,7 +14,7 @@ const INIT_ELEMENT_TABLE = /* ps1 */ `$elementTable = New-Object System.Collecti
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
     const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
     powerShell.stdout.setEncoding('utf8');
-    powerShell.stdout.setEncoding('utf8');
+    powerShell.stderr.setEncoding('utf8');
 
     powerShell.stdout.on('data', (chunk: any) => {
         this.powerShellStdOut += chunk.toString();
