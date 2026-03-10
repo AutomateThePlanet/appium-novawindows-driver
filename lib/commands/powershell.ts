@@ -12,7 +12,16 @@ const NULL_ROOT_ELEMENT = /* ps1 */ `$rootElement = $null`;
 const INIT_ELEMENT_TABLE = /* ps1 */ `$elementTable = New-Object System.Collections.Generic.Dictionary[[string]\`,[AutomationElement]]`;
 
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
-    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+    const spawnEnv = this.caps.appEnvironment
+        ? { ...process.env, ...(this.caps.appEnvironment as Record<string, string>) }
+        : process.env;
+
+    if (this.caps.appEnvironment) {
+        const keys = Object.keys(this.caps.appEnvironment as Record<string, string>);
+        this.log.info(`Applying appEnvironment variables to PowerShell session: ${keys.join(', ')}`);
+    }
+
+    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-'], { env: spawnEnv });
     powerShell.stdout.setEncoding('utf8');
     powerShell.stderr.setEncoding('utf8');
 
@@ -93,7 +102,10 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
 export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
     const magicNumber = 0xF2EE;
 
-    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+    const spawnEnv = this.caps.appEnvironment
+        ? { ...process.env, ...(this.caps.appEnvironment as Record<string, string>) }
+        : process.env;
+    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-'], { env: spawnEnv });
     try {
         powerShell.stdout.setEncoding('utf8');
         powerShell.stdout.setEncoding('utf8');
