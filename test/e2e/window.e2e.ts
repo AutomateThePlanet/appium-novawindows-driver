@@ -103,4 +103,28 @@ describe('Window and app management commands', () => {
             expect(buffer[3]).toBe(0x47); // G
         });
     });
+
+    describe('DPI scaling consistency', () => {
+        it('screenshot pixel dimensions match getWindowRect width and height', async () => {
+            const rect = await calc.getWindowRect();
+            const screenshot = await calc.takeScreenshot();
+            const buffer = Buffer.from(screenshot, 'base64');
+
+            // PNG IHDR chunk: width at bytes 16-19, height at 20-23 (big-endian uint32)
+            const pngWidth = buffer.readUInt32BE(16);
+            const pngHeight = buffer.readUInt32BE(20);
+
+            expect(pngWidth).toBe(rect.width);
+            expect(pngHeight).toBe(rect.height);
+        });
+
+        it('element rect fits within window bounds', async () => {
+            const windowRect = await calc.getWindowRect();
+            const btn = await calc.$('~num1Button');
+            const btnSize = await btn.getSize();
+
+            expect(btnSize.width).toBeLessThanOrEqual(windowRect.width);
+            expect(btnSize.height).toBeLessThanOrEqual(windowRect.height);
+        });
+    });
 });
