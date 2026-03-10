@@ -1,3 +1,11 @@
+## [1.3.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.0...v1.3.1) (2026-03-09)
+
+### Bug Fixes
+
+* add stderr encoding for PowerShell session ([a233063](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a233063b4509e41c047fcc3603b29b944c5ac374))
+* fixed incorrect $pattern variable reference ([a0afceb](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a0afceb7e682219b5e82759c52e20c59bff1225f))
+* fixed not being able to attach to slow-starting classic apps on session creation ([f25b000](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/f25b000533be1ef2a7c0bc350bf62a3cd1b60a45))
+
 ## [1.3.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.2.0...v1.3.0) (2026-03-06)
 
 ### Features
