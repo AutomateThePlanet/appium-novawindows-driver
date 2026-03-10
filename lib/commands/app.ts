@@ -36,6 +36,16 @@ const GET_PAGE_SOURCE_COMMAND = pwsh$ /* ps1 */ `
 `;
 
 const GET_SCREENSHOT_COMMAND = pwsh /* ps1 */ `
+    if (-not ([System.Management.Automation.PSTypeName]'DpiAwareness').Type) {
+        Add-Type @"
+        using System.Runtime.InteropServices;
+        public class DpiAwareness {
+            [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+        }
+"@
+    }
+    [DpiAwareness]::SetProcessDPIAware() | Out-Null
+
     if ($rootElement -eq $null) {
         $bitmap = New-Object Drawing.Bitmap 1,1
         $stream = New-Object IO.MemoryStream
