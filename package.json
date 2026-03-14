@@ -11,12 +11,16 @@
     "windows"
   ],
   "main": "build/lib/driver.js",
+  "bin": {
+    "novawindows-mcp": "build/lib/mcp/index.js"
+  },
   "scripts": {
     "build": "tsc -b",
     "watch": "tsc -b --watch",
     "lint": "eslint .",
     "test": "npx vitest run",
-    "test:e2e": "npx vitest run --config vitest.e2e.config.ts"
+    "test:e2e": "npx vitest run --config vitest.e2e.config.ts",
+    "mcp:start": "node build/lib/mcp/index.js"
   },
   "author": "Automate The Planet",
   "license": "Apache-2.0",
@@ -32,10 +36,13 @@
   },
   "dependencies": {
     "@appium/base-driver": "^10.1.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "bezier-easing": "^2.1.0",
     "ffmpeg-static": "^5.2.0",
     "koffi": "^2.14.1",
-    "xpath-analyzer": "^3.0.1"
+    "webdriverio": "^9.0.0",
+    "xpath-analyzer": "^3.0.1",
+    "zod": "^4.3.6"
   },
   "appium": {
     "driverName": "novawindows",
@@ -58,7 +65,6 @@
     "semantic-release": "^25.0.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.1",
-    "vitest": "^2.1.0",
-    "webdriverio": "^9.0.0"
+    "vitest": "^2.1.0"
   }
 }
