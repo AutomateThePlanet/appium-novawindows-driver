@@ -1,14 +1,15 @@
 {
-  "name": "appium-novawindows-driver",
-  "version": "1.3.1",
+  "name": "appium-desktop-driver",
+  "version": "1.0.0",
   "description": "Appium driver for Windows",
   "keywords": [
     "appium",
-    "novawindows",
+    "desktop",
     "uiautomation",
     "powershell",
     "automated testing",
-    "windows"
+    "windows",
+    "verisoft"
   ],
   "main": "build/lib/driver.js",
   "scripts": {
@@ -18,14 +19,14 @@
     "test": "npx vitest run",
     "test:e2e": "npx vitest run --config vitest.e2e.config.ts"
   },
-  "author": "Automate The Planet",
+  "author": "VeriSoft",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AutomateThePlanet/appium-novawindows-driver.git"
+    "url": "https://github.com/verisoft-ai/appium-desktop-driver.git"
   },
   "bugs": {
-    "url": "https://github.com/AutomateThePlanet/appium-novawindows-driver/issues"
+    "url": "https://github.com/verisoft-ai/appium-desktop-driver/issues"
   },
   "peerDependencies": {
     "appium": "^3.0.0-rc.2"
@@ -38,12 +39,12 @@
     "xpath-analyzer": "^3.0.1"
   },
   "appium": {
-    "driverName": "novawindows",
-    "automationName": "NovaWindows",
+    "driverName": "desktopdriver",
+    "automationName": "DesktopDriver",
     "platformNames": [
       "Windows"
     ],
-    "mainClass": "NovaWindowsDriver"
+    "mainClass": "DesktopDriver"
   },
   "devDependencies": {
     "@appium/eslint-config-appium-ts": "^2.0.3",
