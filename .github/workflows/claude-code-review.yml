@@ -12,14 +12,15 @@ jobs:
       contains(github.event.comment.body, '/review') &&
       (
         github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'MEMBER'
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
       )
 
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
