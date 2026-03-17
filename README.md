@@ -37,7 +37,7 @@ NovaWindows Driver supports the following capabilities:
 Capability Name | Description
 --- | ---
 platformName | Must be set to `Windows` (case-insensitive).
-automationName | Must be set to `NovaWindows` (case-insensitive).
+automationName | Must be set to `DesktopDriver` (case-insensitive).
 smoothPointerMove | CSS-like easing function (including valid Bezier curve). This controls the smooth movement of the mouse for `delayBeforeClick` ms. Example: `ease-in`, `cubic-bezier(0.42, 0, 0.58, 1)`.
 delayBeforeClick | Time in milliseconds before a click is performed.
 delayAfterClick | Time in milliseconds after a click is performed.

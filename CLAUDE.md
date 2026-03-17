@@ -57,7 +57,7 @@ All driver commands live in `lib/commands/` and are mixed into the driver class 
 
 ## Key capabilities
 
-- `platformName`: `"Windows"`, `automationName`: `"NovaWindows"`
+- `platformName`: `"Windows"`, `automationName`: `"DesktopDriver"`
 - Supported locator strategies: `xpath`, `accessibility id`, `id`, `name`, `class name`, `tag name`, `-windows uiautomation`
 - Custom `executeScript()` commands listed in README.md
 - Prerun/postrun PowerShell scripts via session capabilities

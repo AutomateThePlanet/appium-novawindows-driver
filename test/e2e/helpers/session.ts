@@ -19,7 +19,7 @@ export async function createCalculatorSession(extraCaps?: Record<string, unknown
         ...APPIUM_SERVER,
         capabilities: {
             platformName: 'Windows',
-            'appium:automationName': 'NovaWindows',
+            'appium:automationName': 'DesktopDriver',
             'appium:app': CALCULATOR_APP_ID,
             ...extraCaps,
         } as Caps,
@@ -33,7 +33,7 @@ export async function createNotepadSession(extraCaps?: Record<string, unknown>):
         ...APPIUM_SERVER,
         capabilities: {
             platformName: 'Windows',
-            'appium:automationName': 'NovaWindows',
+            'appium:automationName': 'DesktopDriver',
             'appium:app': NOTEPAD_APP_PATH,
             ...extraCaps,
         } as Caps,
@@ -47,7 +47,7 @@ export async function createTodoSession(extraCaps?: Record<string, unknown>): Pr
         ...APPIUM_SERVER,
         capabilities: {
             platformName: 'Windows',
-            'appium:automationName': 'NovaWindows',
+            'appium:automationName': 'DesktopDriver',
             'appium:app': TODO_APP_ID,
             ...extraCaps,
         } as Caps,
@@ -61,7 +61,7 @@ export async function createRootSession(extraCaps?: Record<string, unknown>): Pr
         ...APPIUM_SERVER,
         capabilities: {
             platformName: 'Windows',
-            'appium:automationName': 'NovaWindows',
+            'appium:automationName': 'DesktopDriver',
             'appium:app': 'Root',
             ...extraCaps,
         } as Caps,
