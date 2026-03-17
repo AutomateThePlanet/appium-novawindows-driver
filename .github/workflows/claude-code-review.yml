@@ -32,6 +32,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
+          claude_args: '--allowedTools "Bash(gh pr:*),Bash(gh api:*)"'
           prompt: |
             Please review the changes in pull request #${{ github.event.pull_request.number }} in this repository.
             Use the `gh` CLI to fetch the PR diff and details.
