@@ -13,7 +13,7 @@ describe('clipboard tools', () => {
 
             const result = await server.call('get_clipboard', { contentType: 'plaintext' }) as any;
 
-            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: getClipboard', ['plaintext']);
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: getClipboard', [{ contentType: 'plaintext' }]);
             expect(result.content[0].text).toBe('aGVsbG8=');
             expect(result.isError).toBeUndefined();
         });
@@ -26,7 +26,7 @@ describe('clipboard tools', () => {
 
             const result = await server.call('get_clipboard', { contentType: 'image' }) as any;
 
-            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: getClipboard', ['image']);
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: getClipboard', [{ contentType: 'image' }]);
             expect(result.content[0].text).toBe('imagebase64data');
         });
 

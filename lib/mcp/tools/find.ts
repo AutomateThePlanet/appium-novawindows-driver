@@ -2,21 +2,15 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { AppiumSession } from '../session.js';
 import { formatError } from '../errors.js';
+import { ELEMENT_KEY } from '../constants.js';
 
-const ELEMENT_KEY = 'element-6066-11e4-a52e-4f735466cecf';
 const STRATEGIES = ['accessibility id', 'name', 'id', 'xpath', 'class name', 'tag name', '-windows uiautomation'] as const;
 type Strategy = typeof STRATEGIES[number];
 
-function buildSelector(strategy: Strategy, selector: string): string {
-    switch (strategy) {
-        case 'accessibility id': return `~${selector}`;
-        case 'xpath': return selector;
-        case 'tag name': return `//${selector}`;
-        case 'id': return `#${selector}`;
-        case 'class name': return `.${selector}`;
-        case 'name': return `*[name="${selector}"]`;
-        case '-windows uiautomation': return selector;
-    }
+// 'id' is documented as an alias for 'accessibility id' (UIA AutomationId).
+// All other strategies are forwarded verbatim to the Appium/WinAppDriver protocol.
+function resolveStrategy(strategy: Strategy): string {
+    return strategy === 'id' ? 'accessibility id' : strategy;
 }
 
 const STRATEGY_DESCRIPTIONS: Record<Strategy, string> = {
@@ -52,15 +46,13 @@ export function registerFindTools(server: McpServer, session: AppiumSession): vo
                 ),
                 selector: z.string().min(1).describe('The selector value for the chosen strategy'),
             },
+            annotations: { readOnlyHint: true },
         },
         async ({ strategy, selector }) => {
             try {
                 const driver = session.getDriver();
-                const el = await driver.$(buildSelector(strategy as Strategy, selector));
-                if (!await el.isExisting()) {
-                    return { isError: true, content: [{ type: 'text' as const, text: `Element not found: ${strategy}="${selector}"` }] };
-                }
-                return { content: [{ type: 'text' as const, text: await el.elementId }] };
+                const rawEl = await driver.findElement(resolveStrategy(strategy as Strategy), selector);
+                return { content: [{ type: 'text' as const, text: rawEl[ELEMENT_KEY] }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
             }
@@ -78,15 +70,13 @@ export function registerFindTools(server: McpServer, session: AppiumSession): vo
                 ),
                 selector: z.string().min(1).describe('The selector value for the chosen strategy'),
             },
+            annotations: { readOnlyHint: true },
         },
         async ({ strategy, selector }) => {
             try {
                 const driver = session.getDriver();
-                const els = await driver.$$(buildSelector(strategy as Strategy, selector));
-                const ids: string[] = [];
-                for (const el of els) {
-                    ids.push(await el.elementId);
-                }
+                const rawEls = await driver.findElements(resolveStrategy(strategy as Strategy), selector);
+                const ids = rawEls.map((el) => el[ELEMENT_KEY]);
                 return { content: [{ type: 'text' as const, text: JSON.stringify(ids) }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
@@ -106,18 +96,56 @@ export function registerFindTools(server: McpServer, session: AppiumSession): vo
                 ),
                 selector: z.string().min(1).describe('The selector value for the chosen strategy'),
             },
+            annotations: { readOnlyHint: true },
         },
         async ({ parentElementId, strategy, selector }) => {
             try {
                 const driver = session.getDriver();
-                const parent = await driver.$({ [ELEMENT_KEY]: parentElementId });
-                const el = await parent.$(buildSelector(strategy as Strategy, selector));
-                if (!await el.isExisting()) {
-                    return { isError: true, content: [{ type: 'text' as const, text: `Child element not found: ${strategy}="${selector}"` }] };
-                }
-                return { content: [{ type: 'text' as const, text: await el.elementId }] };
+                const rawEl = await driver.findElementFromElement(
+                    parentElementId,
+                    resolveStrategy(strategy as Strategy),
+                    selector
+                );
+                return { content: [{ type: 'text' as const, text: rawEl[ELEMENT_KEY] }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'wait_for_element',
+        {
+            description: `Wait for a UI element to appear within a configurable timeout, then return its element ID. Useful after dialog opens, page transitions, or loading spinners disappear. ${FIND_STRATEGY_PRIORITY}`,
+            inputSchema: {
+                strategy: StrategyEnum.describe(
+                    'Locator strategy. ' +
+                    Object.entries(STRATEGY_DESCRIPTIONS).map(([k, v]) => `"${k}": ${v}`).join(' | ')
+                ),
+                selector: z.string().min(1).describe('The selector value for the chosen strategy'),
+                timeoutMs: z.number().int().min(0).default(5000).describe('Maximum time in milliseconds to wait for the element'),
+                pollIntervalMs: z.number().int().min(50).default(200).describe('How often to retry in milliseconds'),
+            },
+            annotations: { readOnlyHint: true },
+        },
+        async ({ strategy, selector, timeoutMs, pollIntervalMs }) => {
+            const driver = session.getDriver();
+            const effectiveStrategy = resolveStrategy(strategy as Strategy);
+            const deadline = Date.now() + timeoutMs;
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                try {
+                    const rawEl = await driver.findElement(effectiveStrategy, selector);
+                    return { content: [{ type: 'text' as const, text: rawEl[ELEMENT_KEY] }] };
+                } catch {
+                    if (Date.now() >= deadline) {
+                        return {
+                            isError: true,
+                            content: [{ type: 'text' as const, text: `Element not found within ${timeoutMs}ms: ${strategy}="${selector}"` }],
+                        };
+                    }
+                    await new Promise((r) => setTimeout(r, pollIntervalMs));
+                }
             }
         }
     );

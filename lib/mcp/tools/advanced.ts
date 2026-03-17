@@ -10,6 +10,7 @@ export function registerAdvancedTools(server: McpServer, session: AppiumSession)
         'advanced_click',
         {
             description: 'Perform an advanced click with modifier keys, multiple clicks, or custom duration. Use this for right-click, Ctrl+click, double-click, etc.',
+            annotations: { destructiveHint: false },
             inputSchema: {
                 elementId: z.string().optional().describe('Element to click (its center). Provide either elementId or x+y.'),
                 x: z.number().int().optional().describe('Absolute screen x coordinate'),
@@ -36,6 +37,7 @@ export function registerAdvancedTools(server: McpServer, session: AppiumSession)
         'send_keys',
         {
             description: 'Send keyboard input. Each action can be a pause (ms delay), text to type, or a virtual key code press/release.',
+            annotations: { destructiveHint: false },
             inputSchema: {
                 actions: z.array(z.object({
                     pause: z.number().int().optional().describe('Pause in milliseconds'),

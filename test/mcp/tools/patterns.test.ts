@@ -119,64 +119,74 @@ describe('pattern tools', () => {
         });
     });
 
-    describe('maximize_window', () => {
-        it('calls driver.executeScript("windows: maximize") and returns "maximized"', async () => {
+    describe('get_toggle_state', () => {
+        it('calls driver.executeScript("windows: getToggleState") and returns state string', async () => {
             const server = createMockServer();
             const { session, mockBrowser } = createMockSession();
+            mockBrowser.executeScript = vi.fn().mockResolvedValue('On');
             registerPatternTools(server, session);
 
-            const result = await server.call('maximize_window', { elementId: ELEM_ID }) as any;
+            const result = await server.call('get_toggle_state', { elementId: ELEM_ID }) as any;
 
-            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: maximize', [{ elementId: ELEM_ID }]);
-            expect(result.content[0].text).toBe('maximized');
-        });
-    });
-
-    describe('minimize_window', () => {
-        it('calls driver.executeScript("windows: minimize") and returns "minimized"', async () => {
-            const server = createMockServer();
-            const { session, mockBrowser } = createMockSession();
-            registerPatternTools(server, session);
-
-            const result = await server.call('minimize_window', { elementId: ELEM_ID }) as any;
-
-            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: minimize', [{ elementId: ELEM_ID }]);
-            expect(result.content[0].text).toBe('minimized');
-        });
-    });
-
-    describe('restore_window', () => {
-        it('calls driver.executeScript("windows: restore") and returns "restored"', async () => {
-            const server = createMockServer();
-            const { session, mockBrowser } = createMockSession();
-            registerPatternTools(server, session);
-
-            const result = await server.call('restore_window', { elementId: ELEM_ID }) as any;
-
-            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: restore', [{ elementId: ELEM_ID }]);
-            expect(result.content[0].text).toBe('restored');
-        });
-    });
-
-    describe('close_window', () => {
-        it('calls driver.executeScript("windows: close") and returns "closed"', async () => {
-            const server = createMockServer();
-            const { session, mockBrowser } = createMockSession();
-            registerPatternTools(server, session);
-
-            const result = await server.call('close_window', { elementId: ELEM_ID }) as any;
-
-            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: close', [{ elementId: ELEM_ID }]);
-            expect(result.content[0].text).toBe('closed');
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: getToggleState', [{ elementId: ELEM_ID }]);
+            expect(result.content[0].text).toBe('On');
         });
 
         it('returns isError on failure', async () => {
             const server = createMockServer();
             const { session, mockBrowser } = createMockSession();
-            mockBrowser.executeScript = vi.fn().mockRejectedValue(new Error('close failed'));
+            mockBrowser.executeScript = vi.fn().mockRejectedValue(new Error('getToggleState failed'));
             registerPatternTools(server, session);
 
-            const result = await server.call('close_window', { elementId: ELEM_ID }) as any;
+            const result = await server.call('get_toggle_state', { elementId: ELEM_ID }) as any;
+
+            expect(result.isError).toBe(true);
+        });
+    });
+
+    describe('focus_element', () => {
+        it('calls driver.executeScript("windows: setFocus") and returns "focused"', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            registerPatternTools(server, session);
+
+            const result = await server.call('focus_element', { elementId: ELEM_ID }) as any;
+
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: setFocus', [{ elementId: ELEM_ID }]);
+            expect(result.content[0].text).toBe('focused');
+        });
+
+        it('returns isError on failure', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            mockBrowser.executeScript = vi.fn().mockRejectedValue(new Error('setFocus failed'));
+            registerPatternTools(server, session);
+
+            const result = await server.call('focus_element', { elementId: ELEM_ID }) as any;
+
+            expect(result.isError).toBe(true);
+        });
+    });
+
+    describe('select_item', () => {
+        it('calls driver.executeScript("windows: select") and returns "selected"', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            registerPatternTools(server, session);
+
+            const result = await server.call('select_item', { elementId: ELEM_ID }) as any;
+
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: select', [{ elementId: ELEM_ID }]);
+            expect(result.content[0].text).toBe('selected');
+        });
+
+        it('returns isError on failure', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            mockBrowser.executeScript = vi.fn().mockRejectedValue(new Error('select failed'));
+            registerPatternTools(server, session);
+
+            const result = await server.call('select_item', { elementId: ELEM_ID }) as any;
 
             expect(result.isError).toBe(true);
         });

@@ -2,8 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { AppiumSession } from '../session.js';
 import { formatError } from '../errors.js';
-
-const ELEMENT_KEY = 'element-6066-11e4-a52e-4f735466cecf';
+import { ELEMENT_KEY } from '../constants.js';
 
 interface SuggestedSelector {
     strategy: string;
@@ -101,6 +100,7 @@ export function registerInspectTools(server: McpServer, session: AppiumSession):
             inputSchema: {
                 elementId: z.string().min(1).describe('Element ID returned by find_element'),
             },
+            annotations: { readOnlyHint: true },
         },
         async ({ elementId }) => {
             try {

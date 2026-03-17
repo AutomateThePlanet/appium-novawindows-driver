@@ -35,7 +35,7 @@ export class AppiumSession {
 
         if (params.appArguments !== undefined) {caps['appium:appArguments'] = params.appArguments;}
         if (params.appWorkingDir !== undefined) {caps['appium:appWorkingDir'] = params.appWorkingDir;}
-        if (params.waitForAppLaunch !== undefined) {caps['appium:ms:waitForAppLaunch'] = params.waitForAppLaunch;}
+        if (params.waitForAppLaunch !== undefined) {caps['appium:waitForAppLaunch'] = params.waitForAppLaunch;}
         if (params.shouldCloseApp !== undefined) {caps['appium:shouldCloseApp'] = params.shouldCloseApp;}
         if (params.delayAfterClick !== undefined) {caps['appium:delayAfterClick'] = params.delayAfterClick;}
         if (params.delayBeforeClick !== undefined) {caps['appium:delayBeforeClick'] = params.delayBeforeClick;}
@@ -48,7 +48,7 @@ export class AppiumSession {
             capabilities: caps as WebdriverIO.Capabilities,
         });
 
-        await this.driver.setTimeout({ implicit: params.implicitTimeout ?? 1500 });
+        await this.driver.setTimeout({ implicit: params.implicitTimeout });
         process.stderr.write('[MCP] Session created successfully\n');
     }
 

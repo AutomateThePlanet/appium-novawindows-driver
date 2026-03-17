@@ -2,9 +2,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { AppiumSession } from '../session.js';
 import { formatError } from '../errors.js';
+import { ELEMENT_KEY } from '../constants.js';
 
 const elementIdSchema = z.string().min(1).describe('Element ID returned by find_element');
-const ELEMENT_KEY = 'element-6066-11e4-a52e-4f735466cecf';
 
 export function registerInteractTools(server: McpServer, session: AppiumSession): void {
     server.registerTool(
@@ -12,6 +12,7 @@ export function registerInteractTools(server: McpServer, session: AppiumSession)
         {
             description: 'Click a UI element by its element ID.',
             inputSchema: { elementId: elementIdSchema },
+            annotations: { destructiveHint: false },
         },
         async ({ elementId }) => {
             try {
@@ -33,6 +34,7 @@ export function registerInteractTools(server: McpServer, session: AppiumSession)
                 elementId: elementIdSchema,
                 value: z.string().describe('The text value to set'),
             },
+            annotations: { destructiveHint: false },
         },
         async ({ elementId, value }) => {
             try {
@@ -51,6 +53,7 @@ export function registerInteractTools(server: McpServer, session: AppiumSession)
         {
             description: 'Clear the text content of an input element.',
             inputSchema: { elementId: elementIdSchema },
+            annotations: { destructiveHint: false },
         },
         async ({ elementId }) => {
             try {
@@ -69,6 +72,7 @@ export function registerInteractTools(server: McpServer, session: AppiumSession)
         {
             description: 'Get the visible text content of a UI element.',
             inputSchema: { elementId: elementIdSchema },
+            annotations: { readOnlyHint: true },
         },
         async ({ elementId }) => {
             try {
@@ -85,18 +89,19 @@ export function registerInteractTools(server: McpServer, session: AppiumSession)
     server.registerTool(
         'get_attribute',
         {
-            description: 'Get an attribute or property of a UI element. Common attributes: Name, AutomationId, ClassName, IsEnabled, IsOffscreen, ControlType, Value.Value.',
+            description: 'Get an attribute or property of a UI element. Common attributes: Name, AutomationId, ClassName, IsEnabled, IsOffscreen, ControlType, Value.Value. Returns an empty string when the attribute is absent.',
             inputSchema: {
                 elementId: elementIdSchema,
                 attribute: z.string().min(1).describe('Attribute name, e.g. "Name", "IsEnabled", "ControlType"'),
             },
+            annotations: { readOnlyHint: true },
         },
         async ({ elementId, attribute }) => {
             try {
                 const driver = session.getDriver();
                 const el = await driver.$({ [ELEMENT_KEY]: elementId });
                 const value = await el.getAttribute(attribute);
-                return { content: [{ type: 'text' as const, text: value ?? 'null' }] };
+                return { content: [{ type: 'text' as const, text: value ?? '' }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
             }
@@ -108,6 +113,7 @@ export function registerInteractTools(server: McpServer, session: AppiumSession)
         {
             description: 'Check whether a UI element is visible on screen (not off-screen).',
             inputSchema: { elementId: elementIdSchema },
+            annotations: { readOnlyHint: true },
         },
         async ({ elementId }) => {
             try {
@@ -126,6 +132,7 @@ export function registerInteractTools(server: McpServer, session: AppiumSession)
         {
             description: 'Check whether a UI element is enabled and interactable.',
             inputSchema: { elementId: elementIdSchema },
+            annotations: { readOnlyHint: true },
         },
         async ({ elementId }) => {
             try {

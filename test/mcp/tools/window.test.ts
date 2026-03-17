@@ -5,7 +5,7 @@ import { createMockSession } from '../fixtures/session.js';
 
 describe('window tools', () => {
     describe('take_screenshot', () => {
-        it('calls driver.takeScreenshot() and returns base64 string', async () => {
+        it('calls driver.takeScreenshot() and returns image content', async () => {
             const server = createMockServer();
             const { session, mockBrowser } = createMockSession();
             mockBrowser.takeScreenshot = vi.fn().mockResolvedValue('base64encodedpng');
@@ -14,7 +14,9 @@ describe('window tools', () => {
             const result = await server.call('take_screenshot') as any;
 
             expect(mockBrowser.takeScreenshot).toHaveBeenCalled();
-            expect(result.content[0].text).toBe('base64encodedpng');
+            expect(result.content[0].type).toBe('image');
+            expect(result.content[0].data).toBe('base64encodedpng');
+            expect(result.content[0].mimeType).toBe('image/png');
             expect(result.isError).toBeUndefined();
         });
 
@@ -127,6 +129,71 @@ describe('window tools', () => {
             registerWindowTools(server, session);
 
             const result = await server.call('switch_to_window', { handle: 'bad' }) as any;
+
+            expect(result.isError).toBe(true);
+        });
+    });
+
+    const ELEM_ID = 'win-el-1';
+
+    describe('maximize_window', () => {
+        it('calls driver.executeScript("windows: maximize") and returns "maximized"', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            registerWindowTools(server, session);
+
+            const result = await server.call('maximize_window', { elementId: ELEM_ID }) as any;
+
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: maximize', [{ elementId: ELEM_ID }]);
+            expect(result.content[0].text).toBe('maximized');
+        });
+    });
+
+    describe('minimize_window', () => {
+        it('calls driver.executeScript("windows: minimize") and returns "minimized"', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            registerWindowTools(server, session);
+
+            const result = await server.call('minimize_window', { elementId: ELEM_ID }) as any;
+
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: minimize', [{ elementId: ELEM_ID }]);
+            expect(result.content[0].text).toBe('minimized');
+        });
+    });
+
+    describe('restore_window', () => {
+        it('calls driver.executeScript("windows: restore") and returns "restored"', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            registerWindowTools(server, session);
+
+            const result = await server.call('restore_window', { elementId: ELEM_ID }) as any;
+
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: restore', [{ elementId: ELEM_ID }]);
+            expect(result.content[0].text).toBe('restored');
+        });
+    });
+
+    describe('close_window', () => {
+        it('calls driver.executeScript("windows: close") and returns "closed"', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            registerWindowTools(server, session);
+
+            const result = await server.call('close_window', { elementId: ELEM_ID }) as any;
+
+            expect(mockBrowser.executeScript).toHaveBeenCalledWith('windows: close', [{ elementId: ELEM_ID }]);
+            expect(result.content[0].text).toBe('closed');
+        });
+
+        it('returns isError on failure', async () => {
+            const server = createMockServer();
+            const { session, mockBrowser } = createMockSession();
+            mockBrowser.executeScript = vi.fn().mockRejectedValue(new Error('close failed'));
+            registerWindowTools(server, session);
+
+            const result = await server.call('close_window', { elementId: ELEM_ID }) as any;
 
             expect(result.isError).toBe(true);
         });

@@ -10,6 +10,7 @@ export function registerSessionTools(server: McpServer, session: AppiumSession):
             description:
                 'Start an Appium session by launching a Windows application. Must be called before any other tool. ' +
                 'Provide either an executable path (e.g. "C:\\\\Windows\\\\notepad.exe") or a UWP App ID (e.g. "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App").',
+            annotations: { destructiveHint: true },
             inputSchema: {
                 app: z.string().min(1).describe(
                     'Executable path (e.g. "C:\\\\Windows\\\\notepad.exe") or UWP App ID ' +
@@ -39,6 +40,7 @@ export function registerSessionTools(server: McpServer, session: AppiumSession):
         'delete_session',
         {
             description: 'End the current Appium session. Closes the app (unless shouldCloseApp was set to false when creating the session). Call this when testing is complete.',
+            annotations: { destructiveHint: true },
         },
         async () => {
             try {
@@ -57,6 +59,7 @@ export function registerSessionTools(server: McpServer, session: AppiumSession):
         'get_session_status',
         {
             description: 'Check whether a session is currently active.',
+            annotations: { readOnlyHint: true },
         },
         async () => {
             const active = session.isActive();

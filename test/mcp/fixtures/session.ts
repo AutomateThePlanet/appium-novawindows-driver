@@ -1,6 +1,8 @@
 import { vi } from 'vitest';
 import type { AppiumSession } from '../../../lib/mcp/session.js';
 
+const ELEMENT_KEY = 'element-6066-11e4-a52e-4f735466cecf';
+
 export function createMockChildElement() {
     return {
         elementId: 'child-element-id',
@@ -30,6 +32,9 @@ export function createMockBrowser() {
     const browser = {
         $: vi.fn().mockResolvedValue(el),
         $$: vi.fn().mockResolvedValue([el]),
+        findElement: vi.fn().mockResolvedValue({ [ELEMENT_KEY]: 'mock-element-id' }),
+        findElements: vi.fn().mockResolvedValue([{ [ELEMENT_KEY]: 'mock-element-id' }]),
+        findElementFromElement: vi.fn().mockResolvedValue({ [ELEMENT_KEY]: 'child-element-id' }),
         executeScript: vi.fn().mockResolvedValue(undefined),
         takeScreenshot: vi.fn().mockResolvedValue('base64screenshot'),
         getPageSource: vi.fn().mockResolvedValue('<xml><root/></xml>'),

@@ -122,7 +122,7 @@ describe('interact tools', () => {
             expect(result.content[0].text).toBe('MyButton');
         });
 
-        it('returns "null" string when attribute value is null', async () => {
+        it('returns empty string when attribute value is null', async () => {
             const server = createMockServer();
             const { session, mockElement } = createMockSession();
             mockElement.getAttribute = vi.fn().mockResolvedValue(null);
@@ -130,7 +130,7 @@ describe('interact tools', () => {
 
             const result = await server.call('get_attribute', { elementId: ELEM_ID, attribute: 'AutomationId' }) as any;
 
-            expect(result.content[0].text).toBe('null');
+            expect(result.content[0].text).toBe('');
         });
     });
 

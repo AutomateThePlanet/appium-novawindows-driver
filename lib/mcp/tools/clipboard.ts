@@ -13,11 +13,12 @@ export function registerClipboardTools(server: McpServer, session: AppiumSession
             inputSchema: {
                 contentType: contentTypeSchema.describe('"plaintext" for text, "image" for image content'),
             },
+            annotations: { readOnlyHint: true },
         },
         async ({ contentType }) => {
             try {
                 const driver = session.getDriver();
-                const result = await driver.executeScript('windows: getClipboard', [contentType]);
+                const result = await driver.executeScript('windows: getClipboard', [{ contentType }]);
                 return { content: [{ type: 'text' as const, text: String(result) }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };

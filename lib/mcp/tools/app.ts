@@ -7,14 +7,17 @@ export function registerAppTools(server: McpServer, session: AppiumSession): voi
         'get_window_element',
         {
             description: 'Get the root UI element of the current app window. Returns an element ID that represents the top-level window.',
+            annotations: { readOnlyHint: true },
         },
         async () => {
             try {
                 const driver = session.getDriver();
                 const result = await driver.executeScript('windows: getWindowElement', [{}]);
-                const elementId = (result as Record<string, string>)['element-6066-11e4-a52e-4f735466cecf']
-                    ?? (result as Record<string, string>).ELEMENT
-                    ?? String(result);
+                const ref = result as Record<string, string>;
+                const elementId = ref['element-6066-11e4-a52e-4f735466cecf'] ?? ref.ELEMENT;
+                if (!elementId) {
+                    throw new Error(`windows: getWindowElement returned unexpected value: ${JSON.stringify(result)}`);
+                }
                 return { content: [{ type: 'text' as const, text: elementId }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
@@ -26,6 +29,7 @@ export function registerAppTools(server: McpServer, session: AppiumSession): voi
         'launch_app',
         {
             description: 'Launch the application configured for this session (re-launch if it was closed).',
+            annotations: { destructiveHint: false },
         },
         async () => {
             try {
@@ -42,6 +46,7 @@ export function registerAppTools(server: McpServer, session: AppiumSession): voi
         'close_app',
         {
             description: 'Close the application under test without ending the session.',
+            annotations: { destructiveHint: true },
         },
         async () => {
             try {
@@ -58,6 +63,7 @@ export function registerAppTools(server: McpServer, session: AppiumSession): voi
         'get_device_time',
         {
             description: 'Get the current date/time on the Windows device.',
+            annotations: { readOnlyHint: true },
         },
         async () => {
             try {

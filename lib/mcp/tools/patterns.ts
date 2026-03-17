@@ -29,6 +29,7 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
         {
             description: 'Expand a collapsible element (tree node, combo box, menu) via the UIA ExpandCollapse pattern.',
             inputSchema: elementIdInput,
+            annotations: { idempotentHint: true },
         },
         async ({ elementId }) => {
             try {
@@ -46,6 +47,7 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
         {
             description: 'Collapse an expanded element via the UIA ExpandCollapse pattern.',
             inputSchema: elementIdInput,
+            annotations: { idempotentHint: true },
         },
         async ({ elementId }) => {
             try {
@@ -61,7 +63,7 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
     server.registerTool(
         'toggle_element',
         {
-            description: 'Toggle a checkbox or toggle button via the UIA Toggle pattern.',
+            description: 'Toggle a checkbox or toggle button via the UIA Toggle pattern. To confirm the resulting state, call get_toggle_state after this.',
             inputSchema: elementIdInput,
         },
         async ({ elementId }) => {
@@ -76,6 +78,24 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
     );
 
     server.registerTool(
+        'get_toggle_state',
+        {
+            description: 'Get the toggle state of a checkbox or toggle button via the UIA Toggle pattern. Returns "On", "Off", or "Indeterminate".',
+            inputSchema: elementIdInput,
+            annotations: { readOnlyHint: true },
+        },
+        async ({ elementId }) => {
+            try {
+                const driver = session.getDriver();
+                const result = await driver.executeScript('windows: getToggleState', [{ elementId }]);
+                return { content: [{ type: 'text' as const, text: String(result) }] };
+            } catch (err) {
+                return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
+            }
+        }
+    );
+
+    server.registerTool(
         'set_element_value',
         {
             description: 'Set the value of an element via the UIA Value or RangeValue pattern (e.g. sliders, spin boxes).',
@@ -83,6 +103,7 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
                 elementId: elementIdSchema,
                 value: z.string().describe('The value to set'),
             },
+            annotations: { destructiveHint: false },
         },
         async ({ elementId, value }) => {
             try {
@@ -100,6 +121,7 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
         {
             description: 'Get the value of an element via the UIA Value pattern.',
             inputSchema: elementIdInput,
+            annotations: { readOnlyHint: true },
         },
         async ({ elementId }) => {
             try {
@@ -113,16 +135,17 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
     );
 
     server.registerTool(
-        'maximize_window',
+        'focus_element',
         {
-            description: 'Maximize a window element via the UIA Window pattern.',
+            description: 'Set focus to an element via the UIA Focus pattern (windows: setFocus). Required before keyboard-driven interactions such as send_keys on a specific control.',
             inputSchema: elementIdInput,
+            annotations: { idempotentHint: true },
         },
         async ({ elementId }) => {
             try {
                 const driver = session.getDriver();
-                await driver.executeScript('windows: maximize', [{ elementId }]);
-                return { content: [{ type: 'text' as const, text: 'maximized' }] };
+                await driver.executeScript('windows: setFocus', [{ elementId }]);
+                return { content: [{ type: 'text' as const, text: 'focused' }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
             }
@@ -130,50 +153,16 @@ export function registerPatternTools(server: McpServer, session: AppiumSession):
     );
 
     server.registerTool(
-        'minimize_window',
+        'select_item',
         {
-            description: 'Minimize a window element via the UIA Window pattern.',
+            description: 'Select an item in a list box, tab control, or combo box via the UIA SelectionItem pattern (windows: select). Use when click does not trigger selection.',
             inputSchema: elementIdInput,
         },
         async ({ elementId }) => {
             try {
                 const driver = session.getDriver();
-                await driver.executeScript('windows: minimize', [{ elementId }]);
-                return { content: [{ type: 'text' as const, text: 'minimized' }] };
-            } catch (err) {
-                return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
-            }
-        }
-    );
-
-    server.registerTool(
-        'restore_window',
-        {
-            description: 'Restore a minimized or maximized window to its normal state via the UIA Window pattern.',
-            inputSchema: elementIdInput,
-        },
-        async ({ elementId }) => {
-            try {
-                const driver = session.getDriver();
-                await driver.executeScript('windows: restore', [{ elementId }]);
-                return { content: [{ type: 'text' as const, text: 'restored' }] };
-            } catch (err) {
-                return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
-            }
-        }
-    );
-
-    server.registerTool(
-        'close_window',
-        {
-            description: 'Close a window element via the UIA Window pattern.',
-            inputSchema: elementIdInput,
-        },
-        async ({ elementId }) => {
-            try {
-                const driver = session.getDriver();
-                await driver.executeScript('windows: close', [{ elementId }]);
-                return { content: [{ type: 'text' as const, text: 'closed' }] };
+                await driver.executeScript('windows: select', [{ elementId }]);
+                return { content: [{ type: 'text' as const, text: 'selected' }] };
             } catch (err) {
                 return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
             }

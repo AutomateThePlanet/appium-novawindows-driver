@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -52,7 +53,7 @@ function resolveAppiumBinary(configBinary?: string): string {
 
     // Prefer a local node_modules/.bin/appium (3 levels up from build/lib/mcp/)
     const localBin = path.resolve(__dirname, '..', '..', '..', 'node_modules', '.bin', 'appium');
-    if (require('node:fs').existsSync(localBin)) {return localBin;}
+    if (fs.existsSync(localBin)) {return localBin;}
 
     // Fall back to appium on the system PATH (global install: npm install -g appium)
     return 'appium';
@@ -86,7 +87,10 @@ export class AppiumManager {
             shell: process.platform === 'win32',
         });
 
-        // Attach error handler immediately to prevent unhandled error crash
+        // Wait for either a successful spawn or an early error.
+        // The 'spawn' event (Node ≥ 15.1) fires only after the OS has confirmed the
+        // process started; 'error' fires if it never starts (binary not found, etc.).
+        // Using setImmediate here would be a race — resolve could win before 'error' fires.
         await new Promise<void>((resolve, reject) => {
             child.once('error', (err) => {
                 reject(new Error(
@@ -95,8 +99,7 @@ export class AppiumManager {
                     `Or set APPIUM_BINARY to the full path of the appium executable.`
                 ));
             });
-            // If no error fires synchronously, we're past the spawn phase
-            setImmediate(resolve);
+            child.once('spawn', resolve);
         });
 
         this.process = child;
