@@ -12,7 +12,16 @@ const NULL_ROOT_ELEMENT = /* ps1 */ `$rootElement = $null`;
 const INIT_ELEMENT_TABLE = /* ps1 */ `$elementTable = New-Object System.Collections.Generic.Dictionary[[string]\`,[AutomationElement]]`;
 
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
-    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+    const spawnEnv = this.caps.appEnvironment
+        ? { ...process.env, ...(this.caps.appEnvironment as Record<string, string>) }
+        : process.env;
+
+    if (this.caps.appEnvironment) {
+        const keys = Object.keys(this.caps.appEnvironment as Record<string, string>);
+        this.log.info(`Applying appEnvironment variables to PowerShell session: ${keys.join(', ')}`);
+    }
+
+    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-'], { env: spawnEnv });
     powerShell.stdout.setEncoding('utf8');
     powerShell.stderr.setEncoding('utf8');
 
@@ -35,7 +44,7 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
         }
         const envVars = Array.from(envVarsSet);
         for (const envVar of envVars) {
-            this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+            this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, spawnEnv[envVar.toUpperCase()] ?? '');
         }
         this.sendPowerShellCommand(`Set-Location -Path '${this.caps.appWorkingDir}'`);
     }
@@ -73,7 +82,7 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
         this.log.info(`Detected the following environment variables in app path: ${envVars.map((envVar) => `%${envVar}%`).join(', ')}`);
 
         for (const envVar of envVars) {
-            this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+            this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, spawnEnv[envVar.toUpperCase()] ?? '');
         }
 
         await this.changeRootElement(this.caps.app);
@@ -93,9 +102,11 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
 export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
     const magicNumber = 0xF2EE;
 
-    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+    const spawnEnv = this.caps.appEnvironment
+        ? { ...process.env, ...(this.caps.appEnvironment as Record<string, string>) }
+        : process.env;
+    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-'], { env: spawnEnv });
     try {
-        powerShell.stdout.setEncoding('utf8');
         powerShell.stdout.setEncoding('utf8');
 
         let localStdOut = '';
@@ -123,7 +134,7 @@ export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, com
                 }
                 const envVars = Array.from(envVarsSet);
                 for (const envVar of envVars) {
-                    this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+                    this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, spawnEnv[envVar.toUpperCase()] ?? '');
                 }
                 powerShell.stdin.write(`Set-Location -Path '${this.caps.appWorkingDir}'\n`);
             }

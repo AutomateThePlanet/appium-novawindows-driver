@@ -1,0 +1,24 @@
+# Source files
+lib/
+test/
+examples/
+
+# Config files
+tsconfig.json
+eslint.config.mjs
+vitest.config.ts
+vitest.e2e.config.ts
+.releaserc
+.npmrc
+
+# CI/CD
+.github/
+
+# IDE
+.vscode/
+
+# Misc
+.gitignore
+CHANGELOG.md
+CLAUDE.md
+MCP_README.md

@@ -22,7 +22,7 @@ public class CalculatorSession
         var appiumOptions = new AppiumOptions
         {
             App = CalculatorAppId,
-            AutomationName = "NovaWindows",
+            AutomationName = "DesktopDriver",
             PlatformName = "Windows",
         };
 
