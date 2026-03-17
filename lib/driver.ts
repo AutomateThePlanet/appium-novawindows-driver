@@ -176,6 +176,16 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             if (caps.app && caps.appTopLevelWindow) {
                 throw new errors.InvalidArgumentError('Invalid capabilities. Specify either app or appTopLevelWindow.');
             }
+            if (caps.appEnvironment) {
+                const invalidKeys = Object.entries(caps.appEnvironment as Record<string, unknown>)
+                    .filter(([, v]) => typeof v !== 'string')
+                    .map(([k]) => k);
+                if (invalidKeys.length > 0) {
+                    throw new errors.InvalidArgumentError(
+                        `Invalid capabilities. 'appEnvironment' values must be strings. Invalid keys: ${invalidKeys.join(', ')}`
+                    );
+                }
+            }
             if (this.caps.shouldCloseApp === undefined) {
                 this.caps.shouldCloseApp = true; // set default value
             }

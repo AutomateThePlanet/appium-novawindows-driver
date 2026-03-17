@@ -44,7 +44,7 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
         }
         const envVars = Array.from(envVarsSet);
         for (const envVar of envVars) {
-            this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+            this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, spawnEnv[envVar.toUpperCase()] ?? '');
         }
         this.sendPowerShellCommand(`Set-Location -Path '${this.caps.appWorkingDir}'`);
     }
@@ -82,7 +82,7 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
         this.log.info(`Detected the following environment variables in app path: ${envVars.map((envVar) => `%${envVar}%`).join(', ')}`);
 
         for (const envVar of envVars) {
-            this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+            this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, spawnEnv[envVar.toUpperCase()] ?? '');
         }
 
         await this.changeRootElement(this.caps.app);
@@ -107,7 +107,6 @@ export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, com
         : process.env;
     const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-'], { env: spawnEnv });
     try {
-        powerShell.stdout.setEncoding('utf8');
         powerShell.stdout.setEncoding('utf8');
 
         let localStdOut = '';
@@ -135,7 +134,7 @@ export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, com
                 }
                 const envVars = Array.from(envVarsSet);
                 for (const envVar of envVars) {
-                    this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+                    this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, spawnEnv[envVar.toUpperCase()] ?? '');
                 }
                 powerShell.stdin.write(`Set-Location -Path '${this.caps.appWorkingDir}'\n`);
             }
