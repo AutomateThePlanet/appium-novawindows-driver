@@ -174,52 +174,22 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
     if (path.includes('!') && path.includes('_') && !(path.includes('/') || path.includes('\\'))) {
         this.log.debug('Detected app path to be in the UWP format.');
         await this.sendPowerShellCommand(/* ps1 */ `Start-Process 'explorer.exe' 'shell:AppsFolder\\${path}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
-        await sleep((this.caps['ms:waitForAppLaunch'] ?? 0) * 1000 || SLEEP_INTERVAL_MS);
-        for (let i = 1; i <= 20; i++) {
-            const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
-            const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
-
-            this.log.debug(`Process IDs of ApplicationFrameHost processes (${processIds.length}): ` + processIds.join(', '));
-            try {
-                await this.attachToApplicationWindow(processIds);
-                return;
-            } catch (err) {
-                if (err instanceof Error) {
-                    this.log.debug(`attachToApplicationWindow failed: ${err.message}`);
-                }
-            }
-
-            this.log.info(`Failed to locate window of the app. Sleeping for ${SLEEP_INTERVAL_MS} milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
-            await sleep(SLEEP_INTERVAL_MS); // TODO: make a setting for the sleep timeout
-        }
+        const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
+        const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
+        this.log.debug(`Process IDs of ApplicationFrameHost processes (${processIds.length}): ` + processIds.join(', '));
+        await this.attachToApplicationWindow(processIds);
     } else {
         this.log.debug('Detected app path to be in the classic format.');
         const normalizedPath = normalize(path);
         await this.sendPowerShellCommand(/* ps1 */ `Start-Process '${normalizedPath}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
-        await sleep((this.caps['ms:waitForAppLaunch'] ?? 0) * 1000 || 500);
-        for (let i = 1; i <= 20; i++) {
-            try {
-                const breadcrumbs = normalizedPath.toLowerCase().split('\\').flatMap((x) => x.split('/'));
-                const executable = breadcrumbs[breadcrumbs.length - 1];
-                const processName = executable.endsWith('.exe') ? executable.slice(0, executable.length - 4) : executable;
-                const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name '${processName}' | Sort-Object StartTime -Descending).Id`);
-                const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
-                this.log.debug(`Process IDs of '${processName}' processes: ` + processIds.join(', '));
-
-                await this.attachToApplicationWindow(processIds);
-                return;
-            } catch (err) {
-                if (err instanceof Error) {
-                    this.log.debug(`Received error:\n${err.message}`);
-                }
-            }
-
-            this.log.info(`Failed to locate window of the app. Sleeping for ${SLEEP_INTERVAL_MS} milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
-            await sleep(SLEEP_INTERVAL_MS); // TODO: make a setting for the sleep timeout
-        }
+        const breadcrumbs = normalizedPath.toLowerCase().split('\\').flatMap((x) => x.split('/'));
+        const executable = breadcrumbs[breadcrumbs.length - 1];
+        const processName = executable.endsWith('.exe') ? executable.slice(0, executable.length - 4) : executable;
+        const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name '${processName}' | Sort-Object StartTime -Descending).Id`);
+        const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
+        this.log.debug(`Process IDs of '${processName}' processes: ` + processIds.join(', '));
+        await this.attachToApplicationWindow(processIds);
     }
-
-    throw new errors.UnknownError('Failed to locate window of the app.');
 }
 
 export async function back(this: NovaWindowsDriver): Promise<void> {
