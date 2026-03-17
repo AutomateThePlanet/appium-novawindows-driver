@@ -179,12 +179,14 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
             const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
             const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
 
-            this.log.debug('Process IDs of ApplicationFrameHost processes: ' + processIds.join(', '));
+            this.log.debug(`Process IDs of ApplicationFrameHost processes (${processIds.length}): ` + processIds.join(', '));
             try {
                 await this.attachToApplicationWindow(processIds);
                 return;
-            } catch {
-                // noop
+            } catch (err) {
+                if (err instanceof Error) {
+                    this.log.debug(`attachToApplicationWindow failed: ${err.message}`);
+                }
             }
 
             this.log.info(`Failed to locate window of the app. Sleeping for ${SLEEP_INTERVAL_MS} milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
@@ -282,45 +284,41 @@ export async function setWindowRect(
     return await this.getWindowRect();
 }
 
-export async function waitForNewWindow(this: NovaWindowsDriver, pid: number, timeout: number): Promise<number> {
+
+export async function attachToApplicationWindow(this: NovaWindowsDriver, processIds: number[]): Promise<void> {
+    this.log.debug(`Attaching to application window. Process IDs: [${processIds.join(', ')}]`);
+    const timeout = (this.caps['ms:waitForAppLaunch'] ?? 0) * 1000 || SLEEP_INTERVAL_MS * 20;
     const start = Date.now();
     let attempts = 0;
 
     while (Date.now() - start < timeout) {
-        const handles = getWindowAllHandlesForProcessIds([pid]);
+        const handles = getWindowAllHandlesForProcessIds(processIds);
 
         if (handles.length > 0) {
-            return handles[handles.length - 1];
+            this.log.debug(`Found ${handles.length} window handle(s) for PIDs [${processIds.join(', ')}]: ${handles.map((h) => `0x${h.toString(16).padStart(8, '0')}`).join(', ')}`);
+
+            for (const handle of handles) {
+                const elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN, new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(handle))).buildCommand());
+
+                if (elementId.trim()) {
+                    await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
+                    if ((await this.sendPowerShellCommand(/* ps1 */ `$null -ne $rootElement`)).toLowerCase() === 'true') {
+                        const confirmedHandle = Number(await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetPropertyCommand(Property.NATIVE_WINDOW_HANDLE)));
+                        this.log.info(`Successfully attached to window. Native window handle: 0x${confirmedHandle.toString(16).padStart(8, '0')}`);
+                        if (!trySetForegroundWindow(confirmedHandle)) {
+                            await this.focusElement({
+                                [W3C_ELEMENT_KEY]: elementId,
+                            } satisfies Element);
+                        }
+                        return;
+                    }
+                }
+            }
         }
 
-        this.log.debug(`Waiting for the process window to appear... (${++attempts}/${Math.floor(timeout / SLEEP_INTERVAL_MS)})`);
+        this.log.debug(`No attachable window found yet. Sleeping for ${SLEEP_INTERVAL_MS} milliseconds and retrying... (${++attempts}/${Math.floor(timeout / SLEEP_INTERVAL_MS)})`);
         await sleep(SLEEP_INTERVAL_MS);
     }
 
-    throw new Error('Timed out waiting for window.');
-}
-
-export async function attachToApplicationWindow(this: NovaWindowsDriver, processIds: number[]): Promise<void> {
-    const nativeWindowHandle = await waitForNewWindow.call(this, processIds[0], this.caps['ms:waitForAppLaunch'] ?? SLEEP_INTERVAL_MS * 20);
-
-    let elementId = '';
-    for (let i = 1; i <= 20; i++) {
-        elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN, new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(nativeWindowHandle))).buildCommand());
-        if (elementId) {
-            break;
-        }
-        this.log.info(`The window with handle 0x${nativeWindowHandle.toString(16).padStart(8, '0')} is not yet available in the UI Automation tree. Sleeping for ${SLEEP_INTERVAL_MS} milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
-        await sleep(SLEEP_INTERVAL_MS); // TODO: make a setting for the sleep timeout
-    }
-
-    await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
-    if ((await this.sendPowerShellCommand(/* ps1 */ `$null -ne $rootElement`)).toLowerCase() === 'true') {
-        const nativeWindowHandle = Number(await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetPropertyCommand(Property.NATIVE_WINDOW_HANDLE)));
-        if (!trySetForegroundWindow(nativeWindowHandle)) {
-            await this.focusElement({
-                [W3C_ELEMENT_KEY]: elementId,
-            } satisfies Element);
-        };
-        return;
-    }
+    throw new Error('Timed out waiting to attach to application window.');
 }
