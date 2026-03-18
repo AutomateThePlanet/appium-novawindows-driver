@@ -16,6 +16,14 @@ vitest.e2e.config.ts
 
 # IDE
 .vscode/
+.claude/
+
+# Dev tool config
+.mcp.json
+
+# Build artifacts
+build/tsconfig.tsbuildinfo
+build/eslint.config.*
 
 # Misc
 .gitignore
