@@ -1,13 +1,31 @@
 #!/usr/bin/env node
+import * as http from 'node:http';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig } from './config.js';
-import { AppiumManager } from './appium-manager.js';
 import { AppiumSession } from './session.js';
 import { registerAllTools } from './tools/index.js';
 
+function checkAppiumReachable(host: string, port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+        const req = http.get(
+            { hostname: host, port, path: '/status', timeout: 3000 },
+            (res) => {
+                let body = '';
+                res.on('data', (chunk) => { body += chunk; });
+                res.on('end', () => {
+                    try { resolve(JSON.parse(body)?.value?.ready === true); }
+                    catch { resolve(false); }
+                });
+            }
+        );
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+    });
+}
+
 async function main() {
-    // Step 1: Load infrastructure config (host, port, auto-start only — no app required)
+    // Step 1: Load infrastructure config (host, port — no app required)
     let config;
     try {
         config = loadConfig();
@@ -16,14 +34,16 @@ async function main() {
         process.exit(1);
     }
 
-    // Step 2: Ensure Appium is running
-    const appiumManager = new AppiumManager();
-    try {
-        await appiumManager.ensureRunning(config);
-    } catch (err) {
-        process.stderr.write(`[MCP] Failed to start Appium: ${err instanceof Error ? err.message : String(err)}\n`);
+    // Step 2: Verify Appium is reachable
+    const { appiumHost: host, appiumPort: port } = config;
+    if (!await checkAppiumReachable(host, port)) {
+        process.stderr.write(
+            `[MCP] Appium is not running on ${host}:${port}.\n` +
+            `Start it first with: appium --port ${port}\n`
+        );
         process.exit(1);
     }
+    process.stderr.write(`[MCP] Appium detected on ${host}:${port}\n`);
 
     // Step 3: Create session holder (no app launched yet — agent calls create_session)
     const session = new AppiumSession(config);
@@ -51,7 +71,6 @@ async function main() {
             ]);
         }
 
-        await appiumManager.shutdown();
         process.exit(0);
     }
 

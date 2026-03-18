@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "novawindows-mcp": {
+      "command": "node",
+      "args": ["./build/lib/mcp/index.js"],
+      "env": {}
+    }
+  }
+}

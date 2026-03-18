@@ -2,8 +2,6 @@
 export interface McpConfig {
     appiumHost: string;
     appiumPort: number;
-    appiumAutoStart: boolean;
-    appiumBinary?: string;
 }
 
 export function loadConfig(): McpConfig {
@@ -15,7 +13,5 @@ export function loadConfig(): McpConfig {
     return {
         appiumHost: process.env.APPIUM_HOST ?? '127.0.0.1',
         appiumPort,
-        appiumAutoStart: process.env.APPIUM_AUTO_START !== 'false',
-        appiumBinary: process.env.APPIUM_BINARY,
     };
 }

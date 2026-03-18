@@ -29,7 +29,7 @@ export class AppiumSession {
 
         const caps: Record<string, unknown> = {
             platformName: 'Windows',
-            'appium:automationName': 'NovaWindows',
+            'appium:automationName': 'DesktopDriver',
             'appium:app': params.app,
         };
 
