@@ -49,6 +49,7 @@ prerun | An object containing either `script` or `command` key. The value of eac
 postrun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed after WinAppDriver session is stopped. See [Power Shell commands execution](#power-shell-commands-execution) for more details.
 isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session. Default is `false`.
 appEnvironment | Optional object of custom environment variables to inject into the PowerShell session. The variables are only available for the lifetime of the session and do not affect the system environment. Example: `{"MY_VAR": "hello", "API_URL": "http://localhost:3000"}`.
+returnAllWindowHandles | When `true`, `getWindowHandles()` returns all top-level windows on the desktop (UIA root children) instead of only the windows belonging to the launched app. Useful for switching to arbitrary system windows. Default is `false`.
 
 Please note that more capabilities will be added as the development of this driver progresses. Since it is still in its early stages, some features may be missing or subject to change. If you need a specific capability or encounter any issues, please feel free to open an issue.
 
