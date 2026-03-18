@@ -12,11 +12,11 @@ describe('inspect tools', () => {
             const server = createMockServer();
             const { session, mockBrowser, mockElement } = createMockSession();
             mockElement.getAttribute = vi.fn()
-                .mockResolvedValueOnce('OK')            // Name
-                .mockResolvedValueOnce('OkButton')      // AutomationId
-                .mockResolvedValueOnce('Button')        // ClassName
+                .mockResolvedValueOnce('OK') // Name
+                .mockResolvedValueOnce('OkButton') // AutomationId
+                .mockResolvedValueOnce('Button') // ClassName
                 .mockResolvedValueOnce('ControlType.Button') // ControlType
-                .mockResolvedValueOnce('True');          // IsEnabled
+                .mockResolvedValueOnce('True'); // IsEnabled
             registerInspectTools(server, session);
 
             const result = await server.call('get_element_info', { elementId: ELEM_ID }) as any;

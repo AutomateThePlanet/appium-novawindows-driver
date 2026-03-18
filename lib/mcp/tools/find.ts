@@ -132,7 +132,6 @@ export function registerFindTools(server: McpServer, session: AppiumSession): vo
             const driver = session.getDriver();
             const effectiveStrategy = resolveStrategy(strategy as Strategy);
             const deadline = Date.now() + timeoutMs;
-            // eslint-disable-next-line no-constant-condition
             while (true) {
                 try {
                     const rawEl = await driver.findElement(effectiveStrategy, selector);
@@ -144,7 +143,7 @@ export function registerFindTools(server: McpServer, session: AppiumSession): vo
                             content: [{ type: 'text' as const, text: `Element not found within ${timeoutMs}ms: ${strategy}="${selector}"` }],
                         };
                     }
-                    await new Promise((r) => setTimeout(r, pollIntervalMs));
+                    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
                 }
             }
         }
