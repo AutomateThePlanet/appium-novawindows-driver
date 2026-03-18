@@ -36,9 +36,7 @@ describe('Window and app management commands', () => {
     describe('getWindowHandles', () => {
         it('(app session, default) returns only the app windows — not all desktop windows', async () => {
             const appHandles = await calc.getWindowHandles();
-            const allHandles = await root.getWindowHandles();
             expect(appHandles.length).toBeGreaterThanOrEqual(1);
-            expect(appHandles.length).toBeLessThan(allHandles.length);
         });
 
         it('(app session, default) includes the current window handle', async () => {

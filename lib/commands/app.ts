@@ -168,6 +168,11 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         if (elementId.trim() !== '') {
             await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
             trySetForegroundWindow(nativeWindowHandle);
+            const pidResult = await this.sendPowerShellCommand(`$rootElement.Current.ProcessId`);
+            const pid = Number(pidResult.trim());
+            if (!isNaN(pid) && pid > 0) {
+                this.appProcessIds = [pid];
+            }
             return;
         }
 
@@ -184,6 +189,10 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         this.log.debug(`Process IDs of ApplicationFrameHost processes (${processIds.length}): ` + processIds.join(', '));
         this.appProcessIds = processIds;
         await this.attachToApplicationWindow(processIds);
+        const attachedPid = Number((await this.sendPowerShellCommand(`$rootElement.Current.ProcessId`)).trim());
+        if (!isNaN(attachedPid) && attachedPid > 0) {
+            this.appProcessIds = [attachedPid];
+        }
     } else {
         this.log.debug('Detected app path to be in the classic format.');
         const normalizedPath = normalize(path);
@@ -196,6 +205,10 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         this.log.debug(`Process IDs of '${processName}' processes: ` + processIds.join(', '));
         this.appProcessIds = processIds;
         await this.attachToApplicationWindow(processIds);
+        const attachedPid = Number((await this.sendPowerShellCommand(`$rootElement.Current.ProcessId`)).trim());
+        if (!isNaN(attachedPid) && attachedPid > 0) {
+            this.appProcessIds = [attachedPid];
+        }
     }
 }
 
