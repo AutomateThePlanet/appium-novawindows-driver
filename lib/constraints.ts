@@ -45,6 +45,9 @@ export const UI_AUTOMATION_DRIVER_CONSTRAINTS = {
     'ms:forcequit': {
         isBoolean: true,
     },
+    returnAllWindowHandles: {
+        isBoolean: true,
+    },
 } as const satisfies Constraints;
 
 export default UI_AUTOMATION_DRIVER_CONSTRAINTS;

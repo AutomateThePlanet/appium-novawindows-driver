@@ -8,6 +8,8 @@ export interface MockDriver {
     sendPowerShellCommand: ReturnType<typeof vi.fn>;
     log: { debug: ReturnType<typeof vi.fn>; info?: ReturnType<typeof vi.fn> };
     assertFeatureEnabled: ReturnType<typeof vi.fn>;
+    appProcessIds: number[];
+    caps: Record<string, unknown>;
 }
 
 export function createMockDriver(overrides?: Partial<MockDriver>): MockDriver {
@@ -18,6 +20,8 @@ export function createMockDriver(overrides?: Partial<MockDriver>): MockDriver {
         sendPowerShellCommand,
         log,
         assertFeatureEnabled,
+        appProcessIds: [],
+        caps: {},
         ...overrides,
     };
     return driver;
