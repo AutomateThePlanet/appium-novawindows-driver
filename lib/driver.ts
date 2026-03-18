@@ -60,6 +60,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
     powerShell?: ChildProcessWithoutNullStreams;
     powerShellStdOut: string = '';
     powerShellStdErr: string = '';
+    appProcessIds: number[] = [];
     keyboardState: KeyboardState = {
         pressed: new Set(),
         alt: false,

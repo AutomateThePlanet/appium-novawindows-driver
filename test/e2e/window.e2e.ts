@@ -1,19 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Browser } from 'webdriverio';
-import { createCalculatorSession, createRootSession, quitSession } from './helpers/session.js';
+import { closeAllTestApps, createCalculatorSession, createRootSession, quitSession } from './helpers/session.js';
 
 describe('Window and app management commands', () => {
     let calc: Browser;
+    let calcAllHandles: Browser;
     let root: Browser;
 
     beforeAll(async () => {
         calc = await createCalculatorSession();
+        calcAllHandles = await createCalculatorSession({ 'appium:returnAllWindowHandles': true });
         root = await createRootSession();
     });
 
     afterAll(async () => {
         await quitSession(calc);
+        await quitSession(calcAllHandles);
         await quitSession(root);
+        closeAllTestApps();
     });
 
     describe('getWindowHandle', () => {
@@ -30,13 +34,41 @@ describe('Window and app management commands', () => {
     });
 
     describe('getWindowHandles', () => {
-        it('returns an array from the Root session', async () => {
-            const handles = await root.getWindowHandles();
-            expect(Array.isArray(handles)).toBe(true);
+        it('(app session, default) returns only the app windows — not all desktop windows', async () => {
+            const appHandles = await calc.getWindowHandles();
+            const allHandles = await root.getWindowHandles();
+            expect(appHandles.length).toBeGreaterThanOrEqual(1);
+            expect(appHandles.length).toBeLessThan(allHandles.length);
         });
 
-        it('returns at least one window handle from the desktop', async () => {
+        it('(app session, default) includes the current window handle', async () => {
+            const current = await calc.getWindowHandle();
+            const handles = await calc.getWindowHandles();
+            expect(handles).toContain(current);
+        });
+
+        it('(app session, default) all returned handles match the 0x hex format', async () => {
+            const handles = await calc.getWindowHandles();
+            for (const h of handles) {
+                expect(h).toMatch(/^0x[0-9a-fA-F]{8}$/);
+            }
+        });
+
+        it('(returnAllWindowHandles=true) returns all desktop windows, same count as root session', async () => {
+            const appAllHandles = await calcAllHandles.getWindowHandles();
+            const rootHandles = await root.getWindowHandles();
+            expect(appAllHandles.length).toBe(rootHandles.length);
+        });
+
+        it('(returnAllWindowHandles=true) includes the current app window handle', async () => {
+            const current = await calc.getWindowHandle();
+            const appAllHandles = await calcAllHandles.getWindowHandles();
+            expect(appAllHandles).toContain(current);
+        });
+
+        it('(root session) returns an array of at least one window handle', async () => {
             const handles = await root.getWindowHandles();
+            expect(Array.isArray(handles)).toBe(true);
             expect(handles.length).toBeGreaterThanOrEqual(1);
         });
     });

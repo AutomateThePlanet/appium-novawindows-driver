@@ -91,6 +91,11 @@ export async function getWindowHandle(this: NovaWindowsDriver): Promise<string> 
 }
 
 export async function getWindowHandles(this: NovaWindowsDriver): Promise<string[]> {
+    if (this.appProcessIds.length > 0 && !this.caps.returnAllWindowHandles) {
+        const handles = getWindowAllHandlesForProcessIds(this.appProcessIds);
+        return handles.map((h) => `0x${h.toString(16).padStart(8, '0')}`);
+    }
+
     const result = await this.sendPowerShellCommand(AutomationElement.rootElement.findAll(TreeScope.CHILDREN, new TrueCondition()).buildCommand());
     const elIds = result.split('\n').map((x) => x.trim()).filter(Boolean);
     const nativeWindowHandles: string[] = [];
@@ -177,6 +182,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
         const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
         this.log.debug(`Process IDs of ApplicationFrameHost processes (${processIds.length}): ` + processIds.join(', '));
+        this.appProcessIds = processIds;
         await this.attachToApplicationWindow(processIds);
     } else {
         this.log.debug('Detected app path to be in the classic format.');
@@ -188,6 +194,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name '${processName}' | Sort-Object StartTime -Descending).Id`);
         const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
         this.log.debug(`Process IDs of '${processName}' processes: ` + processIds.join(', '));
+        this.appProcessIds = processIds;
         await this.attachToApplicationWindow(processIds);
     }
 }
