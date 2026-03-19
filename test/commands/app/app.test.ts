@@ -125,9 +125,23 @@ describe('setWindow', () => {
 
     it('throws NoSuchWindowError when window is not found after retries', async () => {
         const driver = createMockDriver() as any;
+        driver.caps['ms:windowSwitchRetries'] = 1;
+        driver.caps['ms:windowSwitchInterval'] = 0;
         // All calls return empty (window not found)
         driver.sendPowerShellCommand.mockResolvedValue('');
 
         await expect(setWindow.call(driver, 'NonExistentWindow')).rejects.toThrow('No window was found');
-    }, 10000);
+    });
+
+    it('respects ms:windowSwitchRetries cap', async () => {
+        const driver2 = createMockDriver() as any;
+        driver2.caps['ms:windowSwitchRetries'] = 2;
+        driver2.caps['ms:windowSwitchInterval'] = 0;
+        driver2.sendPowerShellCommand.mockResolvedValue('');
+
+        // Use a numeric handle string so both the handle search and name search run per iteration (2 PS calls each)
+        await expect(setWindow.call(driver2, '99999')).rejects.toThrow('No window was found');
+        // 2 retries × 2 PS commands (handle search + name search) = 4 calls
+        expect(driver2.sendPowerShellCommand.mock.calls.length).toBe(4);
+    });
 });
