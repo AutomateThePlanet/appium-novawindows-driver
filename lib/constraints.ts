@@ -48,6 +48,12 @@ export const UI_AUTOMATION_DRIVER_CONSTRAINTS = {
     returnAllWindowHandles: {
         isBoolean: true,
     },
+    'ms:windowSwitchRetries': {
+        isNumber: true,
+    },
+    'ms:windowSwitchInterval': {
+        isNumber: true,
+    },
 } as const satisfies Constraints;
 
 export default UI_AUTOMATION_DRIVER_CONSTRAINTS;

@@ -50,6 +50,9 @@ postrun | An object containing either `script` or `command` key. The value of ea
 isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session. Default is `false`.
 appEnvironment | Optional object of custom environment variables to inject into the PowerShell session. The variables are only available for the lifetime of the session and do not affect the system environment. Example: `{"MY_VAR": "hello", "API_URL": "http://localhost:3000"}`.
 returnAllWindowHandles | When `true`, `getWindowHandles()` returns all top-level windows on the desktop (UIA root children) instead of only the windows belonging to the launched app. Useful for switching to arbitrary system windows. Default is `false`.
+ms:waitForAppLaunch | Time in seconds to wait for the app window to appear after launch. Default is `0` (falls back to 10 000 ms internal timeout).
+ms:windowSwitchRetries | Maximum number of retry attempts in `setWindow()` when the target window is not yet visible. Must be a non-negative integer. Default is `20`.
+ms:windowSwitchInterval | Sleep duration in milliseconds between each retry in `setWindow()`. Must be a non-negative integer. Default is `500`.
 
 Please note that more capabilities will be added as the development of this driver progresses. Since it is still in its early stages, some features may be missing or subject to change. If you need a specific capability or encounter any issues, please feel free to open an issue.
 

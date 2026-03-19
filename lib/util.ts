@@ -26,6 +26,14 @@ export function assertSupportedEasingFunction(value: string) {
     }
 }
 
+export function assertIntegerCap(capName: string, value: number, min: number): void {
+    if (!Number.isInteger(value) || value < min) {
+        throw new errors.InvalidArgumentError(
+            `Invalid capability '${capName}': must be an integer >= ${min} (got ${value}).`
+        );
+    }
+}
+
 export function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)));
 }

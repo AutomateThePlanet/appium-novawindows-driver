@@ -110,7 +110,9 @@ export async function getWindowHandles(this: NovaWindowsDriver): Promise<string[
 
 export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): Promise<void> {
     const handle = Number(nameOrHandle);
-    for (let i = 1; i <= 20; i++) { // TODO: make a setting for the number of retries or timeout
+    const maxRetries = this.caps['ms:windowSwitchRetries'] ?? 20;
+    const sleepInterval = this.caps['ms:windowSwitchInterval'] ?? SLEEP_INTERVAL_MS;
+    for (let i = 1; i <= maxRetries; i++) {
         if (!isNaN(handle)) {
             const condition = new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(handle));
             const elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN_OR_SELF, condition).buildCommand());
@@ -133,8 +135,8 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
             return;
         }
 
-        this.log.info(`Failed to locate window with name '${name}'. Sleeping for ${SLEEP_INTERVAL_MS} milliseconds and retrying... (${i}/20)`); // TODO: make a setting for the number of retries or timeout
-        await sleep(SLEEP_INTERVAL_MS); // TODO: make a setting for the sleep timeout
+        this.log.info(`Failed to locate window with name '${name}'. Sleeping for ${sleepInterval} milliseconds and retrying... (${i}/${maxRetries})`);
+        await sleep(sleepInterval);
     }
 
     throw new errors.NoSuchWindowError(`No window was found with name or handle '${nameOrHandle}'.`);

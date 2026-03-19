@@ -20,7 +20,8 @@ import {
     convertStringToCondition,
 } from './powershell';
 import {
-    assertSupportedEasingFunction
+    assertIntegerCap,
+    assertSupportedEasingFunction,
 } from './util';
 import { setDpiAwareness } from './winapi/user32';
 import { xpathToElIdOrIds } from './xpath';
@@ -186,6 +187,12 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
                         `Invalid capabilities. 'appEnvironment' values must be strings. Invalid keys: ${invalidKeys.join(', ')}`
                     );
                 }
+            }
+            if (caps['ms:windowSwitchRetries'] !== undefined) {
+                assertIntegerCap('ms:windowSwitchRetries', caps['ms:windowSwitchRetries'], 0);
+            }
+            if (caps['ms:windowSwitchInterval'] !== undefined) {
+                assertIntegerCap('ms:windowSwitchInterval', caps['ms:windowSwitchInterval'], 0);
             }
             if (this.caps.shouldCloseApp === undefined) {
                 this.caps.shouldCloseApp = true; // set default value

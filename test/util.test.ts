@@ -2,7 +2,34 @@
  * Unit tests for lib/util.ts
  */
 import { describe, it, expect } from 'vitest';
-import { assertSupportedEasingFunction, $ } from '../lib/util';
+import { assertIntegerCap, assertSupportedEasingFunction, $ } from '../lib/util';
+
+describe('assertIntegerCap', () => {
+    it('accepts value equal to min', () => {
+        expect(() => assertIntegerCap('x', 0, 0)).not.toThrow();
+        expect(() => assertIntegerCap('x', 1, 1)).not.toThrow();
+    });
+
+    it('accepts value above min', () => {
+        expect(() => assertIntegerCap('x', 5, 1)).not.toThrow();
+        expect(() => assertIntegerCap('x', 100, 0)).not.toThrow();
+    });
+
+    it('throws for value below min', () => {
+        expect(() => assertIntegerCap('ms:windowSwitchRetries', 0, 1)).toThrow('must be an integer >= 1');
+        expect(() => assertIntegerCap('ms:windowSwitchInterval', -1, 0)).toThrow('must be an integer >= 0');
+    });
+
+    it('throws for floats', () => {
+        expect(() => assertIntegerCap('x', 1.5, 1)).toThrow('must be an integer');
+        expect(() => assertIntegerCap('x', 0.1, 0)).toThrow('must be an integer');
+    });
+
+    it('includes cap name and received value in error message', () => {
+        expect(() => assertIntegerCap('ms:windowSwitchRetries', -3, 1)).toThrow("'ms:windowSwitchRetries'");
+        expect(() => assertIntegerCap('ms:windowSwitchRetries', -3, 1)).toThrow('got -3');
+    });
+});
 
 describe('assertSupportedEasingFunction', () => {
     it.each(['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'])(
