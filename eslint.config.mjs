@@ -11,4 +11,9 @@ export default defineConfig(
   {
     files: ['test/e2e/**/*.ts'],
   },
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
 );

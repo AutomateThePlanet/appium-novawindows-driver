@@ -13,7 +13,7 @@ import {
     pwsh$,
     pwsh,
 } from '../powershell';
-import { sleep } from '../util';
+import { isUwpAppId, sleep } from '../util';
 import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
 import {
     getWindowAllHandlesForProcessIds,
@@ -183,7 +183,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
 
 
     const path = pathOrNativeWindowHandle;
-    if (path.includes('!') && path.includes('_') && !(path.includes('/') || path.includes('\\'))) {
+    if (isUwpAppId(path)) {
         this.log.debug('Detected app path to be in the UWP format.');
         await this.sendPowerShellCommand(/* ps1 */ `Start-Process 'explorer.exe' 'shell:AppsFolder\\${path}'${this.caps.appArguments ? ` -ArgumentList '${this.caps.appArguments}'` : ''}`);
         const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name 'ApplicationFrameHost').Id`);
