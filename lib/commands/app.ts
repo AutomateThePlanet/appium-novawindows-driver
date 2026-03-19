@@ -276,16 +276,31 @@ export async function setWindowRect(
 
 
 export async function attachToApplicationWindow(this: NovaWindowsDriver, processIds: number[]): Promise<void> {
-    this.log.debug(`Attaching to application window. Process IDs: [${processIds.join(', ')}]`);
+    const trackedPids = new Set<number>(processIds);
+    this.log.debug(`Attaching to application window. Process IDs: [${[...trackedPids].join(', ')}]`);
     const timeout = (this.caps['ms:waitForAppLaunch'] ?? 0) * 1000 || SLEEP_INTERVAL_MS * 20;
     const start = Date.now();
     let attempts = 0;
 
     while (Date.now() - start < timeout) {
-        const handles = getWindowAllHandlesForProcessIds(processIds);
+        // Discover child processes of all currently-tracked PIDs
+        const pidList = [...trackedPids].join(', ');
+        const childPidResult = await this.sendPowerShellCommand(
+            /* ps1 */ `@(Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -in @(${pidList}) }).ProcessId`
+        );
+        for (const token of childPidResult.split('\n').map((s) => s.trim()).filter(Boolean)) {
+            const childPid = Number(token);
+            if (!isNaN(childPid) && childPid > 0 && !trackedPids.has(childPid)) {
+                this.log.debug(`Discovered child process PID ${childPid} spawned by tracked PIDs`);
+                trackedPids.add(childPid);
+            }
+        }
+
+        const currentPids = [...trackedPids];
+        const handles = getWindowAllHandlesForProcessIds(currentPids);
 
         if (handles.length > 0) {
-            this.log.debug(`Found ${handles.length} window handle(s) for PIDs [${processIds.join(', ')}]: ${handles.map((h) => `0x${h.toString(16).padStart(8, '0')}`).join(', ')}`);
+            this.log.debug(`Found ${handles.length} window handle(s) for PIDs [${currentPids.join(', ')}]: ${handles.map((h) => `0x${h.toString(16).padStart(8, '0')}`).join(', ')}`);
 
             for (const handle of handles) {
                 const elementId = await this.sendPowerShellCommand(AutomationElement.rootElement.findFirst(TreeScope.CHILDREN, new PropertyCondition(Property.NATIVE_WINDOW_HANDLE, new PSInt32(handle))).buildCommand());
@@ -295,6 +310,7 @@ export async function attachToApplicationWindow(this: NovaWindowsDriver, process
                     if ((await this.sendPowerShellCommand(/* ps1 */ `$null -ne $rootElement`)).toLowerCase() === 'true') {
                         const confirmedHandle = Number(await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetPropertyCommand(Property.NATIVE_WINDOW_HANDLE)));
                         this.log.info(`Successfully attached to window. Native window handle: 0x${confirmedHandle.toString(16).padStart(8, '0')}`);
+                        this.appProcessIds = currentPids;
                         if (!trySetForegroundWindow(confirmedHandle)) {
                             await this.focusElement({
                                 [W3C_ELEMENT_KEY]: elementId,
