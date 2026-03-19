@@ -34,6 +34,10 @@ export function assertIntegerCap(capName: string, value: number, min: number): v
     }
 }
 
+export function isUwpAppId(appId: string): boolean {
+    return appId.includes('!') && appId.includes('_') && !(appId.includes('/') || appId.includes('\\'));
+}
+
 export function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)));
 }
