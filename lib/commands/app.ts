@@ -202,7 +202,7 @@ export async function changeRootElement(this: NovaWindowsDriver, pathOrNativeWin
         const breadcrumbs = normalizedPath.toLowerCase().split('\\').flatMap((x) => x.split('/'));
         const executable = breadcrumbs[breadcrumbs.length - 1];
         const processName = executable.endsWith('.exe') ? executable.slice(0, executable.length - 4) : executable;
-const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name '${processName}' | Sort-Object StartTime -Descending).Id`);
+        const result = await this.sendPowerShellCommand(/* ps1 */ `(Get-Process -Name '${processName}' | Sort-Object StartTime -Descending).Id`);
         const processIds = result.split('\n').map((pid) => pid.trim()).filter(Boolean).map(Number);
         this.log.debug(`Process IDs of '${processName}' processes: ` + processIds.join(', '));
         this.appProcessIds = processIds;
