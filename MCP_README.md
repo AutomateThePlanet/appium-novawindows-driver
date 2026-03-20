@@ -1,4 +1,4 @@
-# NovaWindows MCP Server
+# Appium Desktop MCP Server
 
 The `appium-novawindows-driver` package ships a built-in **Model Context Protocol (MCP)** server that lets AI agents (Claude, Cursor, Copilot, etc.) automate Windows desktop applications via natural language — no test-framework code required.
 
@@ -32,7 +32,7 @@ The `appium-novawindows-driver` package ships a built-in **Model Context Protoco
 
 ## Overview
 
-The MCP server wraps the **NovaWindows Appium driver** in a stateful, tool-based interface that AI agents can call over the [Model Context Protocol](https://modelcontextprotocol.io). The agent:
+The MCP server wraps the **Appium Desktop driver** in a stateful, tool-based interface that AI agents can call over the [Model Context Protocol](https://modelcontextprotocol.io). The agent:
 
 1. Calls `create_session` to launch a Windows app (Win32, UWP, or classic).
 2. Uses `find_element` / `find_elements` to locate UI elements.
@@ -92,7 +92,7 @@ Windows UI Automation (UIA3)
 
 - **Windows 10 / 11** (64-bit)
 - **Node.js 18+**
-- **Appium 3.x** with the NovaWindows driver installed:
+- **Appium 3.x** with the Appium Desktop driver installed:
   ```bash
   npm install -g appium
   appium driver install novawindows
@@ -687,7 +687,7 @@ Set the clipboard contents.
 
 ## Capabilities Reference
 
-These are the WebdriverIO capabilities set by `create_session`. They map directly to Appium / NovaWindows driver capabilities:
+These are the WebdriverIO capabilities set by `create_session`. They map directly to Appium / Appium Desktop driver capabilities:
 
 | Capability | Session parameter | Description |
 |-----------|------------------|-------------|

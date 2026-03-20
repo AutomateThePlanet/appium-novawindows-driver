@@ -1,7 +1,7 @@
-NovaWindows Driver
+Appium Desktop Driver
 ===================
 
-NovaWindows Driver is a custom Appium driver designed to tackle the limitations of existing Windows automation solutions like WinAppDriver. NovaWindows Driver supports testing Universal Windows Platform (UWP), Windows Forms (WinForms), Windows Presentation Foundation (WPF), and Classic Windows (Win32) apps on Windows 10 PCs. Built to improve performance and reliability for traditional desktop applications, it offers:
+Appium Desktop Driver is a custom Appium driver designed to tackle the limitations of existing Windows automation solutions like WinAppDriver. Appium Desktop Driver supports testing Universal Windows Platform (UWP), Windows Forms (WinForms), Windows Presentation Foundation (WPF), and Classic Windows (Win32) apps on Windows 10 PCs. Built to improve performance and reliability for traditional desktop applications, it offers:
 
 Faster XPath locator performance — Reduces element lookup times, even in complex UIs.
 RawView element support — Access elements typically hidden from the default ControlView/ContentView.
@@ -18,7 +18,7 @@ It’s designed to handle real-world scenarios where traditional drivers fall sh
 
 ## Usage
 
-Beside of standard Appium requirements NovaWindows Driver adds the following prerequisites:
+Beside of standard Appium requirements Appium Desktop Driver adds the following prerequisites:
 
 - Appium Windows Driver only supports Windows 10 and later as the host.
 
@@ -30,9 +30,9 @@ Beside of standard Appium requirements NovaWindows Driver adds the following pre
 > realiability and better code and error management, as well as supporting
 > more features, that are currently not possible using PowerShell alone.
 > It is unlikely for the prerequisites to change, as this is one of the
-> main goals of NovaWindows driver – seamless setup on any PC.
+> main goals of Appium Desktop driver – seamless setup on any PC.
 
-NovaWindows Driver supports the following capabilities:
+Appium Desktop Driver supports the following capabilities:
 
 Capability Name | Description
 --- | ---
@@ -70,11 +70,11 @@ def generate_options():
     # How to get the app ID for Universal Windows Apps (UWP):
     # https://www.securitylearningacademy.com/mod/book/view.php?id=13829&chapterid=678
     uwp_options.app = 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App'
-    uwp_options.automation_name = 'NovaWindows'
+    uwp_options.automation_name = 'DesktopDriver'
 
     classic_options = WindowsOptions()
     classic_options.app = 'C:\\Windows\\System32\\notepad.exe'
-    classic_options.automation_name = 'NovaWindows'
+    classic_options.automation_name = 'DesktopDriver'
 
     use_existing_app_options = WindowsOptions()
     # Active window handles could be retrieved from any compatible UI inspector app:
@@ -86,7 +86,7 @@ def generate_options():
     # This capability could be used to create a workaround for UWP apps startup:
     # https://github.com/microsoft/WinAppDriver/blob/master/Samples/C%23/StickyNotesTest/StickyNotesSession.cs
     use_existing_app_options.app_top_level_window = hex(12345)
-    use_existing_app_options.automation_name = 'NovaWindows'
+    use_existing_app_options.automation_name = 'DesktopDriver'
 
     return [uwp_options, classic_options, use_existing_app_options]
 
@@ -142,7 +142,7 @@ else:
 
 > **Note**
 >
-> NovaWindows Driver runs on a single PowerShell session,
+> Appium Desktop Driver runs on a single PowerShell session,
 > therefore you may share variables between executed PowerShell
 > scripts. Unless the PowerShell session exits or crashes for some
 > reason, you should be able to reuse the variables that you create.
@@ -168,7 +168,7 @@ Beside of standard W3C APIs the driver provides the below custom command extensi
 
 > **Note**
 >
-> In most cases, commands implemented in NovaWindows driver can be used
+> In most cases, commands implemented in Appium Desktop driver can be used
 > more intuitively by just the element as a second argument and the value
 > (if such is needed) as the thrid argument and so on. For example:
 > `driver.executeScript("windows: setValue", element, "valueToSet")` or
@@ -316,7 +316,7 @@ Base-64 encoded content of the Windows clipboard.
 
 ### windows: pushCacheRequest
 
-This is an asynchronous function that sends cache requests based on specific conditions. This is useful for revealing RawView elements in the element tree. Note that cached elements aren't supported by NovaWindows driver yet.
+This is an asynchronous function that sends cache requests based on specific conditions. This is useful for revealing RawView elements in the element tree. Note that cached elements aren't supported by Appium Desktop driver yet.
 
 #### Arguments
 
