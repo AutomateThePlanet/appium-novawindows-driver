@@ -13,7 +13,7 @@ It’s designed to handle real-world scenarios where traditional drivers fall sh
 >
 > This driver is built for Appium 2/3 and is not compatible with Appium 1. To install
 > the driver, simply run:
-> `appium driver install --source=npm appium-novawindows-driver`
+> `appium driver install --source=npm appium-desktop-driver`
 
 
 ## Usage
