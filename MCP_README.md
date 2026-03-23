@@ -1,6 +1,6 @@
 # Appium Desktop MCP Server
 
-The `appium-novawindows-driver` package ships a built-in **Model Context Protocol (MCP)** server that lets AI agents (Claude, Cursor, Copilot, etc.) automate Windows desktop applications via natural language — no test-framework code required.
+The `appium-desktop-driver` package ships a built-in **Model Context Protocol (MCP)** server that lets AI agents (Claude, Cursor, Copilot, etc.) automate Windows desktop applications via natural language — no test-framework code required.
 
 ---
 
@@ -50,7 +50,7 @@ AI Client (Claude / Cursor / etc.)
         │  stdio (MCP protocol)
         ▼
 ┌──────────────────────────────────────────┐
-│          novawindows-mcp server          │
+│          desktop-driver-mcp server          │
 │  lib/mcp/index.ts                        │
 │  ┌─────────────┐   ┌──────────────────┐  │
 │  │AppiumManager│   │  AppiumSession   │  │
@@ -95,7 +95,7 @@ Windows UI Automation (UIA3)
 - **Appium 3.x** with the Appium Desktop driver installed:
   ```bash
   npm install -g appium
-  appium driver install novawindows
+  appium driver install --source=npm appium-desktop-driver
   ```
 - An MCP-capable AI client (Claude Desktop, Cursor, VS Code with MCP extension, etc.)
 
@@ -106,20 +106,20 @@ Windows UI Automation (UIA3)
 ### From npm (recommended)
 
 ```bash
-npm install appium-novawindows-driver
+npm install appium-desktop-driver
 ```
 
 The MCP entry point is automatically registered as a `bin` command:
 
 ```
-novawindows-mcp  →  build/lib/mcp/index.js
+desktop-driver-mcp  →  build/lib/mcp/index.js
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/AutomateThePlanet/appium-novawindows-driver.git
-cd appium-novawindows-driver
+git clone https://github.com/AutomateThePlanet/appium-desktop-driver.git
+cd appium-desktop-driver
 npm install
 npm run build
 ```
@@ -156,16 +156,16 @@ When `APPIUM_AUTO_START=true` and Appium is not already running, the server reso
 npm run mcp:start
 
 # Using npx (after npm install)
-npx novawindows-mcp
+npx desktop-driver-mcp
 
 # After global install
-novawindows-mcp
+desktop-driver-mcp
 ```
 
 ### With custom configuration
 
 ```bash
-APPIUM_PORT=4724 APPIUM_AUTO_START=false novawindows-mcp
+APPIUM_PORT=4724 APPIUM_AUTO_START=false desktop-driver-mcp
 ```
 
 ---
@@ -179,9 +179,9 @@ Add to `claude_desktop_config.json` (usually at `%APPDATA%\Claude\claude_desktop
 ```json
 {
   "mcpServers": {
-    "novawindows": {
+    "appium-desktop-driver": {
       "command": "npx",
-      "args": ["novawindows-mcp"],
+      "args": ["desktop-driver-mcp"],
       "env": {
         "APPIUM_AUTO_START": "true"
       }
@@ -195,9 +195,9 @@ Or, if using a local build:
 ```json
 {
   "mcpServers": {
-    "novawindows": {
+    "appium-desktop-driver": {
       "command": "node",
-      "args": ["C:/path/to/appium-novawindows-driver/build/lib/mcp/index.js"],
+      "args": ["C:/path/to/appium-desktop-driver/build/lib/mcp/index.js"],
       "env": {
         "APPIUM_AUTO_START": "true"
       }
@@ -212,10 +212,10 @@ Or, if using a local build:
 {
   "mcp": {
     "servers": {
-      "novawindows": {
+      "appium-desktop-driver": {
         "type": "stdio",
         "command": "npx",
-        "args": ["novawindows-mcp"]
+        "args": ["desktop-driver-mcp"]
       }
     }
   }
@@ -234,7 +234,7 @@ When the server starts it performs these steps in order:
    - If not running and `APPIUM_AUTO_START=true`: spawns the Appium process and polls until ready (30 s timeout).
    - If not running and `APPIUM_AUTO_START=false`: exits with an error.
 3. **Create session holder** — `AppiumSession` object is initialized but no app is launched yet.
-4. **Create MCP server** — `McpServer` from `@modelcontextprotocol/sdk` with name `novawindows-mcp` and version `1.3.0`.
+4. **Create MCP server** — `McpServer` from `@modelcontextprotocol/sdk` with name `desktop-driver-mcp` and version `1.3.0`.
 5. **Register tools** — all 30+ tools are registered (see [Tool Reference](#tool-reference)).
 6. **Register shutdown handlers** — `SIGINT`, `SIGTERM`, and `stdin close` all trigger graceful shutdown (session delete + Appium stop, with a 10 s session-delete timeout).
 7. **Connect stdio transport** — the server is now ready for the AI client.

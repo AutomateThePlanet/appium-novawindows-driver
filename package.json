@@ -13,7 +13,7 @@
   ],
   "main": "build/lib/driver.js",
   "bin": {
-    "novawindows-mcp": "build/lib/mcp/index.js"
+    "desktop-driver-mcp": "build/lib/mcp/index.js"
   },
   "scripts": {
     "build": "tsc -b",

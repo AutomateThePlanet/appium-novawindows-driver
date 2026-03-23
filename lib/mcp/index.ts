@@ -50,7 +50,7 @@ async function main() {
 
     // Step 4: Create and configure MCP server
     const server = new McpServer({
-        name: 'novawindows-mcp',
+        name: 'desktop-driver-mcp',
         version: '1.3.0',
     });
 
@@ -81,7 +81,7 @@ async function main() {
     // Step 7: Connect transport (stdout is owned by MCP protocol — all logs go to stderr)
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    process.stderr.write('[MCP] novawindows-mcp server ready. Call create_session to launch an app.\n');
+    process.stderr.write('[MCP] desktop-driver-mcp server ready. Call create_session to launch an app.\n');
 }
 
 main();
