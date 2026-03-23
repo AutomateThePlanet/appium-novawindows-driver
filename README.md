@@ -594,6 +594,45 @@ button | string | no | Mouse button: `left` (default), `middle`, `right`, `back`
 
 \* Provide either startElementId or both startX and startY; and either endElementId or both endX and endY.
 
+### windows: getMonitors
+
+Returns information about all connected display monitors, including their screen coordinates in the [virtual screen](https://learn.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen) coordinate space, working area, device name, and which monitor is the primary display.
+
+This command takes no arguments.
+
+#### Returns
+
+An array of monitor objects, one per connected display:
+
+Name | Type | Description
+--- | --- | ---
+index | number | Zero-based index of the monitor in the `AllScreens` array.
+deviceName | string | System device name, e.g. `\\.\DISPLAY1`.
+primary | boolean | `true` if this is the primary display.
+bounds | object | Full monitor rectangle: `{ x, y, width, height }` in virtual screen coordinates.
+workingArea | object | Usable area excluding taskbars and docked toolbars: `{ x, y, width, height }`.
+
+#### Example
+
+```javascript
+// WebdriverIO — move app window to the secondary monitor
+const monitors = await driver.executeScript('windows: getMonitors', []);
+const secondary = monitors.find(m => !m.primary);
+if (secondary) {
+    await driver.setWindowRect(secondary.bounds.x, secondary.bounds.y, null, null);
+}
+```
+
+```python
+# Python — click at the center of the secondary monitor
+monitors = driver.execute_script('windows: getMonitors', {})
+secondary = next((m for m in monitors if not m['primary']), None)
+if secondary:
+    cx = secondary['bounds']['x'] + secondary['bounds']['width'] // 2
+    cy = secondary['bounds']['y'] + secondary['bounds']['height'] // 2
+    driver.execute_script('windows: click', {'x': cx, 'y': cy})
+```
+
 ## Development
 
 it is recommended to use Matt Bierner's [Comment tagged templates](https://marketplace.visualstudio.com/items?itemName=bierner.comment-tagged-templates)
