@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This is a **Windows desktop UI automation Appium driver** (`NovaWindows`). It bridges WebDriver protocol to Windows UI Automation (UIA3) via a persistent PowerShell process. An MCP server layered on top exposes tools for AI agent use.
+This is a **Windows desktop UI automation Appium driver** (`Appium Desktop`). It bridges WebDriver protocol to Windows UI Automation (UIA3) via a persistent PowerShell process. An MCP server layered on top exposes tools for AI agent use.
 
 Key stack: TypeScript, Node.js, Appium BaseDriver, PowerShell, koffi FFI (user32.dll), WebdriverIO (MCP client).
 
