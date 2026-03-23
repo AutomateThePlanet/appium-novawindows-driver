@@ -167,4 +167,21 @@ export function registerWindowTools(server: McpServer, session: AppiumSession): 
             }
         }
     );
+
+    server.registerTool(
+        'get_monitors',
+        {
+            description: 'List all connected monitors with their bounds, working area, device name, and whether each is the primary display.',
+            annotations: { readOnlyHint: true },
+        },
+        async () => {
+            try {
+                const driver = session.getDriver();
+                const monitors = await driver.executeScript('windows: getMonitors', []);
+                return { content: [{ type: 'text' as const, text: JSON.stringify(monitors, null, 2) }] };
+            } catch (err) {
+                return { isError: true, content: [{ type: 'text' as const, text: formatError(err) }] };
+            }
+        }
+    );
 }

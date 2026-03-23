@@ -429,11 +429,9 @@ function makeMouseMoveEvents(args: {
         wheel: boolean,
         /** Set to true if the event is a mouse move with relative coordinates. This argument is ignored for mouse wheel move. */
         relative?: boolean,
-        /** Set to screen resolution [width, height] when the mouse move is absolute. */
-        screenResolutionAndRefreshRate?: ReturnType<typeof getScreenResolutionAndRefreshRate>;
     }
 ): MouseEvent[] {
-    const { x, y, wheel, relative, screenResolutionAndRefreshRate} = args;
+    const { x, y, wheel, relative } = args;
 
     if (wheel) {
         const mouseEvents: MouseEvent[] = [];
@@ -457,18 +455,18 @@ function makeMouseMoveEvents(args: {
 
     const mouseEvent: MouseEvent = makeEmptyMouseEvent();
 
-    if (!screenResolutionAndRefreshRate) {
-        throw new errors.InvalidArgumentError('screenResolution parameter must be set for absolute mouse move.');
-    }
-
-    const [screenWidth, screenHeight] = screenResolutionAndRefreshRate;
-
-    mouseEvent.u.mi.dx = relative ? Math.trunc(x) : Math.trunc((x * UINT16_MAX) / screenWidth);
-    mouseEvent.u.mi.dy = relative ? Math.trunc(y) : Math.trunc((y * UINT16_MAX) / screenHeight);
-    mouseEvent.u.mi.dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE;
-
-    if (!relative) {
-        mouseEvent.u.mi.dwFlags |= MouseEventFlags.MOUSEEVENTF_ABSOLUTE;
+    if (relative) {
+        mouseEvent.u.mi.dx = Math.trunc(x);
+        mouseEvent.u.mi.dy = Math.trunc(y);
+        mouseEvent.u.mi.dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE;
+    } else {
+        const virt = getVirtualScreenBounds();
+        mouseEvent.u.mi.dx = Math.trunc(((x - virt.left) * UINT16_MAX) / virt.width);
+        mouseEvent.u.mi.dy = Math.trunc(((y - virt.top) * UINT16_MAX) / virt.height);
+        mouseEvent.u.mi.dwFlags =
+            MouseEventFlags.MOUSEEVENTF_MOVE |
+            MouseEventFlags.MOUSEEVENTF_ABSOLUTE |
+            MouseEventFlags.MOUSEEVENTF_VIRTUALDESK;
     }
 
     return [mouseEvent];
@@ -651,8 +649,7 @@ function sendMouseButtonInput(button: number, down: boolean) {
 async function sendMouseMoveInput(args: { x: number, y: number, relative: boolean, duration: number, easingFunction?: string }): Promise<void> {
     const { duration } = args;
     let { x, y, easingFunction, relative } = args;
-    const screenResolutionAndRefreshRate = getScreenResolutionAndRefreshRate();
-    const [, , refreshRate] = screenResolutionAndRefreshRate;
+    const refreshRate = getRefreshRate();
     const updateInterval = 1000 / refreshRate;
     const iterations = Math.max(Math.floor(duration / updateInterval), 1);
 
@@ -695,14 +692,14 @@ async function sendMouseMoveInput(args: { x: number, y: number, relative: boolea
                 const interpolatedX = cursorPosition.x + (x - cursorPosition.x) * easedProgress;
                 const interpolatedY = cursorPosition.y + (y - cursorPosition.y) * easedProgress;
 
-                const events = makeMouseMoveEvents({ x: interpolatedX, y: interpolatedY, wheel: false, screenResolutionAndRefreshRate });
+                const events = makeMouseMoveEvents({ x: interpolatedX, y: interpolatedY, wheel: false });
                 const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
                 assertSuccessSendInputReturnCode(returnCode);
             }, i * updateInterval);
         }
     } else {
-        const events = makeMouseMoveEvents({ x, y, wheel: false, screenResolutionAndRefreshRate });
+        const events = makeMouseMoveEvents({ x, y, wheel: false });
         const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
         assertSuccessSendInputReturnCode(returnCode);
@@ -736,31 +733,54 @@ function getResolutionScalingFactor(): number {
     return scalingFactor;
 }
 
-function getScreenResolutionAndRefreshRate(): [number, number, number] {
-    const width = GetSystemMetrics(SystemMetric.SM_CXSCREEN);
-    const height = GetSystemMetrics(SystemMetric.SM_CYSCREEN);
-    let refreshRate: number | null = null;
-
+function getRefreshRate(): number {
     const buffer = Buffer.alloc(sizeof(DEVMODEA));
     EnumDisplaySettingsA(null, -1, buffer);
-    const deviceMode = { dmDisplayFrequency: buffer.readUInt32LE(120) } as DeviceModeAnsi;
-    refreshRate = deviceMode.dmDisplayFrequency;
+    const refreshRate = (buffer.readUInt32LE(120) as DeviceModeAnsi['dmDisplayFrequency']);
 
-    const resolution = [width, height, refreshRate] satisfies ReturnType<typeof getScreenResolutionAndRefreshRate>;
-
-    const nonMemoizedMethod = getScreenResolutionAndRefreshRate;
+    const nonMemoizedMethod = getRefreshRate;
     const currentTime = new Date().getTime();
 
     // @ts-expect-error memoizing the function to prevent repeated calls that might crash Node.js
-    getScreenResolutionAndRefreshRate = () => {
+    getRefreshRate = () => {
         if (new Date().getTime() - currentTime > 1000) {
             // @ts-expect-error reset memoization after 1 second
-            getScreenResolutionAndRefreshRate = nonMemoizedMethod;
+            getRefreshRate = nonMemoizedMethod;
+        }
+        return refreshRate;
+    };
+
+    return refreshRate;
+}
+
+function getScreenResolution(): [number, number] {
+    const width = GetSystemMetrics(SystemMetric.SM_CXSCREEN);
+    const height = GetSystemMetrics(SystemMetric.SM_CYSCREEN);
+
+    const resolution = [width, height] satisfies ReturnType<typeof getScreenResolution>;
+
+    const nonMemoizedMethod = getScreenResolution;
+    const currentTime = new Date().getTime();
+
+    // @ts-expect-error memoizing the function to prevent repeated calls that might crash Node.js
+    getScreenResolution = () => {
+        if (new Date().getTime() - currentTime > 1000) {
+            // @ts-expect-error reset memoization after 1 second
+            getScreenResolution = nonMemoizedMethod;
         }
         return resolution;
     };
 
     return resolution;
+}
+
+export function getVirtualScreenBounds(): { left: number; top: number; width: number; height: number } {
+    return {
+        left: GetSystemMetrics(SystemMetric.SM_XVIRTUALSCREEN),
+        top: GetSystemMetrics(SystemMetric.SM_YVIRTUALSCREEN),
+        width: GetSystemMetrics(SystemMetric.SM_CXVIRTUALSCREEN),
+        height: GetSystemMetrics(SystemMetric.SM_CYVIRTUALSCREEN),
+    };
 }
 
 export function keyDown(char: string, forceUnicode: boolean = false): void {
@@ -792,7 +812,7 @@ export function mouseUp(button: number = 0): void {
 }
 
 export function getDisplayOrientation(): Orientation {
-    const resolution = getScreenResolutionAndRefreshRate();
+    const resolution = getScreenResolution();
     return resolution[0] > resolution[1] ? 'LANDSCAPE' : 'PORTRAIT';
 }
 

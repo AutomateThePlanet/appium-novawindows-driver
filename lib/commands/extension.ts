@@ -67,6 +67,7 @@ const EXTENSION_COMMANDS = Object.freeze({
     clickAndDrag: 'executeClickAndDrag',
     getDeviceTime: 'windowsGetDeviceTime',
     getWindowElement: 'getWindowElement',
+    getMonitors: 'windowsGetMonitors',
 } as const);
 
 const ContentType = Object.freeze({
@@ -891,4 +892,24 @@ export async function getWindowElement(this: NovaWindowsDriver): Promise<Element
         throw new errors.NoSuchWindowError('No active app window is found for this session.');
     }
     return { [W3C_ELEMENT_KEY]: elementId };
+}
+
+const GET_MONITORS_COMMAND = pwsh /* ps1 */ `
+    Add-Type -AssemblyName System.Windows.Forms
+    $index = 0
+    $monitors = @([System.Windows.Forms.Screen]::AllScreens | ForEach-Object {
+        [PSCustomObject]@{
+            index       = $index++
+            deviceName  = $_.DeviceName
+            primary     = $_.Primary
+            bounds      = @{ x = $_.Bounds.X; y = $_.Bounds.Y; width = $_.Bounds.Width; height = $_.Bounds.Height }
+            workingArea = @{ x = $_.WorkingArea.X; y = $_.WorkingArea.Y; width = $_.WorkingArea.Width; height = $_.WorkingArea.Height }
+        }
+    })
+    ConvertTo-Json -InputObject $monitors -Compress
+`;
+
+export async function windowsGetMonitors(this: NovaWindowsDriver): Promise<object[]> {
+    const result = await this.sendPowerShellCommand(GET_MONITORS_COMMAND);
+    return JSON.parse(result.trim());
 }
