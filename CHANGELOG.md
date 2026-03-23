@@ -1,3 +1,43 @@
+## [1.4.0](https://github.com/verisoft-ai/appium-desktop-driver/compare/v1.3.1...v1.4.0) (2026-03-23)
+
+### Features
+
+* **capability:** Add capabilities windowSwitchRetries and windowSwitchInterval ([a831b3a](https://github.com/verisoft-ai/appium-desktop-driver/commit/a831b3af5d8d531a41483f36391d631cd787c371))
+* custom env variables capabilities ([6a98b5c](https://github.com/verisoft-ai/appium-desktop-driver/commit/6a98b5c76bdfecf1ef6a893ea9c37abdd5e47c33))
+* **display:** add support for multi monitor  testing ([1029aec](https://github.com/verisoft-ai/appium-desktop-driver/commit/1029aec97adb420e9525e1f325c64870dc51585c))
+* Implemented missing commands ([4434b99](https://github.com/verisoft-ai/appium-desktop-driver/commit/4434b996fa33cd0214c7cd44073f34806cd1c99f))
+* **mcp:** add MCP server with 39 tools and unit test suite ([cf3d464](https://github.com/verisoft-ai/appium-desktop-driver/commit/cf3d464d1b74efbdddb04aa16ff3a19e19564934))
+
+### Bug Fixes
+
+* Add allowed tools to claude code reviewer ([c4c18e9](https://github.com/verisoft-ai/appium-desktop-driver/commit/c4c18e9f35915eb609e41572cb3c5ea15e3314a7))
+* add tabbing ([c0cb0e8](https://github.com/verisoft-ai/appium-desktop-driver/commit/c0cb0e8bb4fb37c9f70b8e891c659c56142c1943))
+* fix attaching to wrong application window ([8960843](https://github.com/verisoft-ai/appium-desktop-driver/commit/8960843d548c98728880c901b154215b6265b69e))
+* fix code review comments ([d7bebd9](https://github.com/verisoft-ai/appium-desktop-driver/commit/d7bebd9ff1660fd065a92e7008344c3b1323bd27))
+* **lint:** resolve lint errors ([5b72f12](https://github.com/verisoft-ai/appium-desktop-driver/commit/5b72f122472cdd4e563aa044b1baa2a52af7d10a))
+* **mcp:** resolve bugs, add tool annotations, and new UIA tools ([fd73365](https://github.com/verisoft-ai/appium-desktop-driver/commit/fd7336552264a52ad2dda8c28bee2afcf44050a6))
+* Remove claude code review workflow ([88f921d](https://github.com/verisoft-ai/appium-desktop-driver/commit/88f921d81ba9b81ff1578b2ac34c81d337670f30))
+* Remove outerloops ([92eedfa](https://github.com/verisoft-ai/appium-desktop-driver/commit/92eedfa5decf6125c0f688da2d4c3bcf896491d5))
+* replace NovaWindows automation name with DesktopDriver ([dd585b9](https://github.com/verisoft-ai/appium-desktop-driver/commit/dd585b9013fd5b128e10c42af86ca4e5f86f6934))
+* **window:** narrow appProcessIds to the attached window's PID ([d281444](https://github.com/verisoft-ai/appium-desktop-driver/commit/d2814445ab5248483d451f1817fbff67d30d7654))
+* **window:** track child processes  spawned from launched apps. ([f1e6bff](https://github.com/verisoft-ai/appium-desktop-driver/commit/f1e6bfffe5bfcdebe884de207eabce8381c83a67))
+* **window:** window handles access capability added ([eefb804](https://github.com/verisoft-ai/appium-desktop-driver/commit/eefb8040b2ec43795b4c985e42090dad2fa2e6ae))
+
+### Miscellaneous Chores
+
+* bump version to 1.1.0 ([393bdae](https://github.com/verisoft-ai/appium-desktop-driver/commit/393bdaeaa0070385a15a61affe88c059c8967c6a))
+* bump version to 1.2.0 ([94a4f04](https://github.com/verisoft-ai/appium-desktop-driver/commit/94a4f046be53c3b804497ad4e1d2782860e25070))
+* **claude:** Add constraints and context for claude code review ([e95c6b2](https://github.com/verisoft-ai/appium-desktop-driver/commit/e95c6b219f436dd030f4e7dd840713e651af9cb4))
+* **claude:** change constraints for claude code review ([3acee1c](https://github.com/verisoft-ai/appium-desktop-driver/commit/3acee1c1565b575e84f3b087aff6085b6b524229))
+* **npm:** Ignore build artifacts and local mcp/claude config ([c9d3529](https://github.com/verisoft-ai/appium-desktop-driver/commit/c9d3529cf1c259d36eaf82e64702fdd080463195))
+* prepare package for verisoft npm distribution ([5b35ff7](https://github.com/verisoft-ai/appium-desktop-driver/commit/5b35ff722d8254f24fea2bfe5112f4e0bddfc1e7))
+* **release:** bump version and re-added the auto release workflow ([8555903](https://github.com/verisoft-ai/appium-desktop-driver/commit/8555903c4b3038d11fe24c038ef83964f71a1710))
+* remove auto publish on push to main ([e940fd1](https://github.com/verisoft-ai/appium-desktop-driver/commit/e940fd1e4f20a505ea81dd668b4240abd2053d7f))
+
+### Code Refactoring
+
+* **mcp:** remove auto-start, require Appium to be running externally ([8b76810](https://github.com/verisoft-ai/appium-desktop-driver/commit/8b76810041db68c960b3448173a8adca52679390))
+
 ## [1.3.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.0...v1.3.1) (2026-03-09)
 
 ### Bug Fixes
