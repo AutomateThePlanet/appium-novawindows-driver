@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/verisoft-ai/appium-desktop-driver/compare/v1.4.0...v1.4.1) (2026-03-23)
+
+### Bug Fixes
+
+* **mcp:** change mcp naming to match new Desktop Driver convention ([e77a7b0](https://github.com/verisoft-ai/appium-desktop-driver/commit/e77a7b02d4ed8769d61697c96c239bb03e3aef61))
+
 ## [1.4.0](https://github.com/verisoft-ai/appium-desktop-driver/compare/v1.3.1...v1.4.0) (2026-03-23)
 
 ### Features
