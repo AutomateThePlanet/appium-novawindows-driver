@@ -1,0 +1,706 @@
+/* ============================================================
+   Reset & Custom Properties
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #ffffff;
+  --bg-card:     #f8fafb;
+  --bg-code:     #f1f5f7;
+  --border:      #e2e8ee;
+  --accent:      #3ecfb2;
+  --accent-dim:  #2baf96;
+  --text:        #111827;
+  --text-muted:  #6b7280;
+  --radius:      8px;
+  --font-body:   -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-code:   'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  --max-width:   1100px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ============================================================
+   Layout Helpers
+   ============================================================ */
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+section { padding: 80px 0; }
+section + section { border-top: 1px solid var(--border); }
+section:nth-child(even) { background: var(--bg-card); }
+
+h1, h2, h3 { line-height: 1.25; }
+h2 { font-size: 2rem; margin-bottom: 12px; }
+h3 { font-size: 1.25rem; margin-bottom: 8px; }
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.section-intro {
+  color: var(--text-muted);
+  max-width: 640px;
+  margin-bottom: 40px;
+}
+
+/* ============================================================
+   Nav
+   ============================================================ */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.nav-brand {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-brand span { color: var(--accent); }
+
+.nav-logo {
+  height: 26px;
+  width: auto;
+  border-radius: 5px;
+  display: block;
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+  list-style: none;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  transition: color 0.15s;
+}
+.nav-links a:hover { color: var(--text); text-decoration: none; }
+
+/* ============================================================
+   Hero
+   ============================================================ */
+#hero {
+  padding: 100px 0 80px;
+  border-top: none;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-dim);
+  background: rgba(62,207,178,0.1);
+  border: 1px solid rgba(62,207,178,0.3);
+  border-radius: 100px;
+  padding: 4px 12px;
+  margin-bottom: 24px;
+}
+
+.hero-eyebrow::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+}
+
+#hero h1 {
+  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+  max-width: 800px;
+}
+
+#hero h1 .accent { color: var(--accent); }
+
+.hero-pitch {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  max-width: 620px;
+  margin-bottom: 24px;
+}
+
+.hero-install-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.hero-install {
+  position: relative;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 48px 14px 20px;
+  display: inline-block;
+}
+
+.hero-install-copy {
+  position: absolute;
+  top: 50%; right: 12px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.hero-install-copy:hover { background: rgba(0,0,0,0.05); color: var(--text); }
+.hero-install-copy.copied { color: #0f7a5c; }
+
+.hero-install pre,
+.hero-install pre code {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--font-code);
+  font-size: 0.875rem;
+  color: #0f7a5c;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.install-block {
+  display: flex;
+  align-items: center;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+}
+
+.install-block code {
+  padding: 10px 16px;
+  color: #0f7a5c;
+}
+
+.install-block .copy-btn {
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: var(--font-body);
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.install-block .copy-btn:hover { background: #e8f4f1; color: var(--text); }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--accent-dim); text-decoration: none; }
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg-card);
+}
+
+/* ============================================================
+   Video sections
+   ============================================================ */
+.video-outer {
+  max-width: 860px;
+}
+
+.video-wrapper {
+  position: relative;
+  padding-top: 56.25%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.video-wrapper iframe,
+.video-wrapper video {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  border: none;
+  object-fit: contain;
+}
+
+.video-placeholder-box {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.video-placeholder-box .play-icon {
+  width: 56px; height: 56px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Comparison table (Why Not WinAppDriver)
+   ============================================================ */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.comparison-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.comparison-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.comparison-table tr:last-child td { border-bottom: none; }
+
+.comparison-table td:first-child { color: var(--text-muted); }
+.comparison-table td:last-child { color: var(--text); }
+
+.check { color: #2baf96; font-weight: 700; margin-right: 6px; }
+.cross { color: #e05252; font-weight: 700; margin-right: 6px; }
+
+/* ============================================================
+   App type chips
+   ============================================================ */
+.app-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.app-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.app-chip .chip-icon {
+  font-size: 1.25rem;
+}
+
+/* ============================================================
+   Feature cards
+   ============================================================ */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.feature-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.feature-card:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(62,207,178,0.12); }
+
+.feature-icon {
+  font-size: 1.75rem;
+  margin-bottom: 14px;
+}
+
+.feature-card h3 { margin-bottom: 8px; }
+.feature-card p { color: var(--text-muted); font-size: 0.9rem; }
+
+/* ============================================================
+   Tables (generic)
+   ============================================================ */
+.data-table-wrap { overflow-x: auto; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+
+.data-table code {
+  font-family: var(--font-code);
+  font-size: 0.82rem;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #0f7a5c;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   MCP Steps
+   ============================================================ */
+.mcp-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  margin-bottom: 48px;
+}
+
+.mcp-step {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  background: rgba(62,207,178,0.12);
+  border: 1px solid rgba(62,207,178,0.35);
+  color: var(--accent-dim);
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 14px;
+}
+
+.mcp-step p { color: var(--text-muted); font-size: 0.9rem; }
+
+/* MCP tool group table rows */
+.mcp-group-table td:first-child { white-space: nowrap; font-weight: 600; color: var(--accent); }
+
+/* ============================================================
+   Code blocks
+   ============================================================ */
+.code-block-wrap {
+  position: relative;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.code-block-wrap pre {
+  margin: 0;
+  padding: 20px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.code-block-wrap .copy-btn {
+  position: absolute;
+  top: 44px; right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  background: rgba(255,255,255,0.8);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.code-block-wrap .copy-btn:hover { background: #fff; color: var(--text); }
+.code-block-wrap .copy-btn.copied { color: #0f7a5c; }
+
+/* Language tabs */
+.lang-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.02);
+  overflow-x: auto;
+}
+
+.lang-tab {
+  padding: 8px 18px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: var(--font-body);
+}
+
+.lang-tab[data-active] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tabbed-code { position: relative; }
+
+.tabbed-code pre { display: none; }
+.tabbed-code pre[data-active] { display: block; }
+
+/* ============================================================
+   executeScript groups
+   ============================================================ */
+.ext-groups {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.ext-group {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.ext-group h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.ext-group ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ext-group li {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ext-group li code {
+  font-family: var(--font-code);
+  font-size: 0.8rem;
+  color: #0f7a5c;
+  background: rgba(62,207,178,0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ============================================================
+   Install section
+   ============================================================ */
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 720px;
+}
+
+.req-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.req-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.req-list li::before {
+  content: '✓';
+  color: #2baf96;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.footer-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  list-style: none;
+}
+
+.footer-links a { color: var(--text-muted); transition: color 0.15s; }
+.footer-links a:hover { color: var(--text); text-decoration: none; }
+
+.footer-logo {
+  height: 20px;
+  width: auto;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin: 0 2px;
+  display: inline-block;
+}
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+.mt-4  { margin-top: 16px; }
+.mt-8  { margin-top: 32px; }
+.mt-12 { margin-top: 48px; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 640px) {
+  nav .nav-links { display: none; }
+  #hero h1 { font-size: 2rem; }
+  .install-block code { font-size: 0.75rem; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .mcp-steps { grid-template-columns: 1fr; }
+  .ext-groups { grid-template-columns: 1fr; }
+
+}

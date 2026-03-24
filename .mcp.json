@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "novawindows-mcp": {
+    "desktop-driver-mcp": {
       "command": "node",
       "args": ["./build/lib/mcp/index.js"],
       "env": {}
