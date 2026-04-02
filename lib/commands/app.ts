@@ -297,7 +297,7 @@ export async function waitForNewWindow(this: NovaWindowsDriver, pid: number, tim
         await sleep(SLEEP_INTERVAL_MS);
     }
 
-    throw new Error('Timed out waiting for window.');
+    throw new errors.TimeoutError('Timed out waiting for window.');
 }
 
 export async function attachToApplicationWindow(this: NovaWindowsDriver, processIds: number[]): Promise<void> {

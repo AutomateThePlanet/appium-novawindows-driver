@@ -48,6 +48,7 @@ appWorkingDir | Optional working directory path for the application.
 prerun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed prior to the WinAppDriver session startup. See [Power Shell commands execution](#power-shell-commands-execution) for more details. Example: `{script: 'Get-Process outlook -ErrorAction SilentlyContinue'}`
 postrun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed after WinAppDriver session is stopped. See [Power Shell commands execution](#power-shell-commands-execution) for more details.
 isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session. Default is `false`.
+webviewDevtoolsPort | The local port number to use for devtools communication. By default the first free port from 10900..11000 range is selected. Consider setting the custom value if you are running parallel tests.
 
 Please note that more capabilities will be added as the development of this driver progresses. Since it is still in its early stages, some features may be missing or subject to change. If you need a specific capability or encounter any issues, please feel free to open an issue.
 

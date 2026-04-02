@@ -42,6 +42,12 @@ export const UI_AUTOMATION_DRIVER_CONSTRAINTS = {
     'ms:forcequit': {
         isBoolean: true,
     },
+    'enableWebView': {
+        isBoolean: true,
+    },
+    'webviewDevtoolsPort': {
+        isNumber: true,
+    },
 } as const satisfies Constraints;
 
 export default UI_AUTOMATION_DRIVER_CONSTRAINTS;
