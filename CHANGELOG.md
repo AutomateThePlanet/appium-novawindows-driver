@@ -1,3 +1,9 @@
+## [1.4.0-preview.3](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.2...v1.4.0-preview.3) (2026-04-02)
+
+### Bug Fixes
+
+* fixed port cdpRequest issue ([37b9291](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/37b9291369c30ff2a39f7618d5d20d3b9725d9a0))
+
 ## [1.4.0-preview.2](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.1...v1.4.0-preview.2) (2026-04-02)
 
 ### Bug Fixes
