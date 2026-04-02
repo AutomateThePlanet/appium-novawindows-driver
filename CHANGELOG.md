@@ -1,3 +1,20 @@
+## [1.4.0-preview.2](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.1...v1.4.0-preview.2) (2026-04-02)
+
+### Bug Fixes
+
+* debug cdp json issue ([fe3f762](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/fe3f762ae666fc9de5158f03c2b7c9acb62c52c0))
+
+## [1.4.0-preview.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.1...v1.4.0-preview.1) (2026-04-02)
+
+### Features
+
+* **webview:** enable WebView2 support ([644034f](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/644034f866efcca48b87e0344b88d34f4471f608))
+
+### Miscellaneous Chores
+
+* **release:** 1.2.0-preview.1 [skip ci] ([f9cb5c5](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/f9cb5c5c8e7e88b7929171fe39c59635b721f4de))
+* **release:** 1.2.0-preview.2 [skip ci] ([6ad9bdb](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/6ad9bdbdbe26cb5c7f881a8e1e80f064dfc6863b))
+
 ## [1.3.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.0...v1.3.1) (2026-03-09)
 
 ### Bug Fixes
