@@ -170,7 +170,13 @@ export async function getWebViewDetails(this: NovaWindowsDriver, waitForWebviewM
     }
 
     const host = 'localhost';
-    const port = this.webviewDevtoolsPort;
+
+    if ((this.caps.app === 'none' || this.caps.app === 'root' || this.caps.appTopLevelWindow != null) && this.caps.webviewDevtoolsPort == null) {
+        throw new errors.InvalidArgumentError(`Capability "webviewDevtoolsPort" must be set when using "none", "root", or "appTopLevelWindow" with "enableWebView"`);
+    }
+
+    const port = this.webviewDevtoolsPort ??= this.caps.webviewDevtoolsPort ?? null;
+
     const webViewDetails: WebViewDetails = {
         info: await cdpRequest<CDPVersionResponse>({ host, port, endpoint: '/json/version', timeout: 10000 }),
         pages: await cdpRequest<CDPListResponse>({ host, port, endpoint: '/json/list', timeout: 10000 }),
