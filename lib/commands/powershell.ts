@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import net from 'node:net';
 import { NovaWindowsDriver } from '../driver';
 import { errors } from '@appium/base-driver';
 import { FIND_CHILDREN_RECURSIVELY, PAGE_SOURCE } from './functions';
@@ -10,6 +11,9 @@ const INIT_CACHE_REQUEST = /* ps1 */ `($cacheRequest = New-Object System.Windows
 const INIT_ROOT_ELEMENT = /* ps1 */ `$rootElement = [AutomationElement]::RootElement`;
 const NULL_ROOT_ELEMENT = /* ps1 */ `$rootElement = $null`;
 const INIT_ELEMENT_TABLE = /* ps1 */ `$elementTable = New-Object System.Collections.Generic.Dictionary[[string]\`,[AutomationElement]]`;
+
+const DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER = 10900;
+const DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER = 11000;
 
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
     const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
@@ -74,6 +78,15 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
 
         for (const envVar of envVars) {
             this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+        }
+
+        if (this.caps.enableWebView) {
+            this.webviewDevtoolsPort = this.caps.webviewDevtoolsPort
+                ? Number(this.caps.webviewDevtoolsPort)
+                : await findFreePort(DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER, DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER);
+
+            this.log.info(`WebView support is enabled. DevTools will be served on port ${this.webviewDevtoolsPort}`);
+            await this.sendPowerShellCommand(/* ps1 */ `$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=${this.webviewDevtoolsPort}'`);
         }
 
         await this.changeRootElement(this.caps.app);
@@ -227,4 +240,21 @@ export async function terminatePowerShellSession(this: NovaWindowsDriver): Promi
     this.powerShell.kill();
     await waitForClose;
     this.log.debug(`PowerShell session terminated successfully.`);
+}
+
+async function findFreePort(start: number, end: number): Promise<number> {
+    for (let port = start; port <= end; port++) {
+        const isFree = await new Promise<boolean>((resolve) => {
+            const server = net.createServer()
+                .once('error', () => resolve(false)) // port in use
+                .once('listening', () => server.close(() => resolve(true))) // port free
+                .listen(port);
+        });
+
+        if (isFree) {
+            return port;
+        }
+    }
+
+    throw new errors.InvalidArgumentError(`No free port found between ${start} and ${end}. Consider specifying a port explicitly via the 'webviewDevtoolsPort' capability.`);
 }
