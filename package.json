@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@appium/base-driver": "^10.1.0",
+    "appium-chromedriver": "^8.2.21",
     "bezier-easing": "^2.1.0",
     "ffmpeg-static": "^5.2.0",
     "koffi": "^2.14.1",

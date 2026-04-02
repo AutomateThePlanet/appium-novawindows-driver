@@ -1,4 +1,4 @@
-import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
+import { PROTOCOLS, W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
@@ -119,9 +119,27 @@ export async function execute(this: NovaWindowsDriver, script: string, args: any
         return await this[EXTENSION_COMMANDS[script]](...args);
     }
 
+    if (script === 'mobile:getContexts') {
+        if (!this.caps.enableWebView) {
+            throw new errors.InvalidArgumentError('WebView support is not enabled. To use this command, enable WebView support by setting the "enableWebView" capability to true.');
+        }
+        const { waitForWebviewMs }: { waitForWebviewMs?: number } = args[0] || {};
+        const webViewDetails = await this.getWebViewDetails(waitForWebviewMs);
+        return [{
+            id: 'NATIVE_APP',
+        }, ...(webViewDetails.pages ?? [])];
+    }
+
     if (script === 'powerShell') {
         this.assertFeatureEnabled(POWER_SHELL_FEATURE);
         return await this.executePowerShellScript(args[0]);
+    }
+
+    if (this.chromedriver && this.proxyActive()) {
+        const endpoint = this.chromedriver.jwproxy.downstreamProtocol === PROTOCOLS.MJSONWP
+                ? '/execute'
+                : '/execute/sync';
+        return await this.chromedriver.jwproxy.command(endpoint, 'POST', { script, args });
     }
 
     if (script === 'return window.name') {
@@ -425,7 +443,7 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
         pos = [x!, y!];
     }
 
-    const clickTypeToButtonMapping: { [key in ClickType]: number} = {
+    const clickTypeToButtonMapping: { [key in ClickType]: number } = {
         [ClickType.LEFT]: 0,
         [ClickType.MIDDLE]: 1,
         [ClickType.RIGHT]: 2,

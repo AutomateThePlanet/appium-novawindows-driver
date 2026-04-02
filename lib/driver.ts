@@ -19,17 +19,18 @@ import {
     TreeScope,
     convertStringToCondition,
 } from './powershell';
-import {
-    assertSupportedEasingFunction
-} from './util';
+import { assertSupportedEasingFunction } from './util';
 import { setDpiAwareness } from './winapi/user32';
 import { xpathToElIdOrIds } from './xpath';
 
+import type { Chromedriver } from 'appium-chromedriver';
 import type {
     DefaultCreateSessionResult,
     DriverData,
     Element,
+    ExternalDriver,
     InitialOpts,
+    RouteMatcher,
     StringRecord,
     W3CDriverCaps
 } from '@appium/types';
@@ -55,6 +56,30 @@ const LOCATION_STRATEGIES = Object.freeze([
     '-windows uiautomation',
 ] as const);
 
+// This is a set of methods and paths that we never want to proxy to Chromedriver.
+const CHROMEDRIVER_NO_PROXY: RouteMatcher[] = [
+    ['GET', new RegExp('^/session/[^/]+/appium')],
+    ['GET', new RegExp('^/session/[^/]+/context')],
+    ['GET', new RegExp('^/session/[^/]+/element/[^/]+/rect')],
+    ['GET', new RegExp('^/session/[^/]+/orientation')],
+    ['POST', new RegExp('^/session/[^/]+/appium')],
+    ['POST', new RegExp('^/session/[^/]+/context')],
+    ['POST', new RegExp('^/session/[^/]+/orientation')],
+
+    // this is needed to make the windows: and powerShell commands work in web context
+    ['POST', new RegExp('^/session/[^/]+/execute$')],
+    ['POST', new RegExp('^/session/[^/]+/execute/sync')],
+
+    // MJSONWP commands
+    ['GET', new RegExp('^/session/[^/]+/log/types$')],
+    ['POST', new RegExp('^/session/[^/]+/log$')],
+    // W3C commands
+    // For Selenium v4 (W3C does not have this route)
+    ['GET', new RegExp('^/session/[^/]+/se/log/types$')],
+    // For Selenium v4 (W3C does not have this route)
+    ['POST', new RegExp('^/session/[^/]+/se/log$')],
+];
+
 export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, StringRecord> {
     isPowerShellSessionStarted: boolean = false;
     powerShell?: ChildProcessWithoutNullStreams;
@@ -67,7 +92,14 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         meta: false,
         shift: false,
     };
+    chromedriver: Chromedriver | null = null;
+    proxyReqRes: ((...args: any) => any) | null = null;
+    proxyCommand: ExternalDriver['proxyCommand'] | null = null;
+    contexts: string[] = [];
+    jwpProxyActive: boolean = false;
+    currentContext: string | null = null;
     _screenRecorder: ScreenRecorder | null = null;
+    webviewDevtoolsPort: number | null = null;
 
     constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
         super(opts, shouldValidateCaps);
@@ -80,6 +112,18 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         for (const key in commands) { // TODO: create a decorator that will do that for the class
             (this as any)[key] = commands[key].bind(this);
         }
+    }
+
+    override canProxy(): boolean {
+        return true;
+    }
+
+    override proxyActive(): boolean {
+        return this.jwpProxyActive;
+    }
+
+    override getProxyAvoidList(): RouteMatcher[] {
+        return this.jwpProxyActive && this.chromedriver ? CHROMEDRIVER_NO_PROXY : [];
     }
 
     override async findElement(strategy: string, selector: string): Promise<Element> {
