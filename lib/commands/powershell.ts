@@ -14,7 +14,7 @@ const INIT_ELEMENT_TABLE = /* ps1 */ `$elementTable = New-Object System.Collecti
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
     const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
     powerShell.stdout.setEncoding('utf8');
-    powerShell.stdout.setEncoding('utf8');
+    powerShell.stderr.setEncoding('utf8');
 
     powerShell.stdout.on('data', (chunk: any) => {
         this.powerShellStdOut += chunk.toString();
@@ -98,20 +98,20 @@ export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, com
         powerShell.stdout.setEncoding('utf8');
         powerShell.stdout.setEncoding('utf8');
 
+        let localStdOut = '';
+        let localStdErr = '';
+
         powerShell.stdout.on('data', (chunk: any) => {
-            this.powerShellStdOut += chunk.toString();
+            localStdOut += chunk.toString();
         });
 
         powerShell.stderr.on('data', (chunk: any) => {
-            this.powerShellStdErr += chunk.toString();
+            localStdErr += chunk.toString();
         });
 
         const result = await new Promise<string>((resolve, reject) => {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            const powerShell = this.powerShell!;
-
-            this.powerShellStdOut = '';
-            this.powerShellStdErr = '';
+            localStdOut = '';
+            localStdErr = '';
 
             powerShell.stdin.write(`${SET_UTF8_ENCODING}\n`);
             if (this.caps.appWorkingDir) {
@@ -130,17 +130,17 @@ export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, com
             powerShell.stdin.write(`${command}\n`);
             powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
 
-            const onData: Parameters<typeof powerShell.stdout.on>[1] = ((chunk: any) => {
+            const onData: Parameters<typeof powerShell.stdout.on>[1] = (chunk: any) => {
                 const magicChar = String.fromCharCode(magicNumber);
                 if (chunk.toString().includes(magicChar)) {
                     powerShell.stdout.off('data', onData);
-                    if (this.powerShellStdErr) {
-                        reject(new errors.UnknownError(this.powerShellStdErr));
+                    if (localStdErr) {
+                        reject(new errors.UnknownError(localStdErr));
                     } else {
-                        resolve(this.powerShellStdOut.replace(`${magicChar}`, '').trim());
+                        resolve(localStdOut.replace(`${magicChar}`, '').trim());
                     }
                 }
-            }).bind(this);
+            };
 
             powerShell.stdout.on('data', onData);
         });

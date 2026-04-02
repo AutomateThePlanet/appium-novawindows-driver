@@ -95,7 +95,7 @@ export class PSControlType extends PSObject {
 export class PSPoint extends PSObject {
     constructor(value: Position) {
         const requiredFields = ['x', 'y'];
-        if (!(Object.keys(value).every(requiredFields.includes) && typeof value.x === 'number' && typeof value.y === 'number')) {
+        if (!(requiredFields.every((f) => f in value) && typeof value.x === 'number' && typeof value.y === 'number')) {
             throw new errors.InvalidArgumentError('PSPoint accepts a Position object { x: number, y: number } in the constructor.');
         }
 
@@ -106,7 +106,7 @@ export class PSPoint extends PSObject {
 export class PSRect extends PSObject {
     constructor(value: Rect) {
         const requiredFields = ['x', 'y', 'width', 'height'];
-        if (!(Object.keys(value).every(requiredFields.includes) && typeof value.x === 'number' && typeof value.y === 'number' && typeof value.width === 'number' && typeof value.height === 'number')) {
+        if (!(requiredFields.every((f) => f in value) && typeof value.x === 'number' && typeof value.y === 'number' && typeof value.width === 'number' && typeof value.height === 'number')) {
             throw new errors.InvalidArgumentError('PSRect accepts a Rect object { x: number, y: number, width: number, height: number } in the constructor.');
         }
 
@@ -128,7 +128,7 @@ export class PSCultureInfo extends PSObject {
     constructor(name: string, useUserOverride?: boolean)
     constructor(culture: number, useUserOverride?: boolean)
     constructor(nameOrCulture: string | number, useUserOverride?: boolean) {
-        if (typeof nameOrCulture !== 'string' || (typeof nameOrCulture === 'number' && nameOrCulture < 0)) {
+        if (typeof nameOrCulture !== 'string' && (typeof nameOrCulture !== 'number' || nameOrCulture < 0)) {
             throw new errors.InvalidArgumentError('PSCultureInfo accepts a string or positive integer value in the constructor.');
         }
 

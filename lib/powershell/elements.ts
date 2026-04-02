@@ -348,6 +348,8 @@ const MAXIMIZE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]:
 const MINIMIZE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Minimized)`;
 const RESTORE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Normal)`;
 const CLOSE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).Close()`;
+const MOVE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([TransformPattern]::Pattern).Move(${1}, ${2})`;
+const RESIZE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([TransformPattern]::Pattern).Resize(${1}, ${2})`;
 
 export const TreeScope = Object.freeze({
     ANCESTORS_OR_SELF: 'ancestors-or-self',
@@ -576,6 +578,14 @@ export class FoundAutomationElement extends AutomationElement {
 
     buildCloseCommand(): string {
         return CLOSE_WINDOW.format(this);
+    }
+
+    buildMoveCommand(x: number, y: number): string {
+        return MOVE_WINDOW.format(this, x, y);
+    }
+
+    buildResizeCommand(width: number, height: number): string {
+        return RESIZE_WINDOW.format(this, width, height);
     }
 
     override buildCommand(): string {

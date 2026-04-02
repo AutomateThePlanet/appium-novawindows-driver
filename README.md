@@ -516,31 +516,78 @@ Position | Type | Description | Example
 
 ### windows: startRecordingScreen
 
-To be implemented.
+Starts screen recording using the **bundled ffmpeg** included with the driver. There is no system PATH fallback: if the bundle is not present (e.g. driver was not installed via npm with dependencies), screen recording is not available and the driver reports a clear error.
 
 ### windows: stopRecordingScreen
 
-To be implemented.
+Stops the current screen recording and returns the video (base64 or uploads to a remote path if specified).
 
 ### windows: deleteFile
 
-To be implemented.
+Deletes a file on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force`. Paths containing `[`, `]`, or `?` use `-LiteralPath` for correct interpretation.
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+path | string | yes | Absolute or relative path to the file to delete. | `C:\Temp\file.txt`
 
 ### windows: deleteFolder
 
-To be implemented.
+Deletes a folder on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force` with optional `-Recurse`. Paths containing `[`, `]`, or `?` use `-LiteralPath`.
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+path | string | yes | Absolute or relative path to the folder to delete. | `C:\Temp\MyFolder`
+recursive | boolean | no | If true (default), delete contents recursively. If false, only remove the folder when empty. | `true`
 
 ### windows: launchApp
 
-To be implemented.
+Re-launches the application configured in the `app` session capability. The app path or App User Model ID (AUMID) must have been set when the session was created. Typically used to reopen an app after it has been closed with `windows: closeApp`.
+
+This command takes no arguments.
+
+#### Example
+
+```javascript
+// Re-launch the app set in the session capability
+await driver.executeScript('windows: launchApp', []);
+```
 
 ### windows: closeApp
 
-To be implemented.
+Closes the current root application window by sending a close command via the Windows UI Automation WindowPattern. Clears the root element reference in the session afterward. Throws a `NoSuchWindowError` if no active window is found.
+
+This command takes no arguments.
+
+#### Example
+
+```javascript
+// Close the current app window
+await driver.executeScript('windows: closeApp', []);
+```
 
 ### windows: clickAndDrag
 
-To be implemented.
+Performs a click-and-drag: move to the start position, press the mouse button, move to the end position over the given duration, then release. Start and end can be specified by element (center or offset) or by screen coordinates. Uses the same Windows input APIs as other pointer actions.
+
+#### Arguments
+
+Name | Type | Required | Description | Example
+--- | --- | --- | --- | ---
+startElementId | string | no* | Element ID for drag start. Use *or* startX/startY. | `1.2.3.4.5`
+startX | number | no* | X coordinate for drag start (with startY). | `100`
+startY | number | no* | Y coordinate for drag start (with startX). | `200`
+endElementId | string | no* | Element ID for drag end. Use *or* endX/endY. | `1.2.3.4.6`
+endX | number | no* | X coordinate for drag end (with endY). | `300`
+endY | number | no* | Y coordinate for drag end (with endX). | `400`
+modifierKeys | string or string[] | no | Keys to hold during drag: `shift`, `ctrl`, `alt`, `win`. | `["ctrl"]`
+durationMs | number | no | Duration of the move from start to end (default: 500). | `300`
+button | string | no | Mouse button: `left` (default), `middle`, `right`, `back`, `forward`. | `left`
+
+\* Provide either startElementId or both startX and startY; and either endElementId or both endX and endY.
 
 ## Development
 

@@ -12,8 +12,9 @@ import {
     PSControlType,
     PSString,
     TreeScope,
+    pwsh$,
 } from '../powershell';
-import { W3C_ELEMENT_KEY } from '@appium/base-driver';
+import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
 import { mouseDown, mouseMoveAbsolute, mouseUp } from '../winapi/user32';
 import { Key } from '../enums';
 import { sleep } from '../util';
@@ -239,4 +240,27 @@ export async function click(this: NovaWindowsDriver, elementId: string): Promise
     if (this.caps.delayAfterClick) {
         await sleep(this.caps.delayAfterClick ?? 0);
     }
+}
+
+const GET_ELEMENT_SCREENSHOT_COMMAND = pwsh$ /* ps1 */ `
+    $element = ${0}
+    $rect = $element.Current.BoundingRectangle
+    $bitmap = New-Object Drawing.Bitmap([int32]$rect.Width, [int32]$rect.Height)
+    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    $graphics.CopyFromScreen([int32]$rect.Left, [int32]$rect.Top, 0, 0, $bitmap.Size)
+    $graphics.Dispose()
+    $stream = New-Object IO.MemoryStream
+    $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
+    $bitmap.Dispose()
+    [Convert]::ToBase64String($stream.ToArray())
+`;
+
+export async function getElementScreenshot(this: NovaWindowsDriver, elementId: string): Promise<string> {
+    const rootId = (await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand())).trim();
+    if (!rootId) {
+        throw new errors.NoSuchWindowError('No active window found for this session.');
+    }
+    return await this.sendPowerShellCommand(
+        GET_ELEMENT_SCREENSHOT_COMMAND.format(new FoundAutomationElement(elementId))
+    );
 }

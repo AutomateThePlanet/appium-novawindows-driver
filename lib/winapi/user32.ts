@@ -449,6 +449,7 @@ function makeMouseMoveEvents(args: {
             const verticalScrollEvent = makeEmptyMouseEvent();
             verticalScrollEvent.u.mi.dwFlags = MouseEventFlags.MOUSEEVENTF_WHEEL;
             verticalScrollEvent.u.mi.mouseData = y;
+            mouseEvents.push(verticalScrollEvent);
         }
 
         return mouseEvents;

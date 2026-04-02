@@ -152,18 +152,18 @@ export const PAGE_SOURCE = pwsh /* ps1 */ `
             $pattern = $null
 
             if ($element.TryGetCurrentPattern([WindowPattern]::Pattern, [ref]$pattern)) {
-                $newXmlElement.SetAttribute("CanMaximize", $windowPattern.Current.CanMaximize)
-                $newXmlElement.SetAttribute("CanMinimize", $windowPattern.Current.CanMinimize)
-                $newXmlElement.SetAttribute("IsModal", $windowPattern.Current.IsModal)
-                $newXmlElement.SetAttribute("WindowVisualState", $windowPattern.Current.WindowVisualState)
-                $newXmlElement.SetAttribute("WindowInteractionState", $windowPattern.Current.WindowInteractionState)
-                $newXmlElement.SetAttribute("IsTopmost", $windowPattern.Current.IsTopmost)
+                $newXmlElement.SetAttribute("CanMaximize", $pattern.Current.CanMaximize)
+                $newXmlElement.SetAttribute("CanMinimize", $pattern.Current.CanMinimize)
+                $newXmlElement.SetAttribute("IsModal", $pattern.Current.IsModal)
+                $newXmlElement.SetAttribute("WindowVisualState", $pattern.Current.WindowVisualState)
+                $newXmlElement.SetAttribute("WindowInteractionState", $pattern.Current.WindowInteractionState)
+                $newXmlElement.SetAttribute("IsTopmost", $pattern.Current.IsTopmost)
             }
 
             if ($element.TryGetCurrentPattern([TransformPattern]::Pattern, [ref]$pattern)) {
-                $newXmlElement.SetAttribute("CanRotate", $windowPattern.Current.CanRotate)
-                $newXmlElement.SetAttribute("CanResize", $windowPattern.Current.CanResize)
-                $newXmlElement.SetAttribute("CanMove", $windowPattern.Current.CanMove)
+                $newXmlElement.SetAttribute("CanRotate", $pattern.Current.CanRotate)
+                $newXmlElement.SetAttribute("CanResize", $pattern.Current.CanResize)
+                $newXmlElement.SetAttribute("CanMove", $pattern.Current.CanMove)
             }
 
             # TODO: more to be added depending on the available patterns

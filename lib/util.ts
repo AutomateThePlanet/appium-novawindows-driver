@@ -1,5 +1,19 @@
 import { errors } from '@appium/base-driver';
 
+/**
+ * Resolves the path to the bundled ffmpeg binary from the ffmpeg-static package.
+ * Used by startRecordingScreen; no system PATH fallback.
+ */
+export function getBundledFfmpegPath(): string | null {
+    try {
+        const mod = require('ffmpeg-static') as string | { default?: string } | undefined;
+        const path = typeof mod === 'string' ? mod : mod?.default;
+        return typeof path === 'string' && path.length > 0 ? path : null;
+    } catch {
+        return null;
+    }
+}
+
 const SupportedEasingFunctions = Object.freeze([
     'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out',
 ]);
