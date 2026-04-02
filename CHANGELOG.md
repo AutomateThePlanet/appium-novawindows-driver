@@ -1,3 +1,9 @@
+## [1.4.0-preview.2](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.1...v1.4.0-preview.2) (2026-04-02)
+
+### Bug Fixes
+
+* debug cdp json issue ([fe3f762](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/fe3f762ae666fc9de5158f03c2b7c9acb62c52c0))
+
 ## [1.4.0-preview.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.1...v1.4.0-preview.1) (2026-04-02)
 
 ### Features
