@@ -166,14 +166,15 @@ export async function getWebViewDetails(this: NovaWindowsDriver, waitForWebviewM
 
     const waitMs = waitForWebviewMs ? Number(waitForWebviewMs) : 0;
     if (waitMs) {
+        this.log.debug(`waiting for ${waitMs} ms`);
         await sleep(waitMs);
     }
 
     const host = 'localhost';
     const port = this.webviewDevtoolsPort;
     const webViewDetails: WebViewDetails = {
-        info: await cdpRequest<CDPVersionResponse>({ host, port, endpoint: '/json/version', timeout: 10000 }),
-        pages: await cdpRequest<CDPListResponse>({ host, port, endpoint: '/json/list', timeout: 10000 }),
+        info: await cdpRequest.call(this, ({ host, port, endpoint: '/json/version', timeout: 10000 })),
+        pages: await cdpRequest.call(this, ({ host, port, endpoint: '/json/list', timeout: 10000 })),
     };
 
     return webViewDetails;
@@ -237,7 +238,11 @@ async function getDriverExecutable(this: NovaWindowsDriver, browserType: 'Edge' 
     return finalPath;
 }
 
-async function cdpRequest<T = unknown>({ host, port, endpoint, timeout }): Promise<T> {
+async function cdpRequest<T = unknown>(this: NovaWindowsDriver, { host, port, endpoint, timeout }): Promise<T> {
+    if (this?.log) {
+        this.log.debug(`Sending request to ${host}:${port}${endpoint}`);
+    }
+
     return new Promise<T>((resolve, reject) => {
         const options = {
             hostname: host,
