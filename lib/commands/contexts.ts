@@ -178,10 +178,10 @@ export async function getWebViewDetails(this: NovaWindowsDriver, waitForWebviewM
 
     const port = this.webviewDevtoolsPort ??= this.caps.webviewDevtoolsPort ?? null;
 
-    const webViewDetails: WebViewDetails = {
-        info: await cdpRequest.call(this, ({ host, port, endpoint: '/json/version', timeout: 10000 })),
-        pages: await cdpRequest.call(this, ({ host, port, endpoint: '/json/list', timeout: 10000 })),
-    };
+    const info = await (cdpRequest.call(this, ({ host, port, endpoint: '/json/version', timeout: 10000 })) as Promise<CDPVersionResponse>).catch(() => undefined);
+    const pages = await (cdpRequest.call(this, ({ host, port, endpoint: '/json/list', timeout: 10000 })) as Promise<CDPListResponse>).catch(() => undefined);
+
+    const webViewDetails: WebViewDetails = { info, pages };
 
     return webViewDetails;
 }
