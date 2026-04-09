@@ -305,12 +305,6 @@ export async function waitForNewWindow(this: NovaWindowsDriver, pid: number, tim
     let attempts = 0;
 
     while (Date.now() - start < timeout) {
-        // const handles = getWindowAllHandlesForProcessIds([pid]);
-
-        // if (handles.length > 0) {
-        //     return handles[handles.length - 1];
-        // }
-
         const elements = await this.sendPowerShellCommand(AutomationElement.rootElement.findAll(TreeScope.CHILDREN, new PropertyCondition(Property.PROCESS_ID, new PSInt32(pid))).buildCommand());
         const elementIds = elements.split('\n').map((id) => id.trim()).filter(Boolean);
         if (elementIds.length > 0) {
