@@ -64,6 +64,24 @@ export async function getPageSource(this: NovaWindowsDriver): Promise<string> {
     return await this.sendPowerShellCommand(GET_PAGE_SOURCE_COMMAND.format(AutomationElement.automationRoot));
 }
 
+export async function maximizeWindow(this: NovaWindowsDriver): Promise<void> {
+    const automationRoot = new FoundAutomationElement(AutomationElement.automationRoot.buildGetPropertyCommand(Property.RUNTIME_ID));
+    try {
+        await this.sendPowerShellCommand(automationRoot.buildMaximizeCommand());
+    } catch {
+        throw new errors.UnknownError('Failed to maximize the window.');
+    }
+}
+
+export async function minimizeWindow(this: NovaWindowsDriver): Promise<void> {
+    const automationRoot = new FoundAutomationElement(AutomationElement.automationRoot.buildGetPropertyCommand(Property.RUNTIME_ID));
+    try {
+        await this.sendPowerShellCommand(automationRoot.buildMinimizeCommand());
+    } catch {
+        throw new errors.UnknownError('Failed to minimize the window.');
+    }
+}
+
 export async function getScreenshot(this: NovaWindowsDriver): Promise<string> {
     const automationRootId = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
 
