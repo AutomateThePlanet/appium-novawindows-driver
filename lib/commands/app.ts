@@ -64,6 +64,24 @@ export async function getPageSource(this: NovaWindowsDriver): Promise<string> {
     return await this.sendPowerShellCommand(GET_PAGE_SOURCE_COMMAND.format(AutomationElement.automationRoot));
 }
 
+export async function maximizeWindow(this: NovaWindowsDriver): Promise<void> {
+    const automationRoot = new FoundAutomationElement(AutomationElement.automationRoot.buildGetPropertyCommand(Property.RUNTIME_ID));
+    try {
+        await this.sendPowerShellCommand(automationRoot.buildMaximizeCommand());
+    } catch {
+        throw new errors.UnknownError('Failed to maximize the window.');
+    }
+}
+
+export async function minimizeWindow(this: NovaWindowsDriver): Promise<void> {
+    const automationRoot = new FoundAutomationElement(AutomationElement.automationRoot.buildGetPropertyCommand(Property.RUNTIME_ID));
+    try {
+        await this.sendPowerShellCommand(automationRoot.buildMinimizeCommand());
+    } catch {
+        throw new errors.UnknownError('Failed to minimize the window.');
+    }
+}
+
 export async function getScreenshot(this: NovaWindowsDriver): Promise<string> {
     const automationRootId = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
 
@@ -287,10 +305,17 @@ export async function waitForNewWindow(this: NovaWindowsDriver, pid: number, tim
     let attempts = 0;
 
     while (Date.now() - start < timeout) {
-        const handles = getWindowAllHandlesForProcessIds([pid]);
+        // const handles = getWindowAllHandlesForProcessIds([pid]);
 
-        if (handles.length > 0) {
-            return handles[handles.length - 1];
+        // if (handles.length > 0) {
+        //     return handles[handles.length - 1];
+        // }
+
+        const elements = await this.sendPowerShellCommand(AutomationElement.rootElement.findAll(TreeScope.CHILDREN, new PropertyCondition(Property.PROCESS_ID, new PSInt32(pid))).buildCommand());
+        const elementIds = elements.split('\n').map((id) => id.trim()).filter(Boolean);
+        if (elementIds.length > 0) {
+            const nativeWindowHandle = await this.sendPowerShellCommand(new FoundAutomationElement(elementIds[0]).buildGetPropertyCommand(Property.NATIVE_WINDOW_HANDLE));
+            return Number(nativeWindowHandle);
         }
 
         this.log.debug(`Waiting for the process window to appear... (${++attempts}/${Math.floor(timeout / SLEEP_INTERVAL_MS)})`);
