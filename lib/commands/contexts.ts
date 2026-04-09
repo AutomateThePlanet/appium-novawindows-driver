@@ -79,6 +79,7 @@ export async function setContext(this: NovaWindowsDriver, name?: string | null):
         'goog:chromeOptions': options,
     };
 
+    this.currentContext = name;
     await this.chromedriver.start(caps);
     this.log.debug('Chromedriver started. Session ID:', cd.sessionId());
 
