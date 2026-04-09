@@ -1,3 +1,9 @@
+## [1.4.0-preview.4](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.3...v1.4.0-preview.4) (2026-04-09)
+
+### Bug Fixes
+
+* **debug:** changed logic for finding window on app launch ([00edf24](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/00edf24d751672123eec0cb6db0b3c34a4bfd51c))
+
 ## [1.4.0-preview.3](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.2...v1.4.0-preview.3) (2026-04-02)
 
 ### Bug Fixes
