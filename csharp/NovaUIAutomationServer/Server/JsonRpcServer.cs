@@ -27,8 +27,10 @@ public class JsonRpcServer
         };
     }
 
-    public async Task RunAsync()
+    public void Run()
     {
+        // UIAutomation COM requires STA. Keep the entire request loop synchronous
+        // so no await ever marshals a continuation onto an MTA thread-pool thread.
         Console.InputEncoding = System.Text.Encoding.UTF8;
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -38,11 +40,10 @@ public class JsonRpcServer
 
         while (true)
         {
-            var line = await reader.ReadLineAsync();
+            var line = reader.ReadLine();
 
             if (line == null)
             {
-                // stdin closed
                 LogToStderr("stdin closed. Shutting down.");
                 break;
             }
@@ -52,14 +53,14 @@ public class JsonRpcServer
                 continue;
             }
 
-            await ProcessLineAsync(line);
+            ProcessLine(line);
         }
 
         _state.Dispose();
         _recorder?.Dispose();
     }
 
-    private async Task ProcessLineAsync(string line)
+    private void ProcessLine(string line)
     {
         Request? request = null;
         var sw = Stopwatch.StartNew();

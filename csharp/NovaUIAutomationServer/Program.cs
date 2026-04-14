@@ -23,7 +23,7 @@ class Program
         var staThread = new Thread(() =>
         {
             var server = new JsonRpcServer(recordingPath);
-            server.RunAsync().GetAwaiter().GetResult();
+            server.Run();
         });
         staThread.SetApartmentState(ApartmentState.STA);
         staThread.Start();

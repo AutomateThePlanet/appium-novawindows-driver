@@ -9,19 +9,30 @@ public static class PatternCommands
     public static object? Invoke(SessionState state, JsonElement? parameters)
     {
         var element = GetElement(state, parameters);
-        if (element.TryGetCurrentPattern(InvokePattern.Pattern, out var patternObj))
+
+        // Fallback chain: most callers treat "invoke" as "do the default action",
+        // not the strict UIAutomation InvokePattern. SelectionItemPattern covers
+        // ListItem/TabItem/RadioButton, which the managed wrapper exposes directly.
+        if (element.TryGetCurrentPattern(InvokePattern.Pattern, out var invokeObj))
         {
-            ((InvokePattern)patternObj).Invoke();
-
-            // Yield to let the target app's message pump process the invoke event.
-            // InvokePattern.Invoke() is asynchronous — it posts the event but doesn't
-            // wait for the app to handle it. Without this, rapid back-to-back invocations
-            // (e.g. pressing calculator buttons) can outpace the app's UI thread.
-            Thread.Sleep(50);
-
-            return null;
+            ((InvokePattern)invokeObj).Invoke();
         }
-        throw new InvalidOperationException("Element does not support InvokePattern.");
+        else if (element.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var selObj))
+        {
+            ((SelectionItemPattern)selObj).Select();
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "Element does not support InvokePattern or SelectionItemPattern.");
+        }
+
+        // Yield to let the target app's message pump process the event.
+        // Pattern actions are asynchronous — they post the event but don't wait for
+        // the app to handle it. Without this, rapid back-to-back invocations
+        // (e.g. pressing calculator buttons) can outpace the app's UI thread.
+        Thread.Sleep(50);
+        return null;
     }
 
     public static object? Expand(SessionState state, JsonElement? parameters)
