@@ -39,6 +39,11 @@ const POLL_INTERVAL_MS = 200;
  */
 const MAX_POLL_ATTEMPTS = 30;
 
+// setWindow is called often during a session. If a handle doesn't exist,
+// we fail fast (~400ms) instead of waiting 6s. Session-attach loops below
+// still use MAX_POLL_ATTEMPTS.
+const SET_WINDOW_MAX_POLL_ATTEMPTS = 2;
+
 export async function getPageSource(this: NovaWindowsDriver): Promise<string> {
     return await this.sendCommand('getPageSource', {}) as string;
 }
@@ -89,7 +94,7 @@ export async function getWindowHandles(this: NovaWindowsDriver): Promise<string[
 
 export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): Promise<void> {
     const handle = Number(nameOrHandle);
-    for (let i = 1; i <= MAX_POLL_ATTEMPTS; i++) {
+    for (let i = 1; i <= SET_WINDOW_MAX_POLL_ATTEMPTS; i++) {
         if (!isNaN(handle)) {
             const elementId = await this.sendCommand('findElement', {
                 scope: 'child-or-self',
@@ -118,7 +123,7 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
             return;
         }
 
-        this.log.info(`Failed to locate window with name '${name}'. Sleeping for ${POLL_INTERVAL_MS}ms and retrying... (${i}/${MAX_POLL_ATTEMPTS})`);
+        this.log.info(`Failed to locate window with name '${name}'. Sleeping for ${POLL_INTERVAL_MS}ms and retrying... (${i}/${SET_WINDOW_MAX_POLL_ATTEMPTS})`);
         await sleep(POLL_INTERVAL_MS);
     }
 
