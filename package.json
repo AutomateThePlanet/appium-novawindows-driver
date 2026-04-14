@@ -34,7 +34,6 @@
     "@appium/base-driver": "^10.1.0",
     "appium-chromedriver": "^8.2.21",
     "bezier-easing": "^2.1.0",
-    "ffmpeg-static": "^5.2.0",
     "koffi": "^2.14.1",
     "xpath-analyzer": "^3.0.1"
   },
@@ -61,5 +60,9 @@
     "typescript-eslint": "^8.46.1",
     "vitest": "^2.1.0",
     "webdriverio": "^9.0.0"
+  },
+  "optionalDependencies": {
+    "ffmpeg-win32-ia32": "npm:ffmpeg-static@4.1.0",
+    "ffmpeg-win32-x64": "npm:ffmpeg-static@4.1.0"
   }
 }

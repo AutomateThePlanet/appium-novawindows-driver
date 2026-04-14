@@ -1,18 +1,13 @@
 import { Chromedriver, ChromedriverOpts } from 'appium-chromedriver';
 import { fs, node, system, tempDir, zip } from '@appium/support';
-import http from 'node:http';
-import https from 'node:https';
 import path from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { sleep } from '../util';
+import { cdpRequest, downloadFile, sleep, MODULE_NAME } from '../util';
 import { NovaWindowsDriver } from '../driver';
 import { errors } from '@appium/base-driver';
 
 const NATIVE_APP = 'NATIVE_APP';
 const WEBVIEW = 'WEBVIEW';
 const WEBVIEW_BASE = `${WEBVIEW}_`;
-
-const MODULE_NAME = 'appium-novawindows-driver';
 
 export async function getCurrentContext(this: NovaWindowsDriver): Promise<string> {
     return this.currentContext ??= NATIVE_APP;
@@ -159,7 +154,7 @@ interface CDPListResponseEntry {
 type CDPListResponse = CDPListResponseEntry[];
 
 export async function getWebViewDetails(this: NovaWindowsDriver, waitForWebviewMs?: number): Promise<WebViewDetails> {
-    if (!this.caps.enableWebView) {
+    if (!this.caps.webviewEnabled) {
         throw new errors.InvalidArgumentError('WebView support is not enabled. Please set the "enableWebView" capability to true and try again.');
     }
 
@@ -207,28 +202,57 @@ async function getDriverExecutable(this: NovaWindowsDriver, browserType: 'Edge' 
         await fs.mkdir(driverDir);
     }
 
-    let downloadUrl = '';
     const fileName = browserType === 'Edge' ? 'msedgedriver.exe' : 'chromedriver.exe';
     const finalPath = path.join(driverDir, browserVersion, fileName);
 
     if (await fs.exists(finalPath)) {
         return finalPath;
-    };
+    }
+
+    const executablePath = browserType === 'Edge'
+        ? this.caps.edgedriverExecutablePath
+        : this.caps.chromedriverExecutablePath;
+
+    if (executablePath) {
+        const exists = await fs.exists(executablePath);
+        if (!exists) {
+            throw new errors.InvalidArgumentError(`Driver executable not found at path: ${executablePath}`);
+        }
+
+        this.log.debug(
+            `Using local ${browserType} driver executable at ${executablePath}. ` +
+            `Automatic download is disabled and CDN URLs are ignored. ` +
+            `You must ensure this binary matches the WebView/Chromium version (${browserVersion}).`
+        );
+
+        return executablePath;
+    }
 
     const arch = await system.arch();
     const zipFilename = `${driverType}${browserType === 'Edge' ? '_' : '-'}win${arch}.zip`;
 
+    const CHROME_BASE_URL = this.caps.chromedriverCdnUrl || 'https://storage.googleapis.com/chrome-for-testing-public';
+    const EDGE_BASE_URL = this.caps.edgedriverCdnUrl || 'https://msedgedriver.microsoft.com';
+
+    let downloadUrl = '';
+
     if (browserType === 'Chrome') {
-        downloadUrl = `https://storage.googleapis.com/chrome-for-testing-public/${browserVersion}/win${arch}/${zipFilename}`;
-    } else if (browserType === 'Edge') {
-        downloadUrl = `https://msedgedriver.microsoft.com/${browserVersion}/${zipFilename}`;
+        const url = new URL(CHROME_BASE_URL);
+        url.pathname = path.posix.join(url.pathname, browserVersion, `win${arch}`, zipFilename);
+        downloadUrl = url.toString();
+    } else {
+        const url = new URL(EDGE_BASE_URL);
+        url.pathname = path.posix.join(url.pathname, browserVersion, zipFilename);
+        downloadUrl = url.toString();
     }
 
     this.log.debug(`Downloading ${browserType} driver version ${browserVersion}...`);
     const tmpRoot = await tempDir.openDir();
     await downloadFile(downloadUrl, tmpRoot);
+
     try {
         await zip.extractAllTo(path.join(tmpRoot, zipFilename), tmpRoot);
+
         const driverPath = await fs.walkDir(
             tmpRoot,
             true,
@@ -237,78 +261,12 @@ async function getDriverExecutable(this: NovaWindowsDriver, browserType: 'Edge' 
         if (!driverPath) {
             throw new errors.UnknownError(`The archive was unzipped properly, but did not find any ${driverType} executable.`);
         }
+
         this.log.debug(`Moving the extracted '${fileName}' to '${finalPath}'`);
         await fs.mv(driverPath, finalPath, { mkdirp: true });
     } finally {
         await fs.rimraf(tmpRoot);
     }
+
     return finalPath;
-}
-
-async function cdpRequest<T = unknown>(this: NovaWindowsDriver, { host, port, endpoint, timeout }): Promise<T> {
-    if (this?.log) {
-        this.log.debug(`Sending request to ${host}:${port}${endpoint}`);
-    }
-
-    return new Promise<T>((resolve, reject) => {
-        const options = {
-            hostname: host,
-            port,
-            path: endpoint,
-            method: 'GET',
-            agent: new http.Agent({ keepAlive: false }),
-            timeout,
-        };
-
-        const req = http.request(options, (res) => {
-            let data = '';
-            res.on('data', (chunk) => {
-                data += chunk;
-            });
-            res.on('end', () => {
-                try {
-                    resolve(JSON.parse(data));
-                } catch (err) {
-                    reject(err);
-                }
-            });
-        });
-
-        req.on('error', reject);
-        req.on('timeout', () => {
-            req.destroy(new Error('Request timed out'));
-        });
-
-        req.end();
-    });
-}
-
-async function downloadFile(url: string, destPath: string, timeout = 30000): Promise<void> {
-    const protocol = url.startsWith('https') ? https : http;
-    const fileName = path.basename(new URL(url).pathname);
-
-    const fullFilePath = path.join(destPath, fileName);
-
-    return new Promise<void>((resolve, reject) => {
-        const req = protocol.get(url, async (res) => {
-            if (res.statusCode !== 200) {
-                return reject(new Error(`Download failed: ${res.statusCode}`));
-            }
-
-            try {
-                const fileStream = fs.createWriteStream(fullFilePath);
-                await pipeline(res, fileStream);
-                resolve();
-            } catch (err) {
-                await fs.unlink(fullFilePath).catch(() => { });
-                reject(err);
-            }
-        });
-
-        req.on('error', reject);
-        req.setTimeout(timeout, () => {
-            req.destroy();
-            reject(new Error(`Timeout downloading from ${url}`));
-        });
-    });
 }

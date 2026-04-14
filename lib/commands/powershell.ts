@@ -80,7 +80,7 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
             this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
         }
 
-        if (this.caps.enableWebView) {
+        if (this.caps.webviewEnabled) {
             this.webviewDevtoolsPort = this.caps.webviewDevtoolsPort
                 ? Number(this.caps.webviewDevtoolsPort)
                 : await findFreePort(DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER, DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER);
