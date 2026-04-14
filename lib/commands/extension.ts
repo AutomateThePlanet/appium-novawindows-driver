@@ -120,7 +120,7 @@ export async function execute(this: NovaWindowsDriver, script: string, args: any
     }
 
     if (script === 'mobile:getContexts') {
-        if (!this.caps.enableWebView) {
+        if (!this.caps.webviewEnabled) {
             throw new errors.InvalidArgumentError('WebView support is not enabled. To use this command, enable WebView support by setting the "enableWebView" capability to true.');
         }
         const { waitForWebviewMs }: { waitForWebviewMs?: number } = args[0] || {};
@@ -720,7 +720,7 @@ export async function startRecordingScreen(this: NovaWindowsDriver, args?: {
         }
     }
     const videoPath = outputPath ?? join(tmpdir(), `novawindows-recording-${Date.now()}.${DEFAULT_EXT}`);
-    this._screenRecorder = new ScreenRecorder(videoPath, this.log, {
+    this._screenRecorder = new ScreenRecorder(videoPath, this, {
         fps: fps !== undefined ? parseInt(String(fps), 10) : undefined,
         timeLimit: timeLimit !== undefined ? parseInt(String(timeLimit), 10) : undefined,
         preset,

@@ -16,7 +16,7 @@ import {
 import { sleep } from '../util';
 import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
 import {
-    getWindowAllHandlesForProcessIds,
+    // getWindowAllHandlesForProcessIds,
     keyDown,
     keyUp,
     trySetForegroundWindow,

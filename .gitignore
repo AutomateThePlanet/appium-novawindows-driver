@@ -140,3 +140,8 @@ build/
 
 # Ignore package-lock.json in favour of npm-shrinkwrap.json for npm publishing
 package-lock.json*
+
+# Ignore downloaded chromedriver/edgedriver/ffmpeg binaries
+chromedriver/
+edgedriver/
+ffmpeg/
