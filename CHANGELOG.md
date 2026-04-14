@@ -1,3 +1,15 @@
+## [1.4.0-preview.5](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.4...v1.4.0-preview.5) (2026-04-14)
+
+### Features
+
+* making screen recorder ffmpeg auto-downloadable and updated webview capability names ([095b2af](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/095b2af7d5a85dd757e92d5666d19ed2a20699b3))
+
+### Bug Fixes
+
+* changed logic of attaching the root window not working on some machines ([ee12870](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/ee12870d4f83a1b830c18b65f9dc1a7493825f96))
+* **webview:** fix current webview not being set ([a08f775](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a08f775f935b90660e1229c1ed294822a93a024e))
+* **webview:** fix error when no webview endpoint is available ([c15567c](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/c15567c6d06db5b1581afd441c1a1eb7887ee1b8))
+
 ## [1.4.0-preview.4](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.3...v1.4.0-preview.4) (2026-04-09)
 
 ### Bug Fixes
