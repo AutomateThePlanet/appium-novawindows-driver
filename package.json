@@ -1,6 +1,6 @@
 {
   "name": "appium-novawindows-driver",
-  "version": "1.4.0-preview.5",
+  "version": "1.4.0",
   "description": "Appium driver for Windows",
   "keywords": [
     "appium",
