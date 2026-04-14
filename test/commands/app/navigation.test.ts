@@ -21,7 +21,7 @@ describe('back', () => {
     it('sends Alt+Left when a window is active', async () => {
         const { keyDown, keyUp } = await import('../../../lib/winapi/user32');
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue(ELEMENT_ID);
+        driver.sendCommand.mockResolvedValue(ELEMENT_ID);
 
         await back.call(driver);
 
@@ -33,18 +33,19 @@ describe('back', () => {
 
     it('throws NoSuchWindowError when no active window', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('');
+        driver.sendCommand.mockResolvedValue('');
 
         await expect(back.call(driver)).rejects.toThrow('No active window found');
     });
 
-    it('performs exactly one PS call (window check) before sending keys', async () => {
+    it('performs exactly one sendCommand call (window check) before sending keys', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue(ELEMENT_ID);
+        driver.sendCommand.mockResolvedValue(ELEMENT_ID);
 
         await back.call(driver);
 
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('saveRootElementToTable', {});
     });
 });
 
@@ -54,7 +55,7 @@ describe('forward', () => {
     it('sends Alt+Right when a window is active', async () => {
         const { keyDown, keyUp } = await import('../../../lib/winapi/user32');
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue(ELEMENT_ID);
+        driver.sendCommand.mockResolvedValue(ELEMENT_ID);
 
         await forward.call(driver);
 
@@ -66,7 +67,7 @@ describe('forward', () => {
 
     it('throws NoSuchWindowError when no active window', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('');
+        driver.sendCommand.mockResolvedValue('');
 
         await expect(forward.call(driver)).rejects.toThrow('No active window found');
     });
@@ -77,19 +78,21 @@ describe('title (getTitle)', () => {
 
     it('returns the window title from the Name property', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
-            .mockResolvedValueOnce(ELEMENT_ID) // window check
-            .mockResolvedValueOnce('Untitled - Notepad'); // Name property
+        driver.sendCommand
+            .mockResolvedValueOnce(ELEMENT_ID) // saveRootElementToTable
+            .mockResolvedValueOnce('Untitled - Notepad'); // getProperty Name
 
         const result = await title.call(driver);
 
         expect(result).toBe('Untitled - Notepad');
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(2);
+        expect(driver.sendCommand).toHaveBeenCalledTimes(2);
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(1, 'saveRootElementToTable', {});
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(2, 'getProperty', { elementId: ELEMENT_ID, property: 'Name' });
     });
 
     it('returns an empty string when the window has no title', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
+        driver.sendCommand
             .mockResolvedValueOnce(ELEMENT_ID)
             .mockResolvedValueOnce('');
 
@@ -100,7 +103,7 @@ describe('title (getTitle)', () => {
 
     it('throws NoSuchWindowError when no active window', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('');
+        driver.sendCommand.mockResolvedValue('');
 
         await expect(title.call(driver)).rejects.toThrow('No active window found');
     });
@@ -113,47 +116,52 @@ describe('setWindowRect', () => {
 
     function createDriverWithRect(windowRect = MOCK_RECT) {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue(ELEMENT_ID);
+        driver.sendCommand.mockResolvedValue(ELEMENT_ID);
         driver.getWindowRect = vi.fn().mockResolvedValue(windowRect);
         return driver;
     }
 
-    it('calls Move and Resize when all four values are provided', async () => {
+    it('calls moveWindow and resizeWindow when all four values are provided', async () => {
         const driver = createDriverWithRect();
 
         const result = await setWindowRect.call(driver, 100, 100, 800, 600);
 
-        // PS calls: window check + Move + Resize = 3
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(3);
+        // sendCommand calls: saveRootElementToTable + moveWindow + resizeWindow = 3
+        expect(driver.sendCommand).toHaveBeenCalledTimes(3);
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(1, 'saveRootElementToTable', {});
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(2, 'moveWindow', { elementId: ELEMENT_ID, x: 100, y: 100 });
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(3, 'resizeWindow', { elementId: ELEMENT_ID, width: 800, height: 600 });
         expect(driver.getWindowRect).toHaveBeenCalledTimes(1);
         expect(result).toEqual(MOCK_RECT);
     });
 
-    it('calls only Move when width and height are null', async () => {
+    it('calls only moveWindow when width and height are null', async () => {
         const driver = createDriverWithRect();
 
         await setWindowRect.call(driver, 50, 75, null, null);
 
-        // PS calls: window check + Move = 2
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(2);
+        // sendCommand calls: saveRootElementToTable + moveWindow = 2
+        expect(driver.sendCommand).toHaveBeenCalledTimes(2);
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(2, 'moveWindow', { elementId: ELEMENT_ID, x: 50, y: 75 });
     });
 
-    it('calls only Resize when x and y are null', async () => {
+    it('calls only resizeWindow when x and y are null', async () => {
         const driver = createDriverWithRect();
 
         await setWindowRect.call(driver, null, null, 1024, 768);
 
-        // PS calls: window check + Resize = 2
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(2);
+        // sendCommand calls: saveRootElementToTable + resizeWindow = 2
+        expect(driver.sendCommand).toHaveBeenCalledTimes(2);
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(2, 'resizeWindow', { elementId: ELEMENT_ID, width: 1024, height: 768 });
     });
 
-    it('skips Move and Resize when all arguments are null', async () => {
+    it('skips moveWindow and resizeWindow when all arguments are null', async () => {
         const driver = createDriverWithRect();
 
         await setWindowRect.call(driver, null, null, null, null);
 
-        // PS calls: window check only = 1
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
+        // sendCommand calls: saveRootElementToTable only = 1
+        expect(driver.sendCommand).toHaveBeenCalledTimes(1);
     });
 
     it('returns the new window rect from getWindowRect', async () => {
@@ -179,35 +187,9 @@ describe('setWindowRect', () => {
 
     it('throws NoSuchWindowError when no active window', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('');
+        driver.sendCommand.mockResolvedValue('');
         driver.getWindowRect = vi.fn();
 
         await expect(setWindowRect.call(driver, 0, 0, 800, 600)).rejects.toThrow('No active window found');
-    });
-
-    it('the Move PS command contains TransformPattern and Move', async () => {
-        const driver = createDriverWithRect();
-
-        await setWindowRect.call(driver, 10, 20, null, null);
-
-        const moveCmdCall = driver.sendPowerShellCommand.mock.calls[1][0] as string;
-        const decoded = moveCmdCall.replace(/FromBase64String\('([^']+)'\)/g, (_, b64) =>
-            Buffer.from(b64, 'base64').toString('utf8')
-        );
-        expect(decoded).toContain('TransformPattern');
-        expect(decoded).toContain('Move');
-    });
-
-    it('the Resize PS command contains TransformPattern and Resize', async () => {
-        const driver = createDriverWithRect();
-
-        await setWindowRect.call(driver, null, null, 800, 600);
-
-        const resizeCmdCall = driver.sendPowerShellCommand.mock.calls[1][0] as string;
-        const decoded = resizeCmdCall.replace(/FromBase64String\('([^']+)'\)/g, (_, b64) =>
-            Buffer.from(b64, 'base64').toString('utf8')
-        );
-        expect(decoded).toContain('TransformPattern');
-        expect(decoded).toContain('Resize');
     });
 });

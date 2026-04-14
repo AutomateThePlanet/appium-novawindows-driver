@@ -30,6 +30,14 @@ import {
     PSRect,
     PSString,
 } from './common';
+import {
+    registerPropertyCondition,
+    registerAndCondition,
+    registerOrCondition,
+    registerNotCondition,
+    registerTrueCondition,
+    registerFalseCondition,
+} from '../server/converter-bridge';
 
 const PROPERTY_CONDITION = $ /* ps1 */ `[PropertyCondition]::new([AutomationElement]::${0}Property, ${1})`;
 const AND_CONDITION = $ /* ps1 */ `[AndCondition]::new(${0})`;
@@ -109,6 +117,7 @@ export class PropertyCondition extends Condition {
         }
 
         super(PROPERTY_CONDITION.format(property, value));
+        registerPropertyCondition(this, property, value);
     }
 }
 
@@ -123,6 +132,7 @@ export class AndCondition extends Condition {
         }
 
         super(AND_CONDITION.format(conditions.join(', ')));
+        registerAndCondition(this, ...conditions);
     }
 }
 
@@ -137,6 +147,7 @@ export class OrCondition extends Condition {
         }
 
         super(OR_CONDITION.format(conditions.join(', ')));
+        registerOrCondition(this, ...conditions);
     }
 }
 
@@ -147,18 +158,21 @@ export class NotCondition extends Condition {
         }
 
         super(NOT_CONDITION.format(condition));
+        registerNotCondition(this, condition);
     }
 }
 
 export class TrueCondition extends Condition {
     constructor() {
         super(TRUE_CONDITION);
+        registerTrueCondition(this);
     }
 }
 
 export class FalseCondition extends Condition {
     constructor() {
         super(FALSE_CONDITION);
+        registerFalseCondition(this);
     }
 }
 

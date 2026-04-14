@@ -6,17 +6,28 @@
     "appium",
     "novawindows",
     "uiautomation",
-    "powershell",
     "automated testing",
-    "windows"
+    "windows",
+    "desktop automation"
   ],
   "main": "build/lib/driver.js",
+  "files": [
+    "build/lib/**/*",
+    "native/win-x64/NovaUIAutomationServer.exe",
+    "scripts/postinstall.js",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc -b",
+    "build:native": "dotnet publish csharp/NovaUIAutomationServer/NovaUIAutomationServer.csproj -c Release -o native/win-x64/",
+    "build:all": "npm run build:native && npm run build",
     "watch": "tsc -b --watch",
     "lint": "eslint .",
     "test": "npx vitest run",
-    "test:e2e": "npx vitest run --config vitest.e2e.config.ts"
+    "test:e2e": "npx vitest run --config vitest.e2e.config.ts",
+    "postinstall": "node scripts/postinstall.js"
   },
   "author": "Automate The Planet",
   "license": "Apache-2.0",

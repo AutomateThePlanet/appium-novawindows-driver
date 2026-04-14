@@ -15,32 +15,55 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Windows runner is required because the C# UIAutomation server is a
+    # self-contained win-x64 executable. We publish it as part of the npm
+    # tarball so end users do NOT need the .NET SDK to install the driver.
+    runs-on: windows-latest
     environment: Release
     steps:
     - uses: actions/checkout@v5
+
     - name: Use Node.js
       uses: actions/setup-node@v6
       with:
         node-version: 24.x
         registry-url: 'https://registry.npmjs.org'
-    - run: npm install --no-package-lock
-      name: Install dependencies
-    - run: npm run build
-      name: Run NPM Build
-    - run: npm run lint
-      name: Run NPM Lint
-    - run: |
+
+    - name: Use .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.x'
+
+    - name: Install dependencies
+      run: npm install --no-package-lock --ignore-scripts
+      # --ignore-scripts avoids running the postinstall hook here; we build
+      # the native server explicitly in the next step.
+
+    - name: Build C# native server (win-x64, self-contained)
+      run: npm run build:native
+
+    - name: Build TypeScript
+      run: npm run build
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Prune dev and peer dependencies
+      shell: bash
+      run: |
         rm -rf package-lock.json node_modules
-        # Remove dev and peer dependencies from node_modules
-        npm prune --omit=dev --omit=peer --no-package-lock
-      name: Remove dev dependencies and appium peer dependencies
-    - run: npm shrinkwrap --omit=dev --omit=peer
-      name: Create shrinkwrap
-    - run: npm install --only=dev --no-package-lock
-      name: Install dev dependencies for the release
-    - run: npx semantic-release
+        # Re-install prod deps only, still skipping the postinstall hook
+        # (the native exe is already built).
+        npm install --omit=dev --omit=peer --no-package-lock --ignore-scripts
+
+    - name: Create shrinkwrap
+      run: npm shrinkwrap --omit=dev --omit=peer
+
+    - name: Install dev dependencies for the release
+      run: npm install --only=dev --no-package-lock --ignore-scripts
+
+    - name: Release
+      run: npx semantic-release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      name: Release

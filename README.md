@@ -24,13 +24,13 @@ Beside of standard Appium requirements NovaWindows Driver adds the following pre
 
 > **Note**
 >
-> The driver currently uses a PowerShell session as a back-end, and
-> should not require Developer Mode to be on, or any other software.
-> There's a plan to update to a better, .NET-based backend for improved
-> realiability and better code and error management, as well as supporting
-> more features, that are currently not possible using PowerShell alone.
-> It is unlikely for the prerequisites to change, as this is one of the
-> main goals of NovaWindows driver – seamless setup on any PC.
+> The driver uses a native C# UIAutomation server as its backend. The server
+> is a compiled .NET executable (`NovaUIAutomationServer.exe`) that communicates
+> with the driver via JSON over stdin/stdout. This eliminates antivirus false
+> positives that were caused by the previous PowerShell-based approach, while
+> providing better performance, structured error handling, and debugging
+> capabilities. No Developer Mode or additional software is required.
+> See [docs/architecture.md](docs/architecture.md) for details.
 
 NovaWindows Driver supports the following capabilities:
 
@@ -137,10 +137,9 @@ else:
 
 > **Note**
 >
-> NovaWindows Driver runs on a single PowerShell session,
-> therefore you may share variables between executed PowerShell
-> scripts. Unless the PowerShell session exits or crashes for some
-> reason, you should be able to reuse the variables that you create.
+> PowerShell scripts executed via the `powerShell` command or `prerun`/`postrun`
+> capabilities run in isolated one-shot PowerShell processes. Variables are
+> **not** shared between script executions.
 
 
 ## Element Location
@@ -524,7 +523,7 @@ Stops the current screen recording and returns the video (base64 or uploads to a
 
 ### windows: deleteFile
 
-Deletes a file on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force`. Paths containing `[`, `]`, or `?` use `-LiteralPath` for correct interpretation.
+Deletes a file on the Windows machine.
 
 #### Arguments
 
@@ -534,7 +533,7 @@ path | string | yes | Absolute or relative path to the file to delete. | `C:\Tem
 
 ### windows: deleteFolder
 
-Deletes a folder on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force` with optional `-Recurse`. Paths containing `[`, `]`, or `?` use `-LiteralPath`.
+Deletes a folder on the Windows machine.
 
 #### Arguments
 
@@ -591,14 +590,33 @@ button | string | no | Mouse button: `left` (default), `middle`, `right`, `back`
 
 ## Development
 
-it is recommended to use Matt Bierner's [Comment tagged templates](https://marketplace.visualstudio.com/items?itemName=bierner.comment-tagged-templates)
-Visual Studio Code plugin so it highlights the powershell and C code used throughout the project.
+### Prerequisites
+
+- **Node.js 24.x** — for the TypeScript driver
+- **.NET 10 SDK** — for building the C# UIAutomation server (only needed for development; the published exe is self-contained)
+
+### Build
 
 ```bash
-# Checkout the current repository and run
+# Install dependencies
 npm install
-# Run linting to check for code quality
-npm run lint
-# Transpile TypeScript files to build the project
+
+# Build the C# server (output: native/win-x64/NovaUIAutomationServer.exe)
+npm run build:native
+
+# Build TypeScript (output: build/lib/)
 npm run build
+
+# Build both
+npm run build:all
+
+# Run linting
+npm run lint
+
+# Run unit tests
+npm run test
 ```
+
+### Architecture
+
+See [docs/architecture.md](docs/architecture.md) for the full architecture documentation, including the C# server protocol, command reference, and debugging features.

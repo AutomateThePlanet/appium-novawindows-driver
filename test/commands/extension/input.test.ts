@@ -37,7 +37,7 @@ describe('executeKeys', () => {
     it('handles pause action', async () => {
         const driver = createMockDriver() as any;
         await executeKeys.call(driver, { actions: { pause: 50 }, forceUnicode: false });
-        expect(driver.sendPowerShellCommand).not.toHaveBeenCalled();
+        expect(driver.sendCommand).not.toHaveBeenCalled();
     });
 
     it('handles text action', async () => {
@@ -81,17 +81,14 @@ describe('executeClick', () => {
     it('clicks with elementId when element exists', async () => {
         const driver = createMockDriver() as any;
         (driver as any).caps = {};
-        const rectJson = '{"x":10,"y":20,"width":100,"height":50}';
+        const rect = { x: 10, y: 20, width: 100, height: 50 };
         let callCount = 0;
-        driver.sendPowerShellCommand.mockImplementation(() => {
+        driver.sendCommand.mockImplementation(() => {
             callCount++;
             if (callCount === 1) {
-                return Promise.resolve('True');
+                return Promise.resolve(true); // lookupElement
             }
-            if (callCount === 2) {
-                return Promise.resolve('1.2.3.4.5');
-            }
-            return Promise.resolve(rectJson);
+            return Promise.resolve(rect); // getRect
         });
         const { mouseMoveAbsolute } = await import('../../../lib/winapi/user32');
         await executeClick.call(driver, { elementId: '1.2.3.4.5' });

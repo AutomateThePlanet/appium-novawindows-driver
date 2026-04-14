@@ -29,19 +29,19 @@ const ELEMENT_ID = '1.2.3.4.5';
 describe('getProperty', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('sends GetCurrentPropertyValue command and returns result', async () => {
+    it('sends getProperty command and returns result', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('Calculator');
+        driver.sendCommand.mockResolvedValue('Calculator');
         const result = await getProperty.call(driver, 'name', ELEMENT_ID);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('getProperty', { elementId: ELEMENT_ID, property: 'name' });
         expect(result).toBe('Calculator');
     });
 
-    it('returns the value from sendPowerShellCommand for runtimeid property', async () => {
+    it('returns the value from sendCommand for runtimeid property', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('1.2.3.4.5');
+        driver.sendCommand.mockResolvedValue('1.2.3.4.5');
         const result = await getProperty.call(driver, 'runtimeid', ELEMENT_ID);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('getProperty', { elementId: ELEMENT_ID, property: 'runtimeid' });
         expect(result).toBe('1.2.3.4.5');
     });
 });
@@ -64,8 +64,9 @@ describe('active', () => {
 
     it('returns the focused element wrapped in W3C element key', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('9.8.7.6.5');
+        driver.sendCommand.mockResolvedValue('9.8.7.6.5');
         const result = await active.call(driver);
+        expect(driver.sendCommand).toHaveBeenCalledWith('findElementFocused', {});
         expect(result[W3C_ELEMENT_KEY]).toBe('9.8.7.6.5');
     });
 });
@@ -75,8 +76,9 @@ describe('getName', () => {
 
     it('returns the tag name from the command', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('Button');
+        driver.sendCommand.mockResolvedValue('Button');
         const result = await getName.call(driver, ELEMENT_ID);
+        expect(driver.sendCommand).toHaveBeenCalledWith('getTagName', { elementId: ELEMENT_ID });
         expect(result).toBe('Button');
     });
 });
@@ -86,8 +88,9 @@ describe('getText', () => {
 
     it('returns the text content from the command', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('Hello World');
+        driver.sendCommand.mockResolvedValue('Hello World');
         const result = await getText.call(driver, ELEMENT_ID);
+        expect(driver.sendCommand).toHaveBeenCalledWith('getText', { elementId: ELEMENT_ID });
         expect(result).toBe('Hello World');
     });
 });
@@ -95,17 +98,11 @@ describe('getText', () => {
 describe('clear', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('sends a SetValue command with empty string', async () => {
+    it('sends setElementValue command with empty string', async () => {
         const driver = createMockDriver() as any;
         await clear.call(driver, ELEMENT_ID);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
-        // The command is base64-encoded; verify that 'SetValue' appears anywhere in the decoded chain
-        const rawCmd = driver.sendPowerShellCommand.mock.calls[0][0];
-        // Decode all layers to find SetValue
-        const allDecoded = JSON.stringify(rawCmd)
-            .replace(/\\u[\dA-F]{4}/gi, '')
-            .replace(/FromBase64String\('([^']+)'\)/g, (_, b64) => Buffer.from(b64, 'base64').toString('utf8'));
-        expect(allDecoded).toContain('SetValue');
+        expect(driver.sendCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('setElementValue', { elementId: ELEMENT_ID, value: '' });
     });
 });
 
@@ -114,11 +111,13 @@ describe('getElementRect', () => {
 
     it('returns rect adjusted relative to root rect', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
-            .mockResolvedValueOnce('{"x":110,"y":220,"width":50,"height":30}')
-            .mockResolvedValueOnce('{"x":100,"y":200,"width":800,"height":600}');
+        driver.sendCommand
+            .mockResolvedValueOnce({ x: 110, y: 220, width: 50, height: 30 })
+            .mockResolvedValueOnce({ x: 100, y: 200, width: 800, height: 600 });
 
         const result = await getElementRect.call(driver, ELEMENT_ID);
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(1, 'getRect', { elementId: ELEMENT_ID });
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(2, 'getRootRect', {});
         expect(result.x).toBe(10); // 110 - 100
         expect(result.y).toBe(20); // 220 - 200
         expect(result.width).toBe(50);
@@ -127,9 +126,9 @@ describe('getElementRect', () => {
 
     it('handles Infinity values by replacing with max int32', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
-            .mockResolvedValueOnce('{"x":Infinity,"y":0,"width":50,"height":30}')
-            .mockResolvedValueOnce('{"x":0,"y":0,"width":800,"height":600}');
+        driver.sendCommand
+            .mockResolvedValueOnce({ x: Infinity, y: 0, width: 50, height: 30 })
+            .mockResolvedValueOnce({ x: 0, y: 0, width: 800, height: 600 });
 
         const result = await getElementRect.call(driver, ELEMENT_ID);
         expect(result.x).toBe(0x7FFFFFFF);
@@ -137,11 +136,9 @@ describe('getElementRect', () => {
 
     it('clamps adjusted x and y to max int32', async () => {
         const driver = createMockDriver() as any;
-        // Element x is less than root x so result would be negative → clamped? Actually min(0x7FFFFFFF, value)
-        // Let's test when adjusted value exceeds max int32
-        driver.sendPowerShellCommand
-            .mockResolvedValueOnce(`{"x":${0x7FFFFFFF},"y":0,"width":10,"height":10}`)
-            .mockResolvedValueOnce('{"x":0,"y":0,"width":800,"height":600}');
+        driver.sendCommand
+            .mockResolvedValueOnce({ x: 0x7FFFFFFF, y: 0, width: 10, height: 10 })
+            .mockResolvedValueOnce({ x: 0, y: 0, width: 800, height: 600 });
 
         const result = await getElementRect.call(driver, ELEMENT_ID);
         expect(result.x).toBe(0x7FFFFFFF);
@@ -153,14 +150,15 @@ describe('elementDisplayed', () => {
 
     it('returns true when IS_OFFSCREEN is false', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('False');
+        driver.sendCommand.mockResolvedValue('False');
         const result = await elementDisplayed.call(driver, ELEMENT_ID);
+        expect(driver.sendCommand).toHaveBeenCalledWith('getProperty', { elementId: ELEMENT_ID, property: 'IsOffscreen' });
         expect(result).toBe(true);
     });
 
     it('returns false when IS_OFFSCREEN is true', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('True');
+        driver.sendCommand.mockResolvedValue('True');
         const result = await elementDisplayed.call(driver, ELEMENT_ID);
         expect(result).toBe(false);
     });
@@ -169,32 +167,35 @@ describe('elementDisplayed', () => {
 describe('elementSelected', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('returns true when SelectionItemPattern.IsSelected is True', async () => {
+    it('returns true when isElementSelected returns true', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('True');
+        driver.sendCommand.mockResolvedValue('True');
         const result = await elementSelected.call(driver, ELEMENT_ID);
+        expect(driver.sendCommand).toHaveBeenCalledWith('isElementSelected', { elementId: ELEMENT_ID });
         expect(result).toBe(true);
     });
 
-    it('returns false when SelectionItemPattern.IsSelected is not True', async () => {
+    it('returns false when isElementSelected returns false', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('False');
+        driver.sendCommand.mockResolvedValue('False');
         const result = await elementSelected.call(driver, ELEMENT_ID);
         expect(result).toBe(false);
     });
 
-    it('falls back to ToggleState when SelectionItemPattern throws', async () => {
+    it('falls back to ToggleState when isElementSelected throws', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
+        driver.sendCommand
             .mockRejectedValueOnce(new Error('No SelectionItemPattern'))
             .mockResolvedValueOnce('On');
         const result = await elementSelected.call(driver, ELEMENT_ID);
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(1, 'isElementSelected', { elementId: ELEMENT_ID });
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(2, 'getToggleState', { elementId: ELEMENT_ID });
         expect(result).toBe(true);
     });
 
     it('returns false from ToggleState when toggle is Off', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
+        driver.sendCommand
             .mockRejectedValueOnce(new Error('No SelectionItemPattern'))
             .mockResolvedValueOnce('Off');
         const result = await elementSelected.call(driver, ELEMENT_ID);
@@ -207,14 +208,15 @@ describe('elementEnabled', () => {
 
     it('returns true when IS_ENABLED is true', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('true');
+        driver.sendCommand.mockResolvedValue('true');
         const result = await elementEnabled.call(driver, ELEMENT_ID);
+        expect(driver.sendCommand).toHaveBeenCalledWith('getProperty', { elementId: ELEMENT_ID, property: 'IsEnabled' });
         expect(result).toBe(true);
     });
 
     it('returns false when IS_ENABLED is false', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('false');
+        driver.sendCommand.mockResolvedValue('false');
         const result = await elementEnabled.call(driver, ELEMENT_ID);
         expect(result).toBe(false);
     });
@@ -228,36 +230,32 @@ describe('getElementScreenshot', () => {
 
     it('returns base64 PNG from the screenshot command', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
-            .mockResolvedValueOnce(ROOT_ID) // window check
-            .mockResolvedValueOnce(FAKE_BASE64); // screenshot
+        driver.sendCommand
+            .mockResolvedValueOnce(ROOT_ID) // saveRootElementToTable
+            .mockResolvedValueOnce(FAKE_BASE64); // getElementScreenshot
 
         const result = await getElementScreenshot.call(driver, ELEMENT_ID);
 
         expect(result).toBe(FAKE_BASE64);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(2);
+        expect(driver.sendCommand).toHaveBeenCalledTimes(2);
     });
 
     it('throws NoSuchWindowError when no active window', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('');
+        driver.sendCommand.mockResolvedValue('');
 
         await expect(getElementScreenshot.call(driver, ELEMENT_ID)).rejects.toThrow('No active window found');
     });
 
-    it('the screenshot PS command references the element and BoundingRectangle', async () => {
+    it('sends getElementScreenshot command with elementId', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand
+        driver.sendCommand
             .mockResolvedValueOnce(ROOT_ID)
             .mockResolvedValueOnce(FAKE_BASE64);
 
         await getElementScreenshot.call(driver, ELEMENT_ID);
 
-        const screenshotCmd = driver.sendPowerShellCommand.mock.calls[1][0] as string;
-        const decoded = screenshotCmd.replace(/FromBase64String\('([^']+)'\)/g, (_, b64) =>
-            Buffer.from(b64, 'base64').toString('utf8')
-        );
-        expect(decoded).toContain('BoundingRectangle');
-        expect(decoded).toContain('CopyFromScreen');
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(1, 'saveRootElementToTable', {});
+        expect(driver.sendCommand).toHaveBeenNthCalledWith(2, 'getElementScreenshot', { elementId: ELEMENT_ID });
     });
 });

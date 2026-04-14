@@ -15,29 +15,24 @@ describe('deleteFolder', () => {
         await expect(
             deleteFolder.call(driver, {} as any)
         ).rejects.toThrow("'path' must be provided");
-        expect(driver.sendPowerShellCommand).not.toHaveBeenCalled();
+        expect(driver.sendCommand).not.toHaveBeenCalled();
     });
 
-    it('sends Remove-Item with -Recurse by default', async () => {
+    it('sends deleteFolder command with recursive true by default', async () => {
         const driver = createMockDriver() as any;
         await deleteFolder.call(driver, { path: 'C:\\temp\\folder' });
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('-Recurse')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('deleteFolder', { path: 'C:\\temp\\folder', recursive: true });
     });
 
-    it('omits -Recurse when recursive is false', async () => {
+    it('sends deleteFolder command with recursive false when specified', async () => {
         const driver = createMockDriver() as any;
         await deleteFolder.call(driver, { path: 'C:\\temp\\folder', recursive: false });
-        const call = driver.sendPowerShellCommand.mock.calls[0][0];
-        expect(call).not.toContain('-Recurse');
+        expect(driver.sendCommand).toHaveBeenCalledWith('deleteFolder', { path: 'C:\\temp\\folder', recursive: false });
     });
 
-    it('uses -LiteralPath when path contains special chars', async () => {
+    it('sends deleteFolder command with special chars in path', async () => {
         const driver = createMockDriver() as any;
         await deleteFolder.call(driver, { path: 'C:\\temp\\folder[1]' });
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('-LiteralPath')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('deleteFolder', { path: 'C:\\temp\\folder[1]', recursive: true });
     });
 });

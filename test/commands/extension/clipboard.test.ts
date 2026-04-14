@@ -12,43 +12,34 @@ describe('getClipboardBase64', () => {
 
     it('returns plaintext clipboard by default', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('aGVsbG8=');
+        driver.sendCommand.mockResolvedValue('aGVsbG8=');
         const result = await getClipboardBase64.call(driver);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('Get-Clipboard')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('getClipboardText', {});
         expect(result).toBe('aGVsbG8=');
     });
 
     it('accepts contentType as plaintext', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('dGVzdA==');
+        driver.sendCommand.mockResolvedValue('dGVzdA==');
         const result = await getClipboardBase64.call(driver, 'plaintext');
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('Get-Clipboard')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('getClipboardText', {});
         expect(result).toBe('dGVzdA==');
     });
 
     it('accepts contentType as image', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('iVBORw0KGgo=');
+        driver.sendCommand.mockResolvedValue('iVBORw0KGgo=');
         const result = await getClipboardBase64.call(driver, 'image');
-        const callArg = driver.sendPowerShellCommand.mock.calls[0][0];
-        const base64Match = callArg.match(/FromBase64String\('([^']+)'\)/);
-        const decoded = base64Match ? Buffer.from(base64Match[1], 'base64').toString() : '';
-        expect(decoded).toContain('GetImage');
+        expect(driver.sendCommand).toHaveBeenCalledWith('getClipboardImage', {});
         expect(result).toBe('iVBORw0KGgo=');
     });
 
     it('accepts contentType as object with contentType property', async () => {
         const driver = createMockDriver() as any;
-        driver.sendPowerShellCommand.mockResolvedValue('YmFzZTY0');
+        driver.sendCommand.mockResolvedValue('YmFzZTY0');
         const result = await getClipboardBase64.call(driver, { contentType: 'plaintext' });
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('Get-Clipboard')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('getClipboardText', {});
         expect(result).toBe('YmFzZTY0');
     });
 
@@ -78,34 +69,19 @@ describe('setClipboardFromBase64', () => {
     it('sets plaintext clipboard by default', async () => {
         const driver = createMockDriver() as any;
         await setClipboardFromBase64.call(driver, { b64Content: 'aGVsbG8=' });
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('FromBase64String')
-        );
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('Set-Clipboard')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('setClipboardText', { b64Content: 'aGVsbG8=' });
     });
 
     it('sets plaintext clipboard with explicit contentType', async () => {
         const driver = createMockDriver() as any;
         await setClipboardFromBase64.call(driver, { b64Content: 'dGVzdA==', contentType: 'plaintext' });
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('FromBase64String')
-        );
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('dGVzdA==')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('setClipboardText', { b64Content: 'dGVzdA==' });
     });
 
     it('sets image clipboard', async () => {
         const driver = createMockDriver() as any;
         await setClipboardFromBase64.call(driver, { b64Content: 'iVBORw0KGgo=', contentType: 'image' });
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('FromBase64String')
-        );
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('SetImage')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('setClipboardImage', { b64Content: 'iVBORw0KGgo=' });
     });
 
     it('throws for unsupported content type', async () => {

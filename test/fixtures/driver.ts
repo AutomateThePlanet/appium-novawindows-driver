@@ -5,19 +5,21 @@ import { vi } from 'vitest';
 import { W3C_ELEMENT_KEY } from '@appium/base-driver';
 
 export interface MockDriver {
-    sendPowerShellCommand: ReturnType<typeof vi.fn>;
-    log: { debug: ReturnType<typeof vi.fn>; info?: ReturnType<typeof vi.fn> };
+    sendCommand: ReturnType<typeof vi.fn>;
+    log: { debug: ReturnType<typeof vi.fn>; info?: ReturnType<typeof vi.fn>; warn?: ReturnType<typeof vi.fn> };
     assertFeatureEnabled: ReturnType<typeof vi.fn>;
+    caps: Record<string, unknown>;
 }
 
 export function createMockDriver(overrides?: Partial<MockDriver>): MockDriver {
-    const sendPowerShellCommand = vi.fn().mockResolvedValue('');
-    const log = { debug: vi.fn(), info: vi.fn() };
+    const sendCommand = vi.fn().mockResolvedValue(null);
+    const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() };
     const assertFeatureEnabled = vi.fn();
     const driver: MockDriver = {
-        sendPowerShellCommand,
+        sendCommand,
         log,
         assertFeatureEnabled,
+        caps: {},
         ...overrides,
     };
     return driver;

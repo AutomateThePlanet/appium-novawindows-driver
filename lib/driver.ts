@@ -1,6 +1,5 @@
 import { BaseDriver, W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { system } from 'appium/support';
-import { ChildProcessWithoutNullStreams } from 'node:child_process';
 import type { ScreenRecorder } from './commands/screen-recorder';
 import commands from './commands';
 import {
@@ -8,17 +7,17 @@ import {
     UI_AUTOMATION_DRIVER_CONSTRAINTS
 } from './constraints';
 import {
-    AutomationElement,
-    Condition,
-    FoundAutomationElement,
-    PSControlType,
-    PSInt32Array,
-    PSString,
     Property,
-    PropertyCondition,
-    TreeScope,
+    ControlType,
+    ExtraControlType,
+} from './powershell/types';
+import {
     convertStringToCondition,
-} from './powershell';
+} from './powershell/converter';
+import { conditionToDto } from './server/converter-bridge';
+import { NovaUIAutomationClient } from './server/client';
+import { propertyCondition } from './server/conditions';
+import type { ConditionDto } from './server/protocol';
 import {
     assertSupportedEasingFunction
 } from './util';
@@ -56,10 +55,7 @@ const LOCATION_STRATEGIES = Object.freeze([
 ] as const);
 
 export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, StringRecord> {
-    isPowerShellSessionStarted: boolean = false;
-    powerShell?: ChildProcessWithoutNullStreams;
-    powerShellStdOut: string = '';
-    powerShellStdErr: string = '';
+    serverClient?: NovaUIAutomationClient;
     keyboardState: KeyboardState = {
         pressed: new Set(),
         alt: false,
@@ -76,10 +72,17 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         this.desiredCapConstraints = UI_AUTOMATION_DRIVER_CONSTRAINTS;
 
         // Bind commands to this instance (not prototype) so each driver instance uses its own
-        // PowerShell session and state when multiple sessions exist
+        // server client and state when multiple sessions exist
         for (const key in commands) { // TODO: create a decorator that will do that for the class
             (this as any)[key] = commands[key].bind(this);
         }
+    }
+
+    async sendCommand(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
+        if (!this.serverClient) {
+            throw new errors.UnknownError('NovaUIAutomationServer is not running.');
+        }
+        return await this.serverClient.sendCommand(method, params);
     }
 
     override async findElement(strategy: string, selector: string): Promise<Element> {
@@ -105,48 +108,50 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
     override async findElOrEls(strategy: typeof LOCATION_STRATEGIES[number], selector: string, mult: true, context?: string): Promise<Element[]>;
     override async findElOrEls(strategy: typeof LOCATION_STRATEGIES[number], selector: string, mult: false, context?: string): Promise<Element>;
     override async findElOrEls(strategy: typeof LOCATION_STRATEGIES[number], selector: string, mult: boolean, context?: string): Promise<Element | Element[]> {
-        let condition: Condition;
+        let condition: ConditionDto;
         switch (strategy) {
             case 'id':
-                condition = new PropertyCondition(Property.RUNTIME_ID, new PSInt32Array(selector.split('.').map(Number)));
+                condition = propertyCondition('RuntimeId', selector.split('.').map(Number));
                 break;
             case 'tag name':
-                condition = new PropertyCondition(Property.CONTROL_TYPE, new PSControlType(selector));
+                condition = propertyCondition('ControlType', selector);
                 break;
             case 'accessibility id':
-                condition = new PropertyCondition(Property.AUTOMATION_ID, new PSString(selector));
+                condition = propertyCondition('AutomationId', selector);
                 break;
             case 'name':
-                condition = new PropertyCondition(Property.NAME, new PSString(selector));
+                condition = propertyCondition('Name', selector);
                 break;
             case 'class name':
-                condition = new PropertyCondition(Property.CLASS_NAME, new PSString(selector));
+                condition = propertyCondition('ClassName', selector);
                 break;
             case '-windows uiautomation':
-                condition = convertStringToCondition(selector);
+                condition = conditionToDto(convertStringToCondition(selector));
                 break;
             case 'xpath':
-                return await xpathToElIdOrIds(selector, mult, context, this.sendPowerShellCommand.bind(this));
+                return await xpathToElIdOrIds(selector, mult, context, this.sendCommand.bind(this));
             default:
                 throw new errors.InvalidArgumentError(`Invalid find strategy ${strategy}`);
         }
 
-        const searchContext = context ? new FoundAutomationElement(context) : AutomationElement.automationRoot;
+        const params: Record<string, unknown> = {
+            scope: 'descendants',
+            condition,
+            contextElementId: context ?? null,
+        };
 
         if (mult) {
-            const result = await this.sendPowerShellCommand(searchContext.findAll(TreeScope.DESCENDANTS, condition).buildCommand());
-            const elIds = result.split('\n').map((elId) => elId.trim()).filter(Boolean);
-            return elIds.filter(Boolean).map((elId) => ({ [W3C_ELEMENT_KEY]: elId }));
+            const result = await this.sendCommand('findElements', params) as string[];
+            return (result ?? []).map((elId) => ({ [W3C_ELEMENT_KEY]: elId }));
         }
 
-        const result = await this.sendPowerShellCommand(searchContext.findFirst(TreeScope.DESCENDANTS, condition).buildCommand());
-        const elId = result.trim();
+        const result = await this.sendCommand('findElement', params) as string | null;
 
-        if (!elId) {
+        if (!result) {
             throw new errors.NoSuchElementError();
         }
 
-        return { [W3C_ELEMENT_KEY]: elId };
+        return { [W3C_ELEMENT_KEY]: result };
     }
 
     override async createSession(
@@ -180,7 +185,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
                 this.caps.shouldCloseApp = true; // set default value
             }
 
-            await this.startPowerShellSession();
+            await this.startServerSession();
 
             if (this.caps.prerun) {
                 this.log.info('Executing prerun PowerShell script...');
@@ -202,17 +207,16 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
             try {
                 if (this.caps['ms:forcequit'] === true) {
-                    await this.sendPowerShellCommand(/* ps1 */ `
-                        if ($null -ne $rootElement) {
-                            $processId = $rootElement.Current.ProcessId
-                            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-                        }
-                    `);
+                    // Force quit the process
+                    const isNotNull = await this.sendCommand('checkRootElementNotNull', {}) as boolean;
+                    if (isNotNull) {
+                        const processId = await this.sendCommand('getProperty', { elementId: await this.sendCommand('saveRootElementToTable', {}), property: 'ProcessId' }) as string;
+                        await this.sendCommand('stopProcess', { pid: Number(processId), force: true });
+                    }
                 } else {
-                    const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
-                    const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
-                    if (elementId) {
-                        await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+                    const rootId = await this.sendCommand('saveRootElementToTable', {}) as string;
+                    if (rootId) {
+                        await this.sendCommand('closeWindow', { elementId: rootId });
                     }
                 }
             } catch {
@@ -224,7 +228,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             await this.executePowerShellScript(this.caps.postrun as Exclude<Parameters<typeof commands['executePowerShellScript']>[0], string>);
         }
 
-        await this.terminatePowerShellSession();
+        await this.terminateServerSession();
         await super.deleteSession(sessionId);
     }
 
