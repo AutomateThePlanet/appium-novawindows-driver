@@ -1,3 +1,8 @@
+# C# build artifacts
+csharp/**/bin/
+csharp/**/obj/
+native/
+
 # Logs
 logs
 *.log
