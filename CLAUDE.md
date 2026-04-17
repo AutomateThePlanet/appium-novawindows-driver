@@ -54,7 +54,7 @@ See `docs/architecture.md` for the full architecture documentation.
 
 ### Windows API Layer
 
-`lib/winapi/user32.ts` — FFI via koffi to user32.dll for mouse movement, keyboard events, DPI awareness. `mouseMoveAbsolute` defaults to a 100 ms interpolated path (linear easing) so WPF `ContextMenu` / `MenuItem` controls get enough `WM_MOUSEMOVE` events to mark the item as hovered before the button-down arrives — callers that need a teleport (e.g. calculator button mashing) pass `duration: 0` explicitly. `lib/commands/element.ts` `click()` also skips the focus-ancestor step for `MenuItem` / `Menu` / `MenuBar` (focusing an ancestor dismisses the popup) and sleeps 100 ms between move and `mouseDown` to let Windows drain the input queue. See `docs/architecture.md#click-reliability` for the full rationale.
+`lib/winapi/user32.ts` — FFI via koffi to user32.dll for mouse movement, keyboard events, DPI awareness. `mouseMoveAbsolute(x, y)` defaults to teleport (single SendInput); passing a positive `duration` interpolates the path with `linear` easing by default. `lib/commands/element.ts` `click()` takes two paths: non-menu controls teleport + `mouseDown`/`mouseUp` (fast, matches pre-UIA3 behavior); `MenuItem` / `Menu` / `MenuBar` controls also teleport (interpolation would cross sibling menu items and hover-open their submenus), then sleep 100 ms to drain the input queue before the button events, and skip the focus-ancestor step (focusing an ancestor dismisses the popup). See `docs/architecture.md#click-reliability` for the full rationale.
 
 ### XPath
 

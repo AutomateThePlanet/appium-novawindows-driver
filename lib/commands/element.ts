@@ -3,7 +3,7 @@ import { NovaWindowsDriver } from '../driver';
 import { Property } from '../powershell/types';
 import { propertyCondition, andCondition, orCondition } from '../server/conditions';
 import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
-import { mouseDown, mouseMoveAbsolute, mouseUp } from '../winapi/user32';
+import { mouseDown, mouseMoveAbsolute, mouseUp, getCursorPos } from '../winapi/user32';
 import { Key } from '../enums';
 import { sleep } from '../util';
 import type { RectResult } from '../server/protocol';
@@ -243,29 +243,60 @@ export async function click(this: NovaWindowsDriver, elementId: string): Promise
         coordinates.y = rect.y + rect.height / 2;
     }
 
-    // Pass delayBeforeClick through as-is — undefined lets mouseMoveAbsolute's
-    // default kick in (interpolated ~100 ms path), explicit 0 still teleports
-    // for speed-sensitive callers (calculator button mashing etc.).
-    await mouseMoveAbsolute(coordinates.x!, coordinates.y!, this.caps.delayBeforeClick, easingFunction);
+    // Teleport for menu items (an interpolated path crosses sibling items and
+    // WPF hover-opens their submenus mid-flight); non-menu callers can opt
+    // into an interpolated path via delayBeforeClick + smoothPointerMove.
+    const moveDuration = isMenuItem ? 0 : (this.caps.delayBeforeClick ?? 0);
+    this.log.debug(`click(${elementId}) controlType=${controlType || '?'} coords=(${coordinates.x},${coordinates.y}) menu=${isMenuItem}`);
+    await mouseMoveAbsolute(coordinates.x!, coordinates.y!, moveDuration, easingFunction);
 
-    // Drain the hardware input queue before the button event, matching FlaUI's
-    // Wait.UntilInputIsProcessed (FlaUI.Core/Input/Wait.cs:19-25 — implemented
-    // as Thread.Sleep(100), cites Raymond Chen / The Old New Thing on the need
-    // to let Windows process input before the next event). Without this gap,
-    // WPF ContextMenu / MenuItem controls route the button-down to the popup
-    // background because the hover tracker hasn't marked the item as hovered
-    // yet, so the popup dismisses and the command never fires.
-    await sleep(100);
+    if (isMenuItem) {
+        // WPF ContextMenu items need the WM_MOUSEMOVE to be fully processed
+        // before WM_LBUTTONDOWN arrives. Without this gap, the popup's hover
+        // tracker hasn't yet marked the target as IsMouseOver, so the click
+        // is routed to the popup background and silently dismissed.
+        await sleep(100);
+
+        // Re-check ClickablePoint: the popup can still be animating when the
+        // initial coordinate read happened (observed 14 px y-drift between
+        // consecutive runs of the same click, first one fast enough to catch
+        // the popup mid-flight). If the coord moved meaningfully, re-teleport
+        // to the final position; otherwise the stale coord lands on the
+        // sibling item below/above the target.
+        try {
+            const refreshed = await this.sendCommand('getProperty', { elementId, property: 'ClickablePoint' }) as { x: number; y: number };
+            const drift = Math.abs(refreshed.x - coordinates.x!) + Math.abs(refreshed.y - coordinates.y!);
+            if (drift > 2) {
+                this.log.debug(`click(${elementId}) popup settled: (${coordinates.x},${coordinates.y}) → (${refreshed.x},${refreshed.y}) — re-teleporting`);
+                coordinates.x = refreshed.x;
+                coordinates.y = refreshed.y;
+                await mouseMoveAbsolute(coordinates.x, coordinates.y, 0, easingFunction);
+                await sleep(100);
+            }
+        } catch {
+            // ClickablePoint no longer available — fall through with the
+            // original coords; better to click the old spot than skip.
+        }
+
+        const afterMovePos = getCursorPos();
+        if (afterMovePos) {
+            const cursorDrift = Math.abs(afterMovePos.x - coordinates.x!) + Math.abs(afterMovePos.y - coordinates.y!);
+            if (cursorDrift > 2) {
+                this.log.warn(`click(${elementId}) cursor drift: wanted (${coordinates.x},${coordinates.y}), got (${afterMovePos.x},${afterMovePos.y})`);
+            } else {
+                this.log.debug(`click(${elementId}) cursor confirmed at (${afterMovePos.x},${afterMovePos.y})`);
+            }
+        }
+    }
 
     mouseDown();
     mouseUp();
 
-    // Small default post-click settle so menu/navigation animations have a
-    // chance to finish before the next findElement runs. The explicit
-    // delayAfterClick capability overrides this for tests that want a longer
-    // wait (or 0 for back-to-back clicks where speed matters).
-    const POST_CLICK_SETTLE_MS = 50;
-    await sleep(this.caps.delayAfterClick ?? POST_CLICK_SETTLE_MS);
+    // Post-click settle — FlaUI's Wait.UntilInputIsProcessed
+    // (FlaUI.Core/Input/Wait.cs:19-25, Thread.Sleep(100)). Lets Windows
+    // finish dispatching mouseDown/mouseUp before the next UIA call runs.
+    const postClickSettleMs = isMenuItem ? 100 : 50;
+    await sleep(this.caps.delayAfterClick ?? postClickSettleMs);
 }
 
 export async function getElementScreenshot(this: NovaWindowsDriver, elementId: string): Promise<string> {

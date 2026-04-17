@@ -263,11 +263,17 @@ For UWP apps, the Win32 window handle from `EnumWindows` refers to the outer `Ap
 
 ## UIA3 COM Interop (hand-written)
 
-The server talks to the UIAutomation framework through the **UIA3 COM API** (`IUIAutomation`, defined in `UIAutomationCore.dll`) rather than the managed `System.Windows.Automation` wrapper that used to ship with .NET Framework.
+The server talks to the UIAutomation framework through the **UIA3 COM API** (`IUIAutomation`, defined in `UIAutomationCore.dll`) rather than the managed `System.Windows.Automation` wrapper (UIA1) that ships with .NET Framework. The previous incarnation of this driver shelled out to PowerShell and went through UIA1 internally; the C# server briefly did the same before migrating to UIA3 COM.
 
-### Why not the managed wrapper?
+### Why UIA3 instead of the UIA1 managed wrapper?
 
-The UIA1 managed wrapper (`System.Windows.Automation` / `UIAutomationClient.dll`) occasionally blocks for **up to 60 s** on a single call when WPF providers rebuild their automation peer tree under load (e.g. a large `ContextMenu` opening). The COM RPC timeout on the managed side is hard-coded and the wrapper offers no hook to shorten it. Switching to UIA3 eliminated the hang entirely in our test suites.
+1. **No 60-second COM hang.** The UIA1 managed wrapper (`System.Windows.Automation` / `UIAutomationClient.dll`) occasionally blocks for **up to 60 s** on a single call when WPF providers rebuild their automation peer tree under load (a large `ContextMenu` opening is the most reliable repro). The COM RPC timeout on the managed side is hard-coded and the wrapper offers no hook to shorten it. Switching to UIA3 eliminated the hang in the test suites that originally exposed it.
+2. **Less marshaling overhead on the hot path.** UIA1 wraps every COM call in a managed proxy; UIA3 via `[ComImport]` interfaces calls `IUIAutomationElement` methods directly, which materially shortens property reads and tree walks — the two things Appium drivers do thousands of times per session.
+3. **Broader pattern and property surface.** UIA3 exposes patterns and properties that UIA1 doesn't — `TextEdit`, `CustomNavigation`, `Selection2`, `Annotation`, modern `Window` / `Transform` v2 members, additional accessibility landmarks. The current driver doesn't use every one of them, but the ones it does need (e.g. the `ClickablePoint` property-value fallback used when the live `GetClickablePoint` call returns `FALSE`) only exist as first-class access on UIA3.
+4. **It's the supported API going forward.** UIA1's managed wrapper is part of the .NET Framework reference-assembly set and is essentially in maintenance mode. UIA3 (`UIAutomationCore.dll`) is the API Microsoft ships with Windows itself, receives updates with each Windows release, and is what FlaUI and Accessibility Insights standardize on.
+5. **No .NET Framework dependency.** The UIA1 managed wrapper is part of .NET Framework's reference set; reaching it from a modern .NET SDK project means taking a dependency on the Windows Desktop framework profile and shipping a reference-assembly shim. UIA3 comes from `UIAutomationCore.dll`, which is present on every Windows install since XP SP3 — nothing to ship, nothing to reference except the Windows SDK type library.
+
+### Why not `<COMReference>` / tlbimp?
 
 ### Why not `<COMReference>` / tlbimp?
 
@@ -292,21 +298,52 @@ We chose (2) to keep the project dependency-free and avoid checking a generated 
 
 ## Click Reliability
 
-`lib/commands/element.ts` `click()` runs a sequence that has been tuned for WPF `ContextMenu` / `MenuItem` activation, because those controls are the most sensitive to the order and spacing of input events:
+`lib/commands/element.ts` `click()` has **two paths**, picked by the `ControlType` of the target:
 
-1. **Detect `MenuItem` / `Menu` / `MenuBar`** up front. If the target is a menu control, **skip** the usual "`setFocus` on the nearest focusable `Pane` / `Window` ancestor" step. Focusing an ancestor closes the open popup, stale `ClickablePoint` coordinates are then used for the click, and the mouse lands on empty space. Menu controls don't need pre-focus — the hover + button-down activates them directly.
+- **Fast path (default, all non-menu controls)** — teleport + `mouseDown` + `mouseUp`. Matches the original pre-UIA3 behavior and is what fast benchmarks rely on (a 4-click Calculator smoke run was ~28 % slower when every click paid the menu-path cost).
+- **Reliable path (`MenuItem` / `Menu` / `MenuBar`)** — teleport + 100 ms pre-click hover drain + adaptive re-read of `ClickablePoint` (compensates for popup animation, see below) + `mouseDown` + `mouseUp` + 100 ms post-click drain.
+
+### Shared steps (both paths)
+
+1. **Detect `MenuItem` / `Menu` / `MenuBar`** up front via a `getProperty('ControlType')` call. If menu, **skip** the usual "`setFocus` on the nearest focusable `Pane` / `Window` ancestor" step — focusing an ancestor closes the open popup, stale `ClickablePoint` coordinates are then used for the click, and the mouse lands on empty space. Non-menu controls still run the focus step because many WPF surfaces want their owning window focused before a click lands.
 2. **Resolve the click target** via a 3-tier `ClickablePoint` fallback (client side: native property → `getRect` centre; server side inside the native property call: `IUIAutomationElement.GetClickablePoint` → `GetCurrentPropertyValue(UIA_ClickablePointPropertyId)` → throw). WPF providers sometimes return `BOOL=FALSE` from the live call under contention even when the cached property is still present; the property-value fallback catches that case without falling all the way back to the bounding-rect centre. Mirrors `FlaUI.UIA3/UIA3FrameworkAutomationElement.cs:147-176`.
-3. **Interpolate cursor movement** by default. `mouseMoveAbsolute` defaults to `duration = 100 ms` and `easingFunction = 'linear'`, which produces many small `SendInput(MOUSE_MOVE)` events along the path — one per display refresh interval (~16 ms at 60 Hz). WPF's `ContextMenu` updates its "hovered item" state from each `WM_MOUSEMOVE` message, so the target item is correctly marked as hovered before the button event arrives. Callers that want a teleport (speed-sensitive back-to-back calculator clicks, click-and-drag start positions) pass `duration: 0` explicitly — `sendMouseMoveInput` maps that to a single `SendInput` call, skipping interpolation.
-4. **Drain the hardware input queue** for 100 ms (`await sleep(100)`) between the move and `mouseDown()`. Mirrors FlaUI's `Wait.UntilInputIsProcessed` (`FlaUI.Core/Input/Wait.cs:19-25`, which cites Raymond Chen / *The Old New Thing* on the need to let Windows process pending input before the next event). Without this gap, WPF routes the button-down to the popup background because the hover tracker hasn't yet marked the item as hovered, so the popup dismisses and the command never fires.
-5. **Post-click settle** — default 50 ms, overridable via the `delayAfterClick` capability — gives menu/navigation animations a chance to finish before the next `findElement` runs.
+3. **Move the cursor to the click target via teleport** (`mouseMoveAbsolute(x, y, 0)` — single `SendInput`). Teleport is used even on the reliable path because an interpolated move inside an already-open `ContextMenu` popup crosses sibling menu items on the way to the target, and WPF's `MouseEnter` tracking is sensitive enough that a single intermediate frame (≥ 16 ms at 60 Hz) can hover-open the wrong submenu and steal the click (observed targeting "Time Clock" while passing over "About ▶" — the About submenu opened and the button-down landed on its popup background). Teleport never crosses other items.
+4. **Post-click settle** — default 50 ms, overridable via the `delayAfterClick` capability — gives menu/navigation animations a chance to finish before the next `findElement` runs.
+
+### Reliable-path-only steps
+
+5. **Pre-click hover drain** — `await sleep(100)` between the teleport and `mouseDown()`. Lets Windows process the `WM_MOUSEMOVE` so WPF marks the target as `IsMouseOver`. Without this gap the click is routed to the popup background and the popup dismisses silently.
+6. **Adaptive popup-animation compensation** — re-read `ClickablePoint` after the drain. WPF `ContextMenu` popups can still be laying out when the first read happens (we observed a 14 px y-drift between back-to-back reads of the same menu item). If the refreshed coord has moved by more than 2 px, re-teleport to the final position and drain again. Happy path: no change detected, no cost paid. Race path: the log line `popup settled: (old) → (new) — re-teleporting` appears and the click lands correctly.
+7. **Post-click input-queue drain** — `await sleep(100)` after `mouseUp()`. Mirrors FlaUI's `Wait.UntilInputIsProcessed` (`FlaUI.Core/Input/Wait.cs:19-25`, Raymond Chen / *The Old New Thing*). Lets Windows finish dispatching the button events before the next UIA call runs.
+8. **Cursor-position verification (diagnostic)** — between the drain and `mouseDown`, `GetCursorPos` is logged and compared against the target coord. `cursor confirmed at (x, y)` on success; `cursor drift: wanted (…), got (…)` if `SetCursorPos` didn't take. Kept because it surfaced the original animation-race bug and costs one syscall per menu click.
+
+### Cursor movement primitive: `SetCursorPos`
+
+Absolute cursor positioning uses **`SetCursorPos`** (raw physical pixels) rather than `SendInput(MOUSEEVENTF_ABSOLUTE)`. This is a *general-correctness* choice — it was not the fix for the RMH POS menu regression (that was an animation race; see the next section). `SetCursorPos` is preferred because it sidesteps three classes of coordinate bug:
+
+- `SendInput`'s absolute mode normalizes into `[0, 65535]`. Without `MOUSEEVENTF_VIRTUALDESK` it maps onto the primary monitor only, clipping any target on a secondary display.
+- Even with `MOUSEEVENTF_VIRTUALDESK`, legacy-DPI-aware processes hit rounding / mapping edge cases when monitors have mixed scale factors.
+- `SetCursorPos` takes raw pixel coordinates across the virtual screen, so multi-monitor and DPI scaling just work without any normalization math. Same primitive FlaUI uses (`FlaUI.Core/Input/Mouse.cs` `Position` setter).
+
+There is one known Windows quirk worth mentioning: on a multi-monitor setup with mixed sizes / DPIs, the first `SetCursorPos` call *after the cursor crosses from one monitor to another* can land at `x = 0` on the target monitor instead of the requested coord. The `setCursorAbsolute` helper in `lib/winapi/user32.ts` works around it — call `SetCursorPos`, verify via `GetCursorPos`, retry once on mismatch (see https://stackoverflow.com/questions/58753372).
+
+`SendInput` is still used for **mouse buttons** (`MOUSEEVENTF_LEFTDOWN` / `LEFTUP` etc.) and the wheel — those don't take coordinates, so the normalization issue doesn't apply.
+
+### Popup-animation race (the RMH POS regression)
+
+The actual cause of the "wrong menu item" failure on RMH POS was **not** a coordinate bug; it was a *timing* bug. After `Operations` is clicked the WPF `ContextMenu` still takes a frame or two to finish laying out. If the next click lands in that window, the `ClickablePoint` we read for `Time Clock` is its **mid-animation** position — 10–20 px off from where the item ends up when `mouseDown` finally arrives, enough to slip onto the sibling (`About`) instead.
+
+The fix lives in `lib/commands/element.ts` `click()`: for `MenuItem`/`Menu`/`MenuBar` targets, after the teleport + 100 ms hover drain, we **re-read `ClickablePoint`**. If it has moved by more than 2 px since the first read, the popup was still settling — the driver re-teleports to the final position and drains again. It's adaptive: zero cost when the popup was already stable, automatic correction when it wasn't. The driver log emits `popup settled: (old) → (new) — re-teleporting` whenever the compensation kicks in.
+
+A `getCursorPos()` verification is logged right before `mouseDown`: `cursor confirmed at (x, y)` on the happy path, `cursor drift: wanted (…), got (…)` if `SetCursorPos` didn't place the cursor where we asked. This was the diagnostic that surfaced the animation race in the first place — keeping it in gives us the same signal on the next unfamiliar failure.
 
 ### Capabilities that tune the click
 
 | Capability | What it changes | Default |
 |-----------|-----------------|---------|
-| `delayBeforeClick` | Duration of the interpolated cursor move. Pass `0` for teleport. | `100 ms` (interpolated) |
+| `delayBeforeClick` | Duration of the cursor move **for non-menu controls**. Pass a positive value to opt into an interpolated path with easing (useful for hover-sensitive custom controls). Ignored on the menu path — menu clicks always teleport to avoid crossing siblings. | `0` (teleport) |
 | `delayAfterClick` | Sleep after `mouseUp` before returning. | `50 ms` |
-| `smoothPointerMove` | CSS-like easing curve applied to the interpolated path (`linear`, `ease-in-out`, `cubic-bezier(...)` etc.). | `linear` |
+| `smoothPointerMove` | CSS-like easing curve applied to the interpolated path (`linear`, `ease-in-out`, `cubic-bezier(...)` etc.). Only has an effect when the move is interpolated (non-menu controls with `delayBeforeClick > 0`, or W3C Actions pointer moves). | `linear` |
 
 ## App Attach & Splash Screen Detection
 

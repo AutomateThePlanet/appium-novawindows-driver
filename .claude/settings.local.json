@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(npm install *)",
-      "Bash(npm test *)"
+      "Bash(npm test *)",
+      "Bash(appium driver *)",
+      "Bash(awk NR>=620 && NR<=766 *)",
+      "Bash(awk NR>=440 && NR<=475 *)",
+      "Bash(awk NR>=420 && NR<=470 *)",
+      "Bash(awk NR>=430 && NR<=475 *)"
     ]
   }
 }

@@ -633,3 +633,5 @@ npm run test
 ### Architecture
 
 See [docs/architecture.md](docs/architecture.md) for the full architecture documentation, including the C# server protocol, command reference, and debugging features.
+
+For a benefit-by-benefit comparison against WinAppDriver and a status check on every claim from the original [Automate The Planet announcement article](https://www.automatetheplanet.com/reviving-windows-app-automation-novawindows-driver-for-appium-2/), see [docs/why-novawindows.md](docs/why-novawindows.md).
