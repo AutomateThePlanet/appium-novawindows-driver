@@ -1,8 +1,8 @@
 using System.Text.Json;
-using System.Windows.Automation;
 using NovaUIAutomationServer.Protocol;
 using NovaUIAutomationServer.Server;
 using NovaUIAutomationServer.State;
+using NovaUIAutomationServer.Uia3;
 
 namespace NovaUIAutomationServer.Commands;
 
@@ -21,25 +21,30 @@ public static class FindCommands
             contextElementId = ctxProp.GetString();
         }
 
+        // When searching from the session root we re-resolve the attached HWND
+        // via IUIAutomation.ElementFromHandle(hwnd) on every call. WPF apps
+        // routinely rebuild their automation-peer tree after navigation (splash
+        // → main, logout → login), invalidating any cached IUIAutomationElement.
+        // Fresh resolution is a sub-ms COM call and gives us the live tree.
         var searchRoot = contextElementId != null
             ? state.GetElement(contextElementId)
-            : (state.RootElement ?? AutomationElement.RootElement);
+            : (state.GetLiveRoot() ?? state.Automation.GetRootElement());
 
-        var condition = ConditionBuilder.Build(conditionDto);
+        var condition = ConditionBuilder.Build(state.Automation, conditionDto);
 
         switch (scope.ToLowerInvariant())
         {
             case "descendants":
-                return FindFirstRecursively(searchRoot, condition, state);
+                return FindFirstRecursively(searchRoot, condition, state, includeSelf: false);
             case "children":
             {
-                var element = searchRoot.FindFirst(TreeScope.Children, condition);
-                return element != null ? state.SaveElementAndReturnId(element) : null;
+                var el = searchRoot.FindFirst(TreeScope.Children, condition);
+                return el != null ? state.SaveElementAndReturnId(el) : null;
             }
             case "element":
             {
-                var element = searchRoot.FindFirst(TreeScope.Element, condition);
-                return element != null ? state.SaveElementAndReturnId(element) : null;
+                var el = searchRoot.FindFirst(TreeScope.Element, condition);
+                return el != null ? state.SaveElementAndReturnId(el) : null;
             }
             case "subtree":
                 return FindFirstRecursively(searchRoot, condition, state, includeSelf: true);
@@ -59,8 +64,8 @@ public static class FindCommands
                 return FindPrecedingSibling(searchRoot, condition, state);
             case "child-or-self":
             {
-                var element = searchRoot.FindFirst(TreeScope.Element | TreeScope.Children, condition);
-                return element != null ? state.SaveElementAndReturnId(element) : null;
+                var el = searchRoot.FindFirst(TreeScope.Element | TreeScope.Children, condition);
+                return el != null ? state.SaveElementAndReturnId(el) : null;
             }
             default:
                 throw new ArgumentException($"Unsupported scope: '{scope}'");
@@ -80,16 +85,21 @@ public static class FindCommands
             contextElementId = ctxProp.GetString();
         }
 
+        // When searching from the session root we re-resolve the attached HWND
+        // via IUIAutomation.ElementFromHandle(hwnd) on every call. WPF apps
+        // routinely rebuild their automation-peer tree after navigation (splash
+        // → main, logout → login), invalidating any cached IUIAutomationElement.
+        // Fresh resolution is a sub-ms COM call and gives us the live tree.
         var searchRoot = contextElementId != null
             ? state.GetElement(contextElementId)
-            : (state.RootElement ?? AutomationElement.RootElement);
+            : (state.GetLiveRoot() ?? state.Automation.GetRootElement());
 
-        var condition = ConditionBuilder.Build(conditionDto);
+        var condition = ConditionBuilder.Build(state.Automation, conditionDto);
 
         switch (scope.ToLowerInvariant())
         {
             case "descendants":
-                return FindAllRecursively(searchRoot, condition, state);
+                return FindAllRecursively(searchRoot, condition, state, includeSelf: false);
             case "children":
                 return SaveAll(searchRoot.FindAll(TreeScope.Children, condition), state);
             case "element":
@@ -122,13 +132,13 @@ public static class FindCommands
 
     public static object? FindElementFocused(SessionState state, JsonElement? parameters)
     {
-        var focused = AutomationElement.FocusedElement;
+        var focused = state.Automation.GetFocusedElement();
         return state.SaveElementAndReturnId(focused);
     }
 
     public static object? SaveRootElementToTable(SessionState state, JsonElement? parameters)
     {
-        var root = state.RootElement ?? AutomationElement.RootElement;
+        var root = state.GetLiveRoot() ?? state.Automation.GetRootElement();
         return state.SaveElementAndReturnId(root);
     }
 
@@ -141,325 +151,355 @@ public static class FindCommands
         return state.ElementTable.ContainsKey(elementId);
     }
 
-    // --- Recursive find implementations matching the PowerShell versions ---
+    // --- Ancestor / Following / Preceding via TreeWalker ---
 
-    private static string? FindFirstRecursively(AutomationElement element, Condition condition, SessionState state, bool includeSelf = false)
+    private static IUIAutomationTreeWalker DefaultWalker(SessionState state)
+        => state.TreeWalker ?? state.Automation.ControlViewWalker;
+
+    private static string? FindFirstAncestor(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
     {
-        var scope = includeSelf ? (TreeScope.Element | TreeScope.Children) : TreeScope.Children;
-        var found = element.FindFirst(scope, condition);
-
-        if (found != null)
+        var walker = DefaultWalker(state);
+        var el = walker.GetParentElement(element);
+        while (el != null)
         {
-            return state.SaveElementAndReturnId(found);
-        }
-
-        var children = element.FindAll(TreeScope.Children, Condition.TrueCondition);
-        foreach (AutomationElement child in children)
-        {
-            var allResults = FindAllRecursivelyInternal(child, condition, returnFirstResult: true);
-            if (allResults.Count > 0)
+            if (el.FindFirst(TreeScope.Element, condition) != null)
             {
-                return state.SaveElementAndReturnId(allResults[0]);
+                return state.SaveElementAndReturnId(el);
             }
+            el = walker.GetParentElement(el);
         }
-
         return null;
     }
 
-    private static string[] FindAllRecursively(AutomationElement element, Condition condition, SessionState state, bool includeSelf = false)
+    private static string? FindFirstAncestorOrSelf(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
     {
-        var results = FindAllRecursivelyInternal(element, condition, includeSelf: includeSelf);
-        return results.Select(el => state.SaveElementAndReturnId(el)).ToArray();
+        var walker = DefaultWalker(state);
+        var el = element;
+        while (el != null)
+        {
+            if (el.FindFirst(TreeScope.Element, condition) != null)
+            {
+                return state.SaveElementAndReturnId(el);
+            }
+            el = walker.GetParentElement(el);
+        }
+        return null;
     }
 
-    private static List<AutomationElement> FindAllRecursivelyInternal(AutomationElement element, Condition condition,
-        bool returnFirstResult = false, bool includeSelf = false)
+    private static string[] FindAllAncestors(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
     {
-        var validChildren = new List<AutomationElement>();
-        var children = element.FindAll(TreeScope.Children, Condition.TrueCondition);
-
-        foreach (AutomationElement child in children)
+        var walker = DefaultWalker(state);
+        var results = new List<string>();
+        var el = walker.GetParentElement(element);
+        while (el != null)
         {
-            var match = child.FindFirst(TreeScope.Element, condition);
-            if (match != null)
+            if (el.FindFirst(TreeScope.Element, condition) != null)
             {
-                validChildren.Add(child);
+                results.Add(state.SaveElementAndReturnId(el));
+            }
+            el = walker.GetParentElement(el);
+        }
+        return results.ToArray();
+    }
+
+    private static string[] FindAllAncestorsOrSelf(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var results = new List<string>();
+        var el = element;
+        while (el != null)
+        {
+            if (el.FindFirst(TreeScope.Element, condition) != null)
+            {
+                results.Add(state.SaveElementAndReturnId(el));
+            }
+            el = walker.GetParentElement(el);
+        }
+        return results.ToArray();
+    }
+
+    private static string? FindParent(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var parent = DefaultWalker(state).GetParentElement(element);
+        if (parent == null) return null;
+        return parent.FindFirst(TreeScope.Element, condition) != null
+            ? state.SaveElementAndReturnId(parent)
+            : null;
+    }
+
+    private static string? FindFollowing(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var el = element;
+        while (el != null)
+        {
+            var next = walker.GetNextSiblingElement(el);
+            if (next != null)
+            {
+                if (next.FindFirst(TreeScope.Element, condition) != null)
+                {
+                    return state.SaveElementAndReturnId(next);
+                }
+                // Descend into this sibling's subtree to look for matches there first.
+                var found = next.FindFirst(TreeScope.Descendants, condition);
+                if (found != null)
+                {
+                    return state.SaveElementAndReturnId(found);
+                }
+                el = next;
+                continue;
+            }
+            el = walker.GetParentElement(el);
+        }
+        return null;
+    }
+
+    private static string[] FindAllFollowing(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var results = new List<string>();
+        var el = element;
+        while (el != null)
+        {
+            var next = walker.GetNextSiblingElement(el);
+            if (next != null)
+            {
+                el = next;
+                if (el.FindFirst(TreeScope.Element, condition) != null)
+                {
+                    results.Add(state.SaveElementAndReturnId(el));
+                }
+                foreach (var match in IterateArray(el.FindAll(TreeScope.Descendants, condition)))
+                {
+                    results.Add(state.SaveElementAndReturnId(match));
+                }
+            }
+            else
+            {
+                el = walker.GetParentElement(el);
             }
         }
+        return results.ToArray();
+    }
+
+    private static string? FindFollowingSibling(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var el = element;
+        while (true)
+        {
+            var next = walker.GetNextSiblingElement(el);
+            if (next == null) break;
+            el = next;
+            if (el.FindFirst(TreeScope.Element, condition) != null)
+            {
+                return state.SaveElementAndReturnId(el);
+            }
+        }
+        return null;
+    }
+
+    private static string[] FindAllFollowingSiblings(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var results = new List<string>();
+        var el = element;
+        while (true)
+        {
+            var next = walker.GetNextSiblingElement(el);
+            if (next == null) break;
+            el = next;
+            if (el.FindFirst(TreeScope.Element, condition) != null)
+            {
+                results.Add(state.SaveElementAndReturnId(el));
+            }
+        }
+        return results.ToArray();
+    }
+
+    private static string? FindPreceding(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var el = element;
+        while (el != null)
+        {
+            var prev = walker.GetPreviousSiblingElement(el);
+            if (prev != null)
+            {
+                if (prev.FindFirst(TreeScope.Element, condition) != null)
+                {
+                    return state.SaveElementAndReturnId(prev);
+                }
+                var found = prev.FindFirst(TreeScope.Descendants, condition);
+                if (found != null)
+                {
+                    return state.SaveElementAndReturnId(found);
+                }
+                el = prev;
+                continue;
+            }
+            el = walker.GetParentElement(el);
+        }
+        return null;
+    }
+
+    private static string[] FindAllPreceding(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var results = new List<string>();
+        var el = element;
+        while (el != null)
+        {
+            var prev = walker.GetPreviousSiblingElement(el);
+            if (prev != null)
+            {
+                el = prev;
+                if (el.FindFirst(TreeScope.Element, condition) != null)
+                {
+                    results.Add(state.SaveElementAndReturnId(el));
+                }
+                foreach (var match in IterateArray(el.FindAll(TreeScope.Descendants, condition)))
+                {
+                    results.Add(state.SaveElementAndReturnId(match));
+                }
+            }
+            else
+            {
+                el = walker.GetParentElement(el);
+            }
+        }
+        return results.ToArray();
+    }
+
+    private static string? FindPrecedingSibling(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var el = element;
+        while (true)
+        {
+            var prev = walker.GetPreviousSiblingElement(el);
+            if (prev == null) break;
+            el = prev;
+            if (el.FindFirst(TreeScope.Element, condition) != null)
+            {
+                return state.SaveElementAndReturnId(el);
+            }
+        }
+        return null;
+    }
+
+    private static string[] FindAllPrecedingSiblings(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state)
+    {
+        var walker = DefaultWalker(state);
+        var results = new List<string>();
+        var el = element;
+        while (true)
+        {
+            var prev = walker.GetPreviousSiblingElement(el);
+            if (prev == null) break;
+            el = prev;
+            if (el.FindFirst(TreeScope.Element, condition) != null)
+            {
+                results.Add(state.SaveElementAndReturnId(el));
+            }
+        }
+        return results.ToArray();
+    }
+
+    // Native UIA3 descendant search first — sub-millisecond on typical apps.
+    // If native misses (happens for elements in subtrees it doesn't traverse —
+    // WPF popup owners hosted in a separate UIA provider, and some virtualised
+    // lists), fall back to a manual child-by-child walk via TreeScope.Children
+    // which does cross those boundaries. The manual walk is slow on miss
+    // (~3–12 s for large trees) but guarantees parity with the original Nova
+    // driver's behaviour — tests that were passing before rely on it to find
+    // elements the native scope skips.
+
+    private static string? FindFirstRecursively(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state, bool includeSelf)
+    {
+        var scope = includeSelf ? TreeScope.Subtree : TreeScope.Descendants;
+        var native = element.FindFirst(scope, condition);
+        if (native != null) return state.SaveElementAndReturnId(native);
 
         if (includeSelf)
         {
-            var selfMatch = element.FindFirst(TreeScope.Element, condition);
-            if (selfMatch != null)
-            {
-                validChildren.Add(selfMatch);
-            }
+            var self = element.FindFirst(TreeScope.Element, condition);
+            if (self != null) return state.SaveElementAndReturnId(self);
         }
-
-        foreach (AutomationElement child in children)
-        {
-            var allResults = FindAllRecursivelyInternal(child, condition);
-            if (returnFirstResult && allResults.Count > 0)
-            {
-                return allResults;
-            }
-
-            foreach (var result in allResults)
-            {
-                var match = result.FindFirst(TreeScope.Element, condition);
-                if (match != null)
-                {
-                    validChildren.Add(result);
-                }
-            }
-        }
-
-        return validChildren;
+        var trueCond = state.Automation.CreateTrueCondition();
+        return WalkForFirst(element, condition, trueCond, state);
     }
 
-    // --- Ancestor / Following / Preceding traversal ---
-
-    private static string? FindFirstAncestor(AutomationElement element, Condition condition, SessionState state)
+    private static string? WalkForFirst(IUIAutomationElement element, IUIAutomationCondition condition, IUIAutomationCondition trueCond, SessionState state)
     {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var el = element;
-        while ((el = walker.GetParent(el)) != null)
+        var direct = element.FindFirst(TreeScope.Children, condition);
+        if (direct != null) return state.SaveElementAndReturnId(direct);
+
+        var children = element.FindAll(TreeScope.Children, trueCond);
+        foreach (var child in IterateArray(children))
         {
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
-            {
-                return state.SaveElementAndReturnId(el);
-            }
+            var found = WalkForFirst(child, condition, trueCond, state);
+            if (found != null) return found;
         }
         return null;
     }
 
-    private static string? FindFirstAncestorOrSelf(AutomationElement element, Condition condition, SessionState state)
+    private static string[] FindAllRecursively(IUIAutomationElement element, IUIAutomationCondition condition, SessionState state, bool includeSelf)
     {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var el = element;
-        while (el != null)
-        {
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
-            {
-                return state.SaveElementAndReturnId(el);
-            }
-            el = walker.GetParent(el);
-        }
-        return null;
-    }
+        var scope = includeSelf ? TreeScope.Subtree : TreeScope.Descendants;
+        var nativeResults = IterateArray(element.FindAll(scope, condition))
+            .Select(el => state.SaveElementAndReturnId(el))
+            .ToList();
 
-    private static string[] FindAllAncestors(AutomationElement element, Condition condition, SessionState state)
-    {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var results = new List<string>();
-        var el = element;
-        while ((el = walker.GetParent(el)) != null)
+        // Supplement with a manual walk to catch matches the native scope
+        // missed. De-dupe by RuntimeId (which is the saved element ID).
+        var seen = new HashSet<string>(nativeResults);
+        if (includeSelf)
         {
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
+            var self = element.FindFirst(TreeScope.Element, condition);
+            if (self != null)
             {
-                results.Add(state.SaveElementAndReturnId(valid));
+                var id = state.SaveElementAndReturnId(self);
+                if (seen.Add(id)) nativeResults.Add(id);
             }
         }
-        return results.ToArray();
+        var trueCond = state.Automation.CreateTrueCondition();
+        WalkForAll(element, condition, trueCond, state, nativeResults, seen);
+        return nativeResults.ToArray();
     }
 
-    private static string[] FindAllAncestorsOrSelf(AutomationElement element, Condition condition, SessionState state)
+    private static void WalkForAll(IUIAutomationElement element, IUIAutomationCondition condition, IUIAutomationCondition trueCond, SessionState state, List<string> results, HashSet<string> seen)
     {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var results = new List<string>();
-        var el = element;
-        while (el != null)
+        var children = element.FindAll(TreeScope.Children, trueCond);
+        foreach (var child in IterateArray(children))
         {
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
+            if (child.FindFirst(TreeScope.Element, condition) != null)
             {
-                results.Add(state.SaveElementAndReturnId(valid));
+                var id = state.SaveElementAndReturnId(child);
+                if (seen.Add(id)) results.Add(id);
             }
-            el = walker.GetParent(el);
+            WalkForAll(child, condition, trueCond, state, results, seen);
         }
-        return results.ToArray();
     }
 
-    private static string? FindParent(AutomationElement element, Condition condition, SessionState state)
-    {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var parent = walker.GetParent(element);
-        if (parent == null) return null;
+    // --- UIA3 array iteration ---
 
-        var valid = parent.FindFirst(TreeScope.Element, condition);
-        return valid != null ? state.SaveElementAndReturnId(valid) : null;
-    }
-
-    private static string? FindFollowing(AutomationElement element, Condition condition, SessionState state)
+    public static IEnumerable<IUIAutomationElement> IterateArray(IUIAutomationElementArray? array)
     {
-        var filterCondition = state.CacheRequest?.TreeFilter ?? Automation.ControlViewCondition;
-        var walker = new TreeWalker(new AndCondition(filterCondition, condition));
-        var el = element;
-        while (el != null)
+        if (array == null) yield break;
+        var len = array.Length;
+        for (var i = 0; i < len; i++)
         {
-            var nextSibling = walker.GetNextSibling(el);
-            if (nextSibling != null)
-            {
-                return state.SaveElementAndReturnId(nextSibling);
-            }
-            el = walker.GetParent(el);
+            yield return array.GetElement(i);
         }
-        return null;
     }
 
-    private static string[] FindAllFollowing(AutomationElement element, Condition condition, SessionState state)
-    {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var results = new List<string>();
-        var el = element;
-        while (el != null)
-        {
-            var nextSibling = walker.GetNextSibling(el);
-            if (nextSibling != null)
-            {
-                el = nextSibling;
-                results.Add(state.SaveElementAndReturnId(el));
-                var children = el.FindAll(TreeScope.Children, condition);
-                foreach (AutomationElement child in children)
-                {
-                    results.Add(state.SaveElementAndReturnId(child));
-                }
-            }
-            else
-            {
-                el = walker.GetParent(el);
-            }
-        }
-        return results.ToArray();
-    }
-
-    private static string? FindFollowingSibling(AutomationElement element, Condition condition, SessionState state)
-    {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var el = element;
-        while (true)
-        {
-            var nextSibling = walker.GetNextSibling(el);
-            if (nextSibling == null) break;
-            el = nextSibling;
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
-            {
-                return state.SaveElementAndReturnId(el);
-            }
-        }
-        return null;
-    }
-
-    private static string[] FindAllFollowingSiblings(AutomationElement element, Condition condition, SessionState state)
-    {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var results = new List<string>();
-        var el = element;
-        while (true)
-        {
-            var nextSibling = walker.GetNextSibling(el);
-            if (nextSibling == null) break;
-            el = nextSibling;
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
-            {
-                results.Add(state.SaveElementAndReturnId(valid));
-            }
-        }
-        return results.ToArray();
-    }
-
-    private static string? FindPreceding(AutomationElement element, Condition condition, SessionState state)
-    {
-        var filterCondition = state.CacheRequest?.TreeFilter ?? Automation.ControlViewCondition;
-        var walker = new TreeWalker(new AndCondition(filterCondition, condition));
-        var el = element;
-        while (el != null)
-        {
-            var prevSibling = walker.GetPreviousSibling(el);
-            if (prevSibling != null)
-            {
-                return state.SaveElementAndReturnId(prevSibling);
-            }
-            el = walker.GetParent(el);
-        }
-        return null;
-    }
-
-    private static string[] FindAllPreceding(AutomationElement element, Condition condition, SessionState state)
-    {
-        var filterCondition = state.CacheRequest?.TreeFilter ?? Automation.ControlViewCondition;
-        var walker = new TreeWalker(new AndCondition(filterCondition, condition));
-        var results = new List<string>();
-        var el = element;
-        while (el != null)
-        {
-            var prevSibling = walker.GetPreviousSibling(el);
-            if (prevSibling != null)
-            {
-                el = prevSibling;
-                results.Add(state.SaveElementAndReturnId(el));
-                var children = el.FindAll(TreeScope.Children, condition);
-                foreach (AutomationElement child in children)
-                {
-                    results.Add(state.SaveElementAndReturnId(child));
-                }
-            }
-            else
-            {
-                el = walker.GetParent(el);
-            }
-        }
-        return results.ToArray();
-    }
-
-    private static string? FindPrecedingSibling(AutomationElement element, Condition condition, SessionState state)
-    {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var el = element;
-        while (true)
-        {
-            var prevSibling = walker.GetPreviousSibling(el);
-            if (prevSibling == null) break;
-            el = prevSibling;
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
-            {
-                return state.SaveElementAndReturnId(el);
-            }
-        }
-        return null;
-    }
-
-    private static string[] FindAllPrecedingSiblings(AutomationElement element, Condition condition, SessionState state)
-    {
-        var walker = state.TreeWalker ?? TreeWalker.ControlViewWalker;
-        var results = new List<string>();
-        var el = element;
-        while (true)
-        {
-            var prevSibling = walker.GetPreviousSibling(el);
-            if (prevSibling == null) break;
-            el = prevSibling;
-            var valid = el.FindFirst(TreeScope.Element, condition);
-            if (valid != null)
-            {
-                results.Add(state.SaveElementAndReturnId(valid));
-            }
-        }
-        return results.ToArray();
-    }
-
-    private static string[] SaveAll(AutomationElementCollection collection, SessionState state)
+    private static string[] SaveAll(IUIAutomationElementArray array, SessionState state)
     {
         var results = new List<string>();
-        foreach (AutomationElement element in collection)
+        foreach (var el in IterateArray(array))
         {
-            results.Add(state.SaveElementAndReturnId(element));
+            results.Add(state.SaveElementAndReturnId(el));
         }
         return results.ToArray();
     }

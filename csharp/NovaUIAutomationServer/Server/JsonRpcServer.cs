@@ -24,6 +24,10 @@ public class JsonRpcServer
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            // Off-screen / virtualized elements can return +/-Infinity for BoundingRectangle
+            // coordinates. Without this, getProperty throws on ArgumentException rather than
+            // returning a usable value.
+            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
         };
     }
 
@@ -34,7 +38,16 @@ public class JsonRpcServer
         Console.InputEncoding = System.Text.Encoding.UTF8;
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        LogToStderr("NovaUIAutomationServer started. Waiting for commands...");
+        // Startup banner with assembly version + build timestamp so the driver
+        // log shows exactly which server binary is running — useful when debugging
+        // across rebuilds and drivers bumped between sessions.
+        var asm = System.Reflection.Assembly.GetExecutingAssembly();
+        var version = asm.GetName().Version?.ToString() ?? "unknown";
+        var informationalVersion = asm.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .FirstOrDefault()?.InformationalVersion ?? version;
+        var buildTime = File.GetLastWriteTime(Environment.ProcessPath ?? asm.Location).ToString("yyyy-MM-dd HH:mm:ss");
+        LogToStderr($"NovaUIAutomationServer v{informationalVersion} (built {buildTime}) started. Waiting for commands...");
 
         using var reader = new StreamReader(Console.OpenStandardInput(), System.Text.Encoding.UTF8);
 
@@ -154,7 +167,8 @@ public class JsonRpcServer
             };
 
             _recorder?.RecordResponse(errorResponse);
-            LogToStderr($"[{request?.Id}] ERROR {request?.Method}: {ex.Message}");
+            var fullChain = GetExceptionChain(ex);
+            LogToStderr($"[{request?.Id}] ERROR {request?.Method}: {fullChain}");
             WriteResponse(errorResponse);
         }
     }
@@ -170,5 +184,17 @@ public class JsonRpcServer
     {
         Console.Error.WriteLine($"[{DateTime.UtcNow:HH:mm:ss.fff}] {message}");
         Console.Error.Flush();
+    }
+
+    private static string GetExceptionChain(Exception ex)
+    {
+        var parts = new List<string>();
+        var current = ex;
+        while (current != null)
+        {
+            parts.Add($"{current.GetType().Name}: {current.Message}");
+            current = current.InnerException;
+        }
+        return string.Join(" --> ", parts);
     }
 }

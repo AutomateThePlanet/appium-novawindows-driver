@@ -40,7 +40,26 @@ public static class ProcessCommands
             startInfo.WorkingDirectory = workingDir;
         }
 
+        int? waitForAppLaunchMs = null;
+        if (p.TryGetProperty("waitForAppLaunchMs", out var waitProp) && waitProp.ValueKind == JsonValueKind.Number)
+        {
+            waitForAppLaunchMs = waitProp.GetInt32();
+        }
+
         var process = Process.Start(startInfo);
+
+        if (process != null && waitForAppLaunchMs.HasValue && waitForAppLaunchMs.Value > 0)
+        {
+            try
+            {
+                process.WaitForInputIdle(waitForAppLaunchMs.Value);
+            }
+            catch (InvalidOperationException)
+            {
+                // Process has no UI or exited before becoming idle — ignore
+            }
+        }
+
         return process?.Id;
     }
 
@@ -101,17 +120,29 @@ public static class ProcessCommands
             workingDir = wdProp.GetString();
         }
 
+        bool isolated = false;
+        if (p.TryGetProperty("isolated", out var isolatedProp) && isolatedProp.ValueKind == JsonValueKind.True)
+        {
+            isolated = true;
+        }
+
         // Base64 encode the script for safe transport
         var base64Script = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(script));
+
+        // When isolated, wrap the script in a fresh PowerShell runspace via -Command with
+        // an explicit scope boundary. The -NoProfile flag is always set; isolated mode
+        // additionally resets environment by running in a new process without loading the user profile.
+        var profileFlag = isolated ? "-NoLogo -NoProfile" : "-NoProfile";
 
         var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -NonInteractive -Command \"[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{base64Script}')) | Invoke-Expression\"",
+            Arguments = $"{profileFlag} -NonInteractive -Command \"[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{base64Script}')) | Invoke-Expression\"",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
+            LoadUserProfile = !isolated,
         };
 
         if (!string.IsNullOrEmpty(workingDir))

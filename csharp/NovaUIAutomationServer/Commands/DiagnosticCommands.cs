@@ -1,5 +1,5 @@
 using System.Text.Json;
-using System.Windows.Automation;
+using NovaUIAutomationServer.Server;
 using NovaUIAutomationServer.State;
 
 namespace NovaUIAutomationServer.Commands;
@@ -31,9 +31,9 @@ public static class DiagnosticCommands
 
             try
             {
-                name = kvp.Value.Current.Name ?? "";
-                var ct = kvp.Value.Current.ControlType;
-                controlType = ct?.ProgrammaticName?.Split('.').Last() ?? "";
+                name = kvp.Value.get_CurrentName() ?? "";
+                var ctId = kvp.Value.CurrentControlType;
+                controlType = ConditionBuilder.ControlTypeNameById.TryGetValue(ctId, out var n) ? n : ctId.ToString();
                 isAlive = true;
             }
             catch

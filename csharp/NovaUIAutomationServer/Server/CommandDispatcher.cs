@@ -18,6 +18,7 @@ public class CommandDispatcher
             ["setRootElementNull"] = SessionCommands.SetRootElementNull,
             ["setRootElementFromHandle"] = SessionCommands.SetRootElementFromHandle,
             ["setRootElementFromElementId"] = SessionCommands.SetRootElementFromElementId,
+            ["elementFromHandle"] = SessionCommands.ElementFromHandle,
             ["checkRootElementNotNull"] = SessionCommands.CheckRootElementNotNull,
             ["setCacheRequestTreeFilter"] = SessionCommands.SetCacheRequestTreeFilter,
             ["setCacheRequestTreeScope"] = SessionCommands.SetCacheRequestTreeScope,
@@ -99,6 +100,9 @@ public class CommandDispatcher
             throw new ArgumentException($"Unknown method: '{method}'");
         }
 
+        // Handlers run inline on the request-loop STA thread. UIA3 RPC calls
+        // don't deadlock the way the UIA1 managed wrapper did, so we don't need
+        // per-command worker threads or timeouts.
         return handler(state, parameters);
     }
 }

@@ -166,8 +166,11 @@ export async function getElementRect(this: NovaWindowsDriver, elementId: string)
 }
 
 export async function elementDisplayed(this: NovaWindowsDriver, elementId: string): Promise<boolean> {
-    const result = await this.sendCommand('getProperty', { elementId, property: 'IsOffscreen' }) as string;
-    return result.toLowerCase() === 'true' ? false : true;
+    const result = await this.sendCommand('getProperty', { elementId, property: 'IsOffscreen' });
+    // UIA3 getProperty returns a JS boolean for bool-typed properties; the old
+    // PowerShell/UIA1 path returned the stringified "True"/"False". Handle both.
+    const isOffscreen = typeof result === 'boolean' ? result : String(result).toLowerCase() === 'true';
+    return !isOffscreen;
 }
 
 // TODO: find better way to handle whether to use select or toggle
@@ -182,32 +185,47 @@ export async function elementSelected(this: NovaWindowsDriver, elementId: string
 }
 
 export async function elementEnabled(this: NovaWindowsDriver, elementId: string): Promise<boolean> {
-    const result = await this.sendCommand('getProperty', { elementId, property: 'IsEnabled' }) as string;
-    return result.toLowerCase() === 'true' ? true : false;
+    const result = await this.sendCommand('getProperty', { elementId, property: 'IsEnabled' });
+    return typeof result === 'boolean' ? result : String(result).toLowerCase() === 'true';
 }
 
 export async function click(this: NovaWindowsDriver, elementId: string): Promise<void> {
     const easingFunction = this.caps.smoothPointerMove;
 
-    const focusCondition = andCondition(
-        propertyCondition('IsKeyboardFocusable', true),
-        orCondition(
-            propertyCondition('ControlType', 'Pane'),
-            propertyCondition('ControlType', 'Window'),
-        ),
-    );
-
+    // Detect menu items up-front — focusing an ancestor Pane/Window closes
+    // the open popup, so subsequent ClickablePoint reads return stale coords
+    // and the mouse click lands on empty space. WPF menus in particular lose
+    // their dropdown on focus-change. Menu items don't need pre-focus anyway;
+    // the mouseDown/mouseUp activates them directly.
+    let controlType = '';
     try {
-        const focusableElementId = await this.sendCommand('findElement', {
-            scope: 'ancestors-or-self',
-            condition: focusCondition,
-            contextElementId: elementId,
-        }) as string | null;
-        if (focusableElementId) {
-            await this.sendCommand('setFocus', { elementId: focusableElementId.trim() });
-        }
+        controlType = await this.sendCommand('getProperty', { elementId, property: 'ControlType' }) as string;
     } catch {
-        // ignore if it fails, focus may fail if there is a forced popup window
+        // not fatal — fall through, we just won't know the type
+    }
+    const isMenuItem = controlType === 'MenuItem' || controlType === 'Menu' || controlType === 'MenuBar';
+
+    if (!isMenuItem) {
+        const focusCondition = andCondition(
+            propertyCondition('IsKeyboardFocusable', true),
+            orCondition(
+                propertyCondition('ControlType', 'Pane'),
+                propertyCondition('ControlType', 'Window'),
+            ),
+        );
+
+        try {
+            const focusableElementId = await this.sendCommand('findElement', {
+                scope: 'ancestors-or-self',
+                condition: focusCondition,
+                contextElementId: elementId,
+            }) as string | null;
+            if (focusableElementId) {
+                await this.sendCommand('setFocus', { elementId: focusableElementId.trim() });
+            }
+        } catch {
+            // ignore if it fails, focus may fail if there is a forced popup window
+        }
     }
 
     const coordinates = {
@@ -225,14 +243,29 @@ export async function click(this: NovaWindowsDriver, elementId: string): Promise
         coordinates.y = rect.y + rect.height / 2;
     }
 
-    await mouseMoveAbsolute(coordinates.x!, coordinates.y!, this.caps.delayBeforeClick ?? 0, easingFunction);
+    // Pass delayBeforeClick through as-is — undefined lets mouseMoveAbsolute's
+    // default kick in (interpolated ~100 ms path), explicit 0 still teleports
+    // for speed-sensitive callers (calculator button mashing etc.).
+    await mouseMoveAbsolute(coordinates.x!, coordinates.y!, this.caps.delayBeforeClick, easingFunction);
+
+    // Drain the hardware input queue before the button event, matching FlaUI's
+    // Wait.UntilInputIsProcessed (FlaUI.Core/Input/Wait.cs:19-25 — implemented
+    // as Thread.Sleep(100), cites Raymond Chen / The Old New Thing on the need
+    // to let Windows process input before the next event). Without this gap,
+    // WPF ContextMenu / MenuItem controls route the button-down to the popup
+    // background because the hover tracker hasn't marked the item as hovered
+    // yet, so the popup dismisses and the command never fires.
+    await sleep(100);
 
     mouseDown();
     mouseUp();
 
-    if (this.caps.delayAfterClick) {
-        await sleep(this.caps.delayAfterClick ?? 0);
-    }
+    // Small default post-click settle so menu/navigation animations have a
+    // chance to finish before the next findElement runs. The explicit
+    // delayAfterClick capability overrides this for tests that want a longer
+    // wait (or 0 for back-to-back clicks where speed matters).
+    const POST_CLICK_SETTLE_MS = 50;
+    await sleep(this.caps.delayAfterClick ?? POST_CLICK_SETTLE_MS);
 }
 
 export async function getElementScreenshot(this: NovaWindowsDriver, elementId: string): Promise<string> {

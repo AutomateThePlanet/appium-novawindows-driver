@@ -1,8 +1,7 @@
 using System.Text.Json;
-using System.Windows.Automation;
 using NovaUIAutomationServer.Server;
 using NovaUIAutomationServer.State;
-using Point = System.Windows.Point;
+using NovaUIAutomationServer.Uia3;
 
 namespace NovaUIAutomationServer.Commands;
 
@@ -21,41 +20,79 @@ public static class ElementCommands
         // Special case: RuntimeId returns dot-joined string
         if (propertyName.Equals("RuntimeId", StringComparison.OrdinalIgnoreCase))
         {
-            var runtimeId = element.GetCurrentPropertyValue(AutomationElement.RuntimeIdProperty) as int[];
+            var runtimeId = element.GetRuntimeId();
             return runtimeId != null ? string.Join(".", runtimeId) : "";
         }
 
-        // Special case: ControlType returns programmatic name
+        // Special case: ControlType returns programmatic name (integer ID -> name)
         if (propertyName.Equals("ControlType", StringComparison.OrdinalIgnoreCase))
         {
-            var controlType = element.GetCurrentPropertyValue(AutomationElement.ControlTypeProperty) as ControlType;
-            if (controlType != null)
-            {
-                return controlType.ProgrammaticName.Split('.').Last();
-            }
-            return "";
+            var ctId = element.CurrentControlType;
+            return ConditionBuilder.ControlTypeNameById.TryGetValue(ctId, out var name) ? name : ctId.ToString();
         }
 
-        // Special case: ClickablePoint returns JSON object
+        // Special case: ClickablePoint returns JSON object. Three-tier fallback
+        // mirrors FlaUI's TryGetClickablePoint
+        // (FlaUI.UIA3/UIA3FrameworkAutomationElement.cs:147-176):
+        //   1. Live IUIAutomationElement.GetClickablePoint.
+        //   2. Cached UIA_ClickablePointPropertyId (SAFEARRAY of 2 doubles).
+        //   3. Throw → client falls back to bounding-rect centre.
+        // WPF providers sometimes return BOOL=FALSE from the live call under
+        // contention even when the cached property value is still present.
         if (propertyName.Equals("ClickablePoint", StringComparison.OrdinalIgnoreCase))
         {
-            var point = element.GetCurrentPropertyValue(AutomationElement.ClickablePointProperty);
-            if (point is Point p2)
+            var gotClickable = element.GetClickablePoint(out var pt);
+            if (gotClickable != 0)
             {
-                return new { x = p2.X, y = p2.Y };
+                return new { x = (double)pt.x, y = (double)pt.y };
             }
+
+            try
+            {
+                var cachedValue = element.GetCurrentPropertyValue(UIA.ClickablePointPropertyId);
+                if (cachedValue is double[] arr && arr.Length >= 2)
+                {
+                    return new { x = arr[0], y = arr[1] };
+                }
+            }
+            catch
+            {
+                // fall through to the throw below
+            }
+
             throw new InvalidOperationException("Element does not have a clickable point.");
         }
 
-        var automationProperty = ConditionBuilder.GetAutomationProperty(propertyName);
-        var value = element.GetCurrentPropertyValue(automationProperty);
+        // Special case: BoundingRectangle returns JSON object
+        if (propertyName.Equals("BoundingRectangle", StringComparison.OrdinalIgnoreCase))
+        {
+            var r = element.CurrentBoundingRectangle;
+            return new
+            {
+                x = (double)r.left,
+                y = (double)r.top,
+                width = (double)(r.right - r.left),
+                height = (double)(r.bottom - r.top),
+            };
+        }
+
+        var propertyId = ConditionBuilder.GetPropertyId(propertyName);
+        var value = element.GetCurrentPropertyValue(propertyId);
 
         if (value == null)
         {
             return "";
         }
 
-        return value.ToString() ?? "";
+        // Normalise UIA3 return types for JSON serialization.
+        return value switch
+        {
+            int[] ints => string.Join(".", ints),
+            bool b => b,
+            int i => i,
+            double d => double.IsInfinity(d) ? 2147483647.0 : d,
+            _ => value.ToString() ?? "",
+        };
     }
 
     public static object? GetTagName(SessionState state, JsonElement? parameters)
@@ -65,14 +102,8 @@ public static class ElementCommands
             ?? throw new ArgumentException("elementId is required.");
 
         var element = state.GetElement(elementId);
-        var controlType = element.GetCurrentPropertyValue(AutomationElement.ControlTypeProperty) as ControlType;
-
-        if (controlType != null)
-        {
-            return controlType.ProgrammaticName.Split('.').Last();
-        }
-
-        return "";
+        var ctId = element.CurrentControlType;
+        return ConditionBuilder.ControlTypeNameById.TryGetValue(ctId, out var name) ? name : ctId.ToString();
     }
 
     public static object? GetText(SessionState state, JsonElement? parameters)
@@ -83,34 +114,31 @@ public static class ElementCommands
 
         var element = state.GetElement(elementId);
 
-        // Try TextPattern first
+        // Prefer TextPattern.DocumentRange.GetText.
         try
         {
-            if (element.TryGetCurrentPattern(TextPattern.Pattern, out var textPatternObj))
+            if (element.GetCurrentPattern(UIA.TextPatternId) is IUIAutomationTextPattern tp)
             {
-                var textPattern = (TextPattern)textPatternObj;
-                return textPattern.DocumentRange.GetText(-1);
+                return tp.DocumentRange.GetText(-1);
             }
         }
         catch { }
 
-        // Try SelectionPattern
+        // Fall back to SelectionPattern.GetCurrentSelection()[0].Name.
         try
         {
-            if (element.TryGetCurrentPattern(SelectionPattern.Pattern, out var selPatternObj))
+            if (element.GetCurrentPattern(UIA.SelectionPatternId) is IUIAutomationSelectionPattern sp)
             {
-                var selPattern = (SelectionPattern)selPatternObj;
-                var selected = selPattern.Current.GetSelection();
-                if (selected.Length > 0)
+                var selected = sp.GetCurrentSelection();
+                if (selected != null && selected.Length > 0)
                 {
-                    return selected[0].Current.Name;
+                    return selected.GetElement(0).get_CurrentName();
                 }
             }
         }
         catch { }
 
-        // Fall back to Name property
-        return element.Current.Name;
+        return element.get_CurrentName();
     }
 
     public static object? GetRect(SessionState state, JsonElement? parameters)
@@ -120,32 +148,32 @@ public static class ElementCommands
             ?? throw new ArgumentException("elementId is required.");
 
         var element = state.GetElement(elementId);
-        var rect = element.Current.BoundingRectangle;
+        var rect = element.CurrentBoundingRectangle;
 
         return new
         {
-            x = double.IsInfinity(rect.X) ? 2147483647.0 : rect.X,
-            y = double.IsInfinity(rect.Y) ? 2147483647.0 : rect.Y,
-            width = double.IsInfinity(rect.Width) ? 2147483647.0 : rect.Width,
-            height = double.IsInfinity(rect.Height) ? 2147483647.0 : rect.Height,
+            x = (double)rect.left,
+            y = (double)rect.top,
+            width = (double)(rect.right - rect.left),
+            height = (double)(rect.bottom - rect.top),
         };
     }
 
     public static object? GetRootRect(SessionState state, JsonElement? parameters)
     {
-        var root = state.RootElement;
+        var root = state.GetLiveRoot();
         if (root == null)
         {
             return new { x = 0.0, y = 0.0, width = 0.0, height = 0.0 };
         }
 
-        var rect = root.Current.BoundingRectangle;
+        var rect = root.CurrentBoundingRectangle;
         return new
         {
-            x = double.IsInfinity(rect.X) ? 2147483647.0 : rect.X,
-            y = double.IsInfinity(rect.Y) ? 2147483647.0 : rect.Y,
-            width = double.IsInfinity(rect.Width) ? 2147483647.0 : rect.Width,
-            height = double.IsInfinity(rect.Height) ? 2147483647.0 : rect.Height,
+            x = (double)rect.left,
+            y = (double)rect.top,
+            width = (double)(rect.right - rect.left),
+            height = (double)(rect.bottom - rect.top),
         };
     }
 
@@ -168,14 +196,11 @@ public static class ElementCommands
         var value = p.GetProperty("value").GetString() ?? "";
 
         var element = state.GetElement(elementId);
-
-        if (element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj))
+        if (element.GetCurrentPattern(UIA.ValuePatternId) is IUIAutomationValuePattern vp)
         {
-            var pattern = (ValuePattern)patternObj;
-            pattern.SetValue(value);
+            vp.SetValue(value);
             return null;
         }
-
         throw new InvalidOperationException("Element does not support ValuePattern.");
     }
 
@@ -186,13 +211,10 @@ public static class ElementCommands
             ?? throw new ArgumentException("elementId is required.");
 
         var element = state.GetElement(elementId);
-
-        if (element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj))
+        if (element.GetCurrentPattern(UIA.ValuePatternId) is IUIAutomationValuePattern vp)
         {
-            var pattern = (ValuePattern)patternObj;
-            return pattern.Current.Value;
+            return vp.get_CurrentValue();
         }
-
         throw new InvalidOperationException("Element does not support ValuePattern.");
     }
 

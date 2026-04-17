@@ -1,12 +1,35 @@
+import { normalize } from 'node:path';
 import { NovaWindowsDriver } from '../driver';
 import { NovaUIAutomationClient } from '../server/client';
 
-export async function startServerSession(this: NovaWindowsDriver): Promise<void> {
-    this.serverClient = new NovaUIAutomationClient(this.log);
-    await this.serverClient.start();
+const MAX_INIT_RETRIES = 5;
+const INIT_RETRY_DELAY_MS = 500;
 
-    // Initialize the session (cache request, element table, etc.)
-    await this.sendCommand('init', {});
+export async function startServerSession(this: NovaWindowsDriver): Promise<void> {
+    // The C# server's `init` command triggers UIAutomation static type
+    // initializers (COM objects). These can fail intermittently, and once
+    // a .NET type initializer fails it stays broken for the process lifetime.
+    // The only recovery is to restart the server process and try again.
+    for (let attempt = 1; attempt <= MAX_INIT_RETRIES; attempt++) {
+        this.serverClient = new NovaUIAutomationClient(this.log);
+        await this.serverClient.start();
+
+        try {
+            await this.sendCommand('init', {});
+            break; // success
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (attempt < MAX_INIT_RETRIES && msg.includes('type initializer')) {
+                this.log.warn(`Server init failed (attempt ${attempt}/${MAX_INIT_RETRIES}): ${msg}. Restarting server...`);
+                await this.serverClient.dispose();
+                this.serverClient = undefined;
+                // Delay before retrying to let COM resources be released
+                await new Promise((r) => setTimeout(r, INIT_RETRY_DELAY_MS));
+            } else {
+                throw err;
+            }
+        }
+    }
 
     if (this.caps.appWorkingDir) {
         const envVarsSet: Set<string> = new Set();
@@ -47,6 +70,17 @@ export async function startServerSession(this: NovaWindowsDriver): Promise<void>
             this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
         }
 
+        // When noReset is true, try to attach to an already-running instance
+        // of the app before launching a new one.
+        if (this.opts.noReset) {
+            const attached = await this.tryAttachToRunningApp(this.caps.app);
+            if (attached) {
+                this.log.info('noReset: attached to an already-running instance of the app.');
+                return;
+            }
+            this.log.info('noReset: no running instance found, launching the app.');
+        }
+
         await this.changeRootElement(this.caps.app);
     }
 
@@ -58,6 +92,34 @@ export async function startServerSession(this: NovaWindowsDriver): Promise<void>
         }
 
         await this.changeRootElement(nativeWindowHandle);
+    }
+}
+
+/**
+ * Attempts to attach to an already-running instance of the given app.
+ * Returns true if successfully attached, false if no running process found.
+ */
+export async function tryAttachToRunningApp(this: NovaWindowsDriver, appPath: string): Promise<boolean> {
+    const isUwp = appPath.includes('!') && appPath.includes('_') && !(appPath.includes('/') || appPath.includes('\\'));
+
+    try {
+        if (isUwp) {
+            const processIds = await this.sendCommand('getProcessIds', { processName: 'ApplicationFrameHost' }) as number[];
+            if (processIds.length === 0) return false;
+            await this.attachToApplicationWindow(processIds, { isUwp: true });
+            return true;
+        }
+
+        const normalizedPath = normalize(appPath);
+        const breadcrumbs = normalizedPath.toLowerCase().split('\\').flatMap((x) => x.split('/'));
+        const executable = breadcrumbs[breadcrumbs.length - 1];
+        const processName = executable.endsWith('.exe') ? executable.slice(0, executable.length - 4) : executable;
+        const processIds = await this.sendCommand('getProcessIds', { processName }) as number[];
+        if (processIds.length === 0) return false;
+        await this.attachToApplicationWindow(processIds, { isUwp: false });
+        return true;
+    } catch {
+        return false;
     }
 }
 

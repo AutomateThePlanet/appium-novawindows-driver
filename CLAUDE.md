@@ -34,7 +34,7 @@ npx vitest run -t "pattern"
 
 The driver spawns a compiled `NovaUIAutomationServer.exe` process per session. Commands are sent as NDJSON via stdin, responses read from stdout. Key details:
 
-- `csharp/NovaUIAutomationServer/` — C# .NET 10 project, published as self-contained single-file exe
+- `csharp/NovaUIAutomationServer/` — C# .NET 10 project, published as self-contained single-file exe. Uses **UIA3 COM** via hand-written `[ComImport]` interfaces in `Uia3/UIA.cs` (dotnet SDK MSBuild can't run `<COMReference>`/tlbimp — MSB4803). COM IDL signatures must be followed exactly: `HRESULT GetClickablePoint([out] POINT*, [out, retval] BOOL*)` → `int GetClickablePoint(out tagPOINT pt)` in managed form.
 - `lib/server/client.ts` — `NovaUIAutomationClient` manages the server process lifecycle and NDJSON protocol
 - `lib/server/protocol.ts` — TypeScript types for request/response/condition DTOs
 - `lib/server/conditions.ts` — Builder functions for creating condition JSON objects
@@ -45,16 +45,16 @@ See `docs/architecture.md` for the full architecture documentation.
 ### Command Modules
 
 `lib/commands/` — organized by concern:
-- `server-session.ts` — server lifecycle (`startServerSession`, `terminateServerSession`)
+- `server-session.ts` — server lifecycle (`startServerSession`, `terminateServerSession`, `tryAttachToRunningApp`). Handles `noReset` by attaching to existing app instances.
 - `actions.ts` — W3C Actions API (pointer/key/wheel with Bezier easing)
 - `element.ts` — element properties, text, value, focus
-- `extension.ts` — custom `windows:` platform commands (UIAutomation patterns, clipboard, recording, etc.)
-- `app.ts` — application launch/close, page source, screenshots, window management
+- `extension.ts` — custom `windows:` platform commands (UIAutomation patterns, clipboard, recording, `pushFile`/`pullFile`, etc.)
+- `app.ts` — application launch/close, page source, screenshots, window management. App launch uses poll-based retry (no blind sleep). `ms:waitForAppLaunch` controls the overall deadline for all retry loops (auto-detects seconds vs milliseconds).
 - `screen-recorder.ts` — FFmpeg-based video capture
 
 ### Windows API Layer
 
-`lib/winapi/user32.ts` — FFI via koffi to user32.dll for mouse movement, keyboard events, DPI awareness. Handles smooth pointer movement with Bezier easing curves.
+`lib/winapi/user32.ts` — FFI via koffi to user32.dll for mouse movement, keyboard events, DPI awareness. `mouseMoveAbsolute` defaults to a 100 ms interpolated path (linear easing) so WPF `ContextMenu` / `MenuItem` controls get enough `WM_MOUSEMOVE` events to mark the item as hovered before the button-down arrives — callers that need a teleport (e.g. calculator button mashing) pass `duration: 0` explicitly. `lib/commands/element.ts` `click()` also skips the focus-ancestor step for `MenuItem` / `Menu` / `MenuBar` (focusing an ancestor dismisses the popup) and sleeps 100 ms between move and `mouseDown` to let Windows drain the input queue. See `docs/architecture.md#click-reliability` for the full rationale.
 
 ### XPath
 
@@ -84,7 +84,9 @@ The old `powershell.ts` (session management) and `functions.ts` (PS function def
 ## Conventions
 
 - Commit messages follow Angular/Conventional Commits (`feat:`, `fix:`, `chore:`, etc.)
-- Insecure features (`power_shell`, `modify_fs`) gate dangerous operations behind explicit capability flags
+- Insecure features (`power_shell`, `modify_fs`) gate dangerous operations behind explicit capability flags. `pushFile`/`pullFile` are gated behind `modify_fs`.
+- WinAppDriver capability parity: accepts `deviceName`, `ms:experimental-webdriver`, `systemPort` (no-op), `ms:waitForAppLaunch`, `ms:forcequit`. All caps accept `appium:` prefix. `tag name` locator auto-detects WinAppDriver-style lowercase selectors (→ `LocalizedControlType`) vs Nova-style PascalCase (→ `ControlType`).
+- `NOVA_WINDOWS_PATH` env var overrides the C# server exe path in `lib/server/client.ts`
 - CI runs lint+build on Ubuntu, unit tests on Windows (Node 24.x)
 - Release workflow runs on Windows: builds the native exe, bundles it into the npm tarball, and publishes via `semantic-release`. End users do **not** need the .NET SDK. See `docs/release.md`.
 - `scripts/postinstall.js` skips the native build when the prebuilt exe is present (published package) or on non-Windows platforms (CI lint jobs). It only runs `build:native` for developers cloning from git.

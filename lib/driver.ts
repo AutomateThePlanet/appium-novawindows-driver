@@ -18,6 +18,8 @@ import { conditionToDto } from './server/converter-bridge';
 import { NovaUIAutomationClient } from './server/client';
 import { propertyCondition } from './server/conditions';
 import type { ConditionDto } from './server/protocol';
+import { attachLogFileMirror, LogFileMirror } from './log-file';
+import { DRIVER_VERSION } from './version';
 import {
     assertSupportedEasingFunction
 } from './util';
@@ -64,6 +66,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         shift: false,
     };
     _screenRecorder: ScreenRecorder | null = null;
+    _logFileMirror: LogFileMirror | null = null;
 
     constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
         super(opts, shouldValidateCaps);
@@ -114,7 +117,12 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
                 condition = propertyCondition('RuntimeId', selector.split('.').map(Number));
                 break;
             case 'tag name':
-                condition = propertyCondition('ControlType', selector);
+                // WinAppDriver matches LocalizedControlType (lowercase, locale-dependent: "button", "edit").
+                // Nova historically matches ControlType (PascalCase: "Button", "Edit").
+                // Detect which style the selector uses to support both transparently.
+                condition = selector === selector.toLowerCase()
+                    ? propertyCondition('LocalizedControlType', selector)
+                    : propertyCondition('ControlType', selector);
                 break;
             case 'accessibility id':
                 condition = propertyCondition('AutomationId', selector);
@@ -172,9 +180,34 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             w3cCaps.firstMatch['appium:appTopLevelWindow'] = w3cCaps.firstMatch['appium:appTopLevelWindow'].map(String);
         }
 
+        // Warn when the same logical capability is sent under both prefixed and unprefixed keys with different values
+        if (w3cCaps?.alwaysMatch) {
+            const am = w3cCaps.alwaysMatch as Record<string, unknown>;
+            for (const cap of ['app', 'appArguments', 'appWorkingDir', 'appTopLevelWindow']) {
+                const unprefixed = am[cap];
+                const prefixed = am[`appium:${cap}`];
+                if (unprefixed !== undefined && prefixed !== undefined && unprefixed !== prefixed) {
+                    this.log.warn(`Conflicting values for '${cap}': unprefixed='${unprefixed}', appium:${cap}='${prefixed}'. The appium:-prefixed value takes precedence.`);
+                }
+            }
+        }
+
         try {
             this.log.debug('Creating NovaWindows driver session...');
             const [sessionId, caps] = await super.createSession(jwpCaps, reqCaps, w3cCaps, driverData);
+            if (caps.logFile !== undefined && caps.logFile !== false) {
+                try {
+                    this._logFileMirror = attachLogFileMirror(this.log as unknown as Record<string, unknown>, caps.logFile);
+                    this.log.info(`Driver log is being mirrored to ${this._logFileMirror.path}`);
+                } catch (e) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    this.log.warn(`Failed to attach log file mirror: ${msg}`);
+                }
+            }
+            // Stamp the driver version in the log so we can tell which build is
+            // running — useful when testing across rebuilds. The C# server
+            // prints its own version banner shortly after via stderr → log.
+            this.log.info(`appium-novawindows-driver v${DRIVER_VERSION} (session ${sessionId})`);
             if (caps.smoothPointerMove) {
                 assertSupportedEasingFunction(caps.smoothPointerMove);
             }
@@ -183,6 +216,9 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             }
             if (this.caps.shouldCloseApp === undefined) {
                 this.caps.shouldCloseApp = true; // set default value
+            }
+            if (this.caps.systemPort) {
+                this.log.info(`systemPort capability (${this.caps.systemPort}) is ignored. NovaWindows uses stdin/stdout IPC.`);
             }
 
             await this.startServerSession();
@@ -230,6 +266,11 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
 
         await this.terminateServerSession();
         await super.deleteSession(sessionId);
+
+        if (this._logFileMirror) {
+            this._logFileMirror.detach();
+            this._logFileMirror = null;
+        }
     }
 
     private processSelector(strategy: string, selector: string): [string, string] {

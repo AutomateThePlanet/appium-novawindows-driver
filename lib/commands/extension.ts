@@ -1,7 +1,8 @@
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { Element, Rect } from '@appium/types';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { extname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import { MODIFY_FS_FEATURE, POWER_SHELL_FEATURE } from '../constants';
 import { NovaWindowsDriver } from '../driver';
 import { ClickType, Enum, Key } from '../enums';
@@ -267,6 +268,7 @@ export async function executePowerShellScript(this: NovaWindowsDriver, script: s
     return await this.sendCommand('executePowerShellScript', {
         script,
         workingDir: this.caps.appWorkingDir ?? null,
+        isolated: this.caps.isolatedScriptExecution ?? false,
     }) as string;
 }
 
@@ -704,4 +706,26 @@ export async function getWindowElement(this: NovaWindowsDriver): Promise<Element
         throw new errors.NoSuchWindowError('No active app window is found for this session.');
     }
     return { [W3C_ELEMENT_KEY]: elementId };
+}
+
+export async function pushFile(this: NovaWindowsDriver, remotePath: string, base64Data: string): Promise<void> {
+    this.assertFeatureEnabled(MODIFY_FS_FEATURE);
+    if (!remotePath) {
+        throw new errors.InvalidArgumentError("'remotePath' must be provided.");
+    }
+    if (!base64Data) {
+        throw new errors.InvalidArgumentError("'base64Data' must be provided.");
+    }
+    const data = Buffer.from(base64Data, 'base64');
+    await mkdir(dirname(remotePath), { recursive: true });
+    await writeFile(remotePath, data);
+}
+
+export async function pullFile(this: NovaWindowsDriver, remotePath: string): Promise<string> {
+    this.assertFeatureEnabled(MODIFY_FS_FEATURE);
+    if (!remotePath) {
+        throw new errors.InvalidArgumentError("'remotePath' must be provided.");
+    }
+    const data = await readFile(remotePath);
+    return data.toString('base64');
 }

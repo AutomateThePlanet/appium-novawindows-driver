@@ -1,8 +1,8 @@
 using System.Text.Json;
-using System.Windows;
-using System.Windows.Automation;
 using System.Xml;
+using NovaUIAutomationServer.Server;
 using NovaUIAutomationServer.State;
+using NovaUIAutomationServer.Uia3;
 
 namespace NovaUIAutomationServer.Commands;
 
@@ -10,125 +10,100 @@ public static class PageSourceCommands
 {
     public static object? GetPageSource(SessionState state, JsonElement? parameters)
     {
-        var root = state.RootElement;
-
+        var root = state.GetLiveRoot();
         if (root == null)
         {
             return "<DummyRoot></DummyRoot>";
         }
 
         var xmlDoc = new XmlDocument();
-        BuildPageSource(root, xmlDoc, null, state);
+        BuildPageSource(root, xmlDoc, null, state, root);
         return xmlDoc.OuterXml;
     }
 
-    private static void BuildPageSource(AutomationElement element, XmlDocument xmlDoc, XmlElement? parentXmlElement, SessionState state)
+    private static void BuildPageSource(
+        IUIAutomationElement element,
+        XmlDocument xmlDoc,
+        XmlElement? parentXmlElement,
+        SessionState state,
+        IUIAutomationElement? rootForCoords)
     {
         try
         {
-            var controlType = element.GetCurrentPropertyValue(AutomationElement.ControlTypeProperty) as ControlType;
-            var localizedControlType = element.GetCurrentPropertyValue(AutomationElement.LocalizedControlTypeProperty) as string ?? "";
+            var controlTypeId = element.CurrentControlType;
+            var tagName = ConditionBuilder.ControlTypeNameById.TryGetValue(controlTypeId, out var name)
+                ? name
+                : "";
 
-            string tagName;
-            try
+            var localizedControlType = element.get_CurrentLocalizedControlType() ?? "";
+            if (string.IsNullOrEmpty(tagName))
             {
-                tagName = controlType?.ProgrammaticName?.Split('.').Last() ?? "";
-                if (string.IsNullOrEmpty(tagName))
-                {
-                    throw new Exception();
-                }
-            }
-            catch
-            {
-                // Fallback: capitalize localized control type words
+                // Fallback: capitalize localized control type words.
                 tagName = string.Concat(
                     localizedControlType.Split(' ')
                         .Select(w => w.Length > 0
                             ? char.ToUpper(w[0]) + w[1..].ToLower()
-                            : "")
-                );
+                            : ""));
             }
-
             if (string.IsNullOrEmpty(tagName))
             {
                 tagName = "Unknown";
             }
 
-            var acceleratorKey = element.GetCurrentPropertyValue(AutomationElement.AcceleratorKeyProperty)?.ToString() ?? "";
-            var accessKey = element.GetCurrentPropertyValue(AutomationElement.AccessKeyProperty)?.ToString() ?? "";
-            var automationId = element.GetCurrentPropertyValue(AutomationElement.AutomationIdProperty)?.ToString() ?? "";
-            var className = element.GetCurrentPropertyValue(AutomationElement.ClassNameProperty)?.ToString() ?? "";
-            var frameworkId = element.GetCurrentPropertyValue(AutomationElement.FrameworkIdProperty)?.ToString() ?? "";
-            var hasKeyboardFocus = element.GetCurrentPropertyValue(AutomationElement.HasKeyboardFocusProperty)?.ToString() ?? "";
-            var helpText = element.GetCurrentPropertyValue(AutomationElement.HelpTextProperty)?.ToString() ?? "";
-            var isContentElement = element.GetCurrentPropertyValue(AutomationElement.IsContentElementProperty)?.ToString() ?? "";
-            var isControlElement = element.GetCurrentPropertyValue(AutomationElement.IsControlElementProperty)?.ToString() ?? "";
-            var isEnabled = element.GetCurrentPropertyValue(AutomationElement.IsEnabledProperty)?.ToString() ?? "";
-            var isKeyboardFocusable = element.GetCurrentPropertyValue(AutomationElement.IsKeyboardFocusableProperty)?.ToString() ?? "";
-            var isOffscreen = element.GetCurrentPropertyValue(AutomationElement.IsOffscreenProperty)?.ToString() ?? "";
-            var isPassword = element.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty)?.ToString() ?? "";
-            var isRequiredForForm = element.GetCurrentPropertyValue(AutomationElement.IsRequiredForFormProperty)?.ToString() ?? "";
-            var itemStatus = element.GetCurrentPropertyValue(AutomationElement.ItemStatusProperty)?.ToString() ?? "";
-            var itemType = element.GetCurrentPropertyValue(AutomationElement.ItemTypeProperty)?.ToString() ?? "";
-            var name = element.GetCurrentPropertyValue(AutomationElement.NameProperty)?.ToString() ?? "";
-            var orientation = element.GetCurrentPropertyValue(AutomationElement.OrientationProperty)?.ToString() ?? "";
-            var processId = element.GetCurrentPropertyValue(AutomationElement.ProcessIdProperty)?.ToString() ?? "";
-            var runtimeId = element.GetCurrentPropertyValue(AutomationElement.RuntimeIdProperty) as int[];
+            var runtimeId = element.GetRuntimeId();
             var runtimeIdStr = runtimeId != null ? string.Join(".", runtimeId) : "";
 
-            var rect = element.Current.BoundingRectangle;
-            var rootRect = state.RootElement?.Current.BoundingRectangle ?? new Rect(0, 0, 0, 0);
-            var x = rect.X - rootRect.X;
-            var y = rect.Y - rootRect.Y;
-            var width = rect.Width;
-            var height = rect.Height;
+            var rect = element.CurrentBoundingRectangle;
+            var rootRect = rootForCoords?.CurrentBoundingRectangle ?? new tagRECT();
+            var x = rect.left - rootRect.left;
+            var y = rect.top - rootRect.top;
+            var width = rect.right - rect.left;
+            var height = rect.bottom - rect.top;
 
             var newXmlElement = xmlDoc.CreateElement(tagName);
-            newXmlElement.SetAttribute("AcceleratorKey", acceleratorKey);
-            newXmlElement.SetAttribute("AccessKey", accessKey);
-            newXmlElement.SetAttribute("AutomationId", automationId);
-            newXmlElement.SetAttribute("ClassName", className);
-            newXmlElement.SetAttribute("FrameworkId", frameworkId);
-            newXmlElement.SetAttribute("HasKeyboardfocus", hasKeyboardFocus);
-            newXmlElement.SetAttribute("HelpText", helpText);
-            newXmlElement.SetAttribute("IsContentelement", isContentElement);
-            newXmlElement.SetAttribute("IsControlelement", isControlElement);
-            newXmlElement.SetAttribute("IsEnabled", isEnabled);
-            newXmlElement.SetAttribute("IsKeyboardfocusable", isKeyboardFocusable);
-            newXmlElement.SetAttribute("IsOffscreen", isOffscreen);
-            newXmlElement.SetAttribute("IsPassword", isPassword);
-            newXmlElement.SetAttribute("IsRequiredforform", isRequiredForForm);
-            newXmlElement.SetAttribute("ItemStatus", itemStatus);
-            newXmlElement.SetAttribute("ItemType", itemType);
+            newXmlElement.SetAttribute("AcceleratorKey", element.get_CurrentAcceleratorKey() ?? "");
+            newXmlElement.SetAttribute("AccessKey", element.get_CurrentAccessKey() ?? "");
+            newXmlElement.SetAttribute("AutomationId", element.get_CurrentAutomationId() ?? "");
+            newXmlElement.SetAttribute("ClassName", element.get_CurrentClassName() ?? "");
+            newXmlElement.SetAttribute("FrameworkId", element.get_CurrentFrameworkId() ?? "");
+            newXmlElement.SetAttribute("HasKeyboardfocus", (element.CurrentHasKeyboardFocus != 0).ToString());
+            newXmlElement.SetAttribute("HelpText", element.get_CurrentHelpText() ?? "");
+            newXmlElement.SetAttribute("IsContentelement", (element.CurrentIsContentElement != 0).ToString());
+            newXmlElement.SetAttribute("IsControlelement", (element.CurrentIsControlElement != 0).ToString());
+            newXmlElement.SetAttribute("IsEnabled", (element.CurrentIsEnabled != 0).ToString());
+            newXmlElement.SetAttribute("IsKeyboardfocusable", (element.CurrentIsKeyboardFocusable != 0).ToString());
+            newXmlElement.SetAttribute("IsOffscreen", (element.CurrentIsOffscreen != 0).ToString());
+            newXmlElement.SetAttribute("IsPassword", (element.CurrentIsPassword != 0).ToString());
+            newXmlElement.SetAttribute("IsRequiredforform", (element.CurrentIsRequiredForForm != 0).ToString());
+            newXmlElement.SetAttribute("ItemStatus", element.get_CurrentItemStatus() ?? "");
+            newXmlElement.SetAttribute("ItemType", element.get_CurrentItemType() ?? "");
             newXmlElement.SetAttribute("LocalizedControlType", localizedControlType);
-            newXmlElement.SetAttribute("Name", name);
-            newXmlElement.SetAttribute("Orientation", orientation);
-            newXmlElement.SetAttribute("ProcessId", processId);
+            newXmlElement.SetAttribute("Name", element.get_CurrentName() ?? "");
+            newXmlElement.SetAttribute("Orientation", element.CurrentOrientation.ToString());
+            newXmlElement.SetAttribute("ProcessId", element.CurrentProcessId.ToString());
             newXmlElement.SetAttribute("RuntimeId", runtimeIdStr);
             newXmlElement.SetAttribute("x", x.ToString());
             newXmlElement.SetAttribute("y", y.ToString());
             newXmlElement.SetAttribute("width", width.ToString());
             newXmlElement.SetAttribute("height", height.ToString());
 
-            // Window pattern attributes
-            if (element.TryGetCurrentPattern(WindowPattern.Pattern, out var windowPatternObj))
+            // WindowPattern attributes (for top-level windows)
+            if (element.GetCurrentPattern(UIA.WindowPatternId) is IUIAutomationWindowPattern wp)
             {
-                var wp = (WindowPattern)windowPatternObj;
-                newXmlElement.SetAttribute("CanMaximize", wp.Current.CanMaximize.ToString());
-                newXmlElement.SetAttribute("CanMinimize", wp.Current.CanMinimize.ToString());
-                newXmlElement.SetAttribute("IsModal", wp.Current.IsModal.ToString());
-                newXmlElement.SetAttribute("WindowVisualState", wp.Current.WindowVisualState.ToString());
-                newXmlElement.SetAttribute("WindowInteractionState", wp.Current.WindowInteractionState.ToString());
-                newXmlElement.SetAttribute("IsTopmost", wp.Current.IsTopmost.ToString());
+                newXmlElement.SetAttribute("CanMaximize", (wp.CurrentCanMaximize != 0).ToString());
+                newXmlElement.SetAttribute("CanMinimize", (wp.CurrentCanMinimize != 0).ToString());
+                newXmlElement.SetAttribute("IsModal", (wp.CurrentIsModal != 0).ToString());
+                newXmlElement.SetAttribute("WindowVisualState", wp.CurrentWindowVisualState.ToString());
+                newXmlElement.SetAttribute("WindowInteractionState", wp.CurrentWindowInteractionState.ToString());
+                newXmlElement.SetAttribute("IsTopmost", (wp.CurrentIsTopmost != 0).ToString());
             }
 
-            // Transform pattern attributes
-            if (element.TryGetCurrentPattern(TransformPattern.Pattern, out var transformPatternObj))
+            // TransformPattern attributes
+            if (element.GetCurrentPattern(UIA.TransformPatternId) is IUIAutomationTransformPattern tp)
             {
-                var tp = (TransformPattern)transformPatternObj;
-                newXmlElement.SetAttribute("CanRotate", tp.Current.CanRotate.ToString());
-                newXmlElement.SetAttribute("CanResize", tp.Current.CanResize.ToString());
-                newXmlElement.SetAttribute("CanMove", tp.Current.CanMove.ToString());
+                newXmlElement.SetAttribute("CanRotate", (tp.CurrentCanRotate != 0).ToString());
+                newXmlElement.SetAttribute("CanResize", (tp.CurrentCanResize != 0).ToString());
+                newXmlElement.SetAttribute("CanMove", (tp.CurrentCanMove != 0).ToString());
             }
 
             if (parentXmlElement == null)
@@ -140,17 +115,20 @@ public static class PageSourceCommands
                 parentXmlElement.AppendChild(newXmlElement);
             }
 
-            // Process children using a queue (breadth-first, same as the PowerShell version)
-            var treeFilter = state.CacheRequest?.TreeFilter ?? Automation.ControlViewCondition;
+            // Walk children using the session's tree filter (ControlView + !Chrome)
+            // if available; otherwise use the default control view.
+            var treeFilter = state.CacheRequest?.TreeFilter ?? state.Automation.ControlViewCondition;
             var children = element.FindAll(TreeScope.Children, treeFilter);
-            foreach (AutomationElement child in children)
+            foreach (var child in FindCommands.IterateArray(children))
             {
-                BuildPageSource(child, xmlDoc, newXmlElement, state);
+                BuildPageSource(child, xmlDoc, newXmlElement, state, rootForCoords);
             }
         }
         catch
         {
-            // noop - match PowerShell behavior
+            // Match the historical PowerShell driver's behavior — swallow per-element
+            // failures during page-source generation so a single flaky subtree can't
+            // abort the whole dump.
         }
     }
 }

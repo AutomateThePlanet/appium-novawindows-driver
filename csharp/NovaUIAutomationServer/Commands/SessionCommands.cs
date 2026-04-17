@@ -1,8 +1,8 @@
 using System.Text.Json;
-using System.Windows.Automation;
 using NovaUIAutomationServer.Protocol;
 using NovaUIAutomationServer.Server;
 using NovaUIAutomationServer.State;
+using NovaUIAutomationServer.Uia3;
 
 namespace NovaUIAutomationServer.Commands;
 
@@ -16,14 +16,32 @@ public static class SessionCommands
 
     public static object? SetRootElement(SessionState state, JsonElement? parameters)
     {
-        state.RootElement = AutomationElement.RootElement;
+        state.SetRoot(state.Automation.GetRootElement());
         return null;
     }
 
     public static object? SetRootElementNull(SessionState state, JsonElement? parameters)
     {
-        state.RootElement = null;
+        state.SetRoot(null);
         return null;
+    }
+
+    // Direct UIA lookup from a native window handle — one IUIAutomation3 COM call
+    // to the target window's provider. Avoids walking desktop children, so a
+    // neighboring unresponsive top-level window can't block us for the full 60s
+    // COM RPC timeout. This is the path used by attachToApplicationWindow in
+    // lib/commands/app.ts.
+    public static object? ElementFromHandle(SessionState state, JsonElement? parameters)
+    {
+        var p = parameters ?? throw new ArgumentException("Parameters required.");
+        var handle = p.GetProperty("handle").GetInt32();
+
+        var element = state.Automation.ElementFromHandle(new IntPtr(handle));
+        if (element == null)
+        {
+            throw new InvalidOperationException($"IUIAutomation.ElementFromHandle returned null for handle {handle}.");
+        }
+        return state.SaveElementAndReturnId(element);
     }
 
     public static object? SetRootElementFromHandle(SessionState state, JsonElement? parameters)
@@ -31,16 +49,14 @@ public static class SessionCommands
         var p = parameters ?? throw new ArgumentException("Parameters required.");
         var handle = p.GetProperty("handle").GetInt32();
 
-        var condition = new PropertyCondition(AutomationElement.NativeWindowHandleProperty, handle);
-        var element = AutomationElement.RootElement.FindFirst(TreeScope.Children | TreeScope.Element, condition);
-
+        var element = state.Automation.ElementFromHandle(new IntPtr(handle));
         if (element == null)
         {
             throw new InvalidOperationException($"No element found with native window handle {handle}.");
         }
 
         var id = state.SaveElementAndReturnId(element);
-        state.RootElement = state.GetElement(id);
+        state.SetRoot(element);
         return id;
     }
 
@@ -50,7 +66,7 @@ public static class SessionCommands
         var elementId = p.GetProperty("elementId").GetString()
             ?? throw new ArgumentException("elementId is required.");
 
-        state.RootElement = state.GetElement(elementId);
+        state.SetRoot(state.GetElement(elementId));
         return null;
     }
 
@@ -70,10 +86,8 @@ public static class SessionCommands
             throw new InvalidOperationException("Session not initialized.");
         }
 
-        state.CacheRequest.Pop();
-        state.CacheRequest.TreeFilter = ConditionBuilder.Build(conditionDto);
-        state.CacheRequest.Push();
-        state.TreeWalker = new TreeWalker(state.CacheRequest.TreeFilter);
+        state.CacheRequest.TreeFilter = ConditionBuilder.Build(state.Automation, conditionDto);
+        state.TreeWalker = state.Automation.CreateTreeWalker(state.CacheRequest.TreeFilter);
         return null;
     }
 
@@ -88,10 +102,7 @@ public static class SessionCommands
             throw new InvalidOperationException("Session not initialized.");
         }
 
-        var scope = ParseTreeScope(scopeStr);
-        state.CacheRequest.Pop();
-        state.CacheRequest.TreeScope = scope;
-        state.CacheRequest.Push();
+        state.CacheRequest.TreeScope = ParseTreeScope(scopeStr);
         return null;
     }
 
@@ -106,16 +117,13 @@ public static class SessionCommands
             throw new InvalidOperationException("Session not initialized.");
         }
 
-        var mode = modeStr.ToLowerInvariant() switch
+        // AutomationElementMode_Full = 1, _None = 0 (per UIA IDL)
+        state.CacheRequest.AutomationElementMode = modeStr.ToLowerInvariant() switch
         {
-            "full" => AutomationElementMode.Full,
-            "none" => AutomationElementMode.None,
+            "full" => 1,
+            "none" => 0,
             _ => throw new ArgumentException($"Invalid AutomationElementMode: '{modeStr}'")
         };
-
-        state.CacheRequest.Pop();
-        state.CacheRequest.AutomationElementMode = mode;
-        state.CacheRequest.Push();
         return null;
     }
 

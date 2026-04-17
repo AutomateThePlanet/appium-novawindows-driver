@@ -25,31 +25,44 @@ Beside of standard Appium requirements NovaWindows Driver adds the following pre
 > **Note**
 >
 > The driver uses a native C# UIAutomation server as its backend. The server
-> is a compiled .NET executable (`NovaUIAutomationServer.exe`) that communicates
-> with the driver via JSON over stdin/stdout. This eliminates antivirus false
-> positives that were caused by the previous PowerShell-based approach, while
-> providing better performance, structured error handling, and debugging
-> capabilities. No Developer Mode or additional software is required.
-> See [docs/architecture.md](docs/architecture.md) for details.
+> is a compiled .NET executable (`NovaUIAutomationServer.exe`) that talks to
+> the UIA3 COM API (`IUIAutomation`) via hand-written `[ComImport]`
+> interop and communicates with the driver via JSON over stdin/stdout. This
+> eliminates the antivirus false positives caused by the previous
+> PowerShell-based approach, avoids the 60 s COM hangs the UIA1 managed
+> wrapper (`System.Windows.Automation`) occasionally produces when WPF
+> rebuilds its automation peer tree, and provides structured error handling
+> and debugging capabilities. No Developer Mode or additional software is
+> required. See [docs/architecture.md](docs/architecture.md) for details.
 
 NovaWindows Driver supports the following capabilities:
 
 Capability Name | Description
 --- | ---
 platformName | Must be set to `Windows` (case-insensitive).
-automationName | Must be set to `NovaWindows` (case-insensitive).
+automationName | Must be set to `NovaWindows` (case-insensitive). When migrating from WinAppDriver, see [automationName aliasing](#automationname-aliasing) below.
+deviceName | Accepted for compatibility (e.g. `"WindowsPC"`). Informational only.
 smoothPointerMove | CSS-like easing function (including valid Bezier curve). This controls the smooth movement of the mouse for `delayBeforeClick` ms. Example: `ease-in`, `cubic-bezier(0.42, 0, 0.58, 1)`.
 delayBeforeClick | Time in milliseconds before a click is performed.
 delayAfterClick | Time in milliseconds after a click is performed.
 appTopLevelWindow | The handle of an existing application top-level window to attach to. It can be a number or string (not necessarily hexadecimal). Example: `12345`, `0x12345`.
 shouldCloseApp | Whether to close the window of the application in test after the session finishes. Default is `true`.
 appArguments | Optional string of arguments to pass to the app on launch.
-appWorkingDir | Optional working directory path for the application.
+appWorkingDir | Optional working directory path for the application (classic/Win32 apps only). Supports `%ENVVAR%` placeholders.
+ms:waitForAppLaunch | Maximum time in seconds to wait for the app window to appear after launch. The driver polls continuously and attaches as soon as the window is found. Useful for slow-starting apps and apps with splash screens. Values > 120 are treated as milliseconds for backward compatibility.
+ms:experimental-webdriver | Accepted for WinAppDriver compatibility. Currently a no-op.
+ms:forcequit | When `true`, session termination forcefully kills the app process instead of a graceful close. Default is `false`.
 prerun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed prior to the WinAppDriver session startup. See [Power Shell commands execution](#power-shell-commands-execution) for more details. Example: `{script: 'Get-Process outlook -ErrorAction SilentlyContinue'}`
 postrun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed after WinAppDriver session is stopped. See [Power Shell commands execution](#power-shell-commands-execution) for more details.
-isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session. Default is `false`.
+isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session (no user profile loaded). Default is `false`.
+systemPort | Accepted for appium-windows-driver compatibility. Ignored — NovaWindows uses stdin/stdout IPC.
+logFile | Mirror the driver log for this session to a file on disk. Accepts `true` (writes to `%LOCALAPPDATA%\novawindows-driver\session-<ISO-timestamp>.log`), a full file path, or a directory path ending in `\` or `/` (the driver will create a timestamped file inside). Parent directories are created automatically. Useful for capturing reproducible logs across restarts without running Appium itself in verbose mode. Example: `C:\Temp\nova.log` or `C:\Temp\`.
 
-Please note that more capabilities will be added as the development of this driver progresses. Since it is still in its early stages, some features may be missing or subject to change. If you need a specific capability or encounter any issues, please feel free to open an issue.
+All capabilities above can also be sent with the `appium:` prefix (e.g. `appium:appWorkingDir`) for W3C compliance. The driver accepts both forms.
+
+### automationName Aliasing
+
+NovaWindows registers as `automationName: "NovaWindows"`. If you are migrating from WinAppDriver and your test suites use `automationName: "Windows"`, you can configure Appium to alias the driver. Alternatively, update your test suite to use `"NovaWindows"` as the automation name.
 
 ## Example
 

@@ -779,7 +779,13 @@ export function mouseScroll(x: number, y: number): void {
     sendMouseScrollInput(x, y);
 }
 
-export async function mouseMoveAbsolute(x: number, y: number, duration: number = 0, easingFunction?: string): Promise<void> {
+// Defaults mirror FlaUI's Mouse.MoveTo (FlaUI.Core/Input/Mouse.cs:118-139): an
+// interpolated cursor path is required for WPF ContextMenu / MenuItem controls
+// to register hover before the button-down arrives. Callers that want a
+// teleport (e.g. back-to-back calculator clicks) must pass duration: 0
+// explicitly — the sendMouseMoveInput path maps iterations===1 → single
+// SendInput, skipping interpolation.
+export async function mouseMoveAbsolute(x: number, y: number, duration: number = 100, easingFunction: string = 'linear'): Promise<void> {
     await sendMouseMoveInput({x, y, relative: false, duration, easingFunction});
 }
 
