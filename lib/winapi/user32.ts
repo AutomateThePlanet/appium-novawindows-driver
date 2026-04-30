@@ -771,10 +771,11 @@ export function mouseScroll(x: number, y: number): void {
     sendMouseScrollInput(x, y);
 }
 
-// `duration = 0` → single-SendInput teleport (fastest; the default path).
+// `duration = 0` → single SetCursorPos teleport (fastest; the default path).
 // Callers that need interpolated cursor movement (WPF ContextMenu / MenuItem
 // hover tracking — see FlaUI.Core/Input/Mouse.cs:118-139) pass an explicit
-// duration. `easingFunction` defaults to `'linear'` so callers get a straight
+// duration; the path is then walked in per-frame SetCursorPos steps.
+// `easingFunction` defaults to `'linear'` so callers get a straight
 // interpolated path without also needing to pass an easing curve.
 export async function mouseMoveAbsolute(x: number, y: number, duration: number = 0, easingFunction: string = 'linear'): Promise<void> {
     await sendMouseMoveInput({x, y, relative: false, duration, easingFunction});
