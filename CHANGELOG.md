@@ -1,3 +1,32 @@
+## [2.0.0-preview.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0...v2.0.0-preview.1) (2026-04-30)
+
+### ⚠ BREAKING CHANGES
+
+* NovaWindows v2 ships a compiled C# UIAutomation
+server (NovaUIAutomationServer.exe) instead of an embedded
+PowerShell pipeline. The legacy enableWebView capability is
+removed in favour of webviewEnabled. The power_shell insecure
+feature now gates only the windows: powerShell escape hatch and
+is no longer required for normal automation. Existing scripts
+that relied on PowerShell-only side-effects, the previous
+enableWebView spelling, or a hard ffmpeg-static dependency must
+be updated. See docs/architecture.md and docs/release.md.
+
+### Features
+
+* integrate v1.4 features into the C# UIAutomation server (drop PowerShell pipeline) ([370b412](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/370b41243e2ea9d0115cf35ddb54c6cc88597b72))
+* rewrite UIAutomation layer as C# server with JSON protocol ([cc20c68](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/cc20c68bd929cc540264895423c3add020898dff))
+
+### Bug Fixes
+
+* keep server request loop on STA thread and broaden invoke fallback ([a7e9626](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a7e9626d19b281802c19718eac7258d3aeae6231))
+* **webview:** scope WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS to the C# server spawn ([efe1b57](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/efe1b570a13550bbe56c2e6f79f1a49339dd275b))
+* **xpath:** return Number(str) for numeric strings, NaN otherwise ([33b226f](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/33b226f30dee2bd068c4c3924f14beaea2d7b4e3))
+
+### Miscellaneous Chores
+
+* ignore C# build artifacts (bin, obj, native) ([a76c1b1](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a76c1b18bd11701a66e7e4f992d518e3c72a7225))
+
 ## [1.4.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.1...v1.4.0) (2026-04-14)
 
 ### Features
