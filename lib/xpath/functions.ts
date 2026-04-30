@@ -236,8 +236,8 @@ export async function handleFunctionCall<T>(name: FunctionName, context: XPathEl
             if (![str, from, to].every((x) => typeof x === 'string' || isXPathElement(x))) {
                 throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'each argument to be string or element'));
             }
-            if (isXPathElement(str)) return ['' as T];
-            if (isXPathElement(from)) return [str as T];
+            if (isXPathElement(str)) {return ['' as T];}
+            if (isXPathElement(from)) {return [str as T];}
             const result = (str as string).split('').map((char) => {
                 const index = (from as string).indexOf(char);
                 return index !== -1 ? (isXPathElement(to) ? '' : (to as string))[index] ?? '' : char;
@@ -266,17 +266,17 @@ export async function handleFunctionCall<T>(name: FunctionName, context: XPathEl
             }
             const [lhs] = firstArgResult;
             const [rhs] = secondArgResult;
-            if (typeof lhs === 'boolean') throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the first argument to be string, number or element'));
-            if (typeof rhs === 'boolean') throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the second argument to be string, number or element'));
+            if (typeof lhs === 'boolean') {throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the first argument to be string, number or element'));}
+            if (typeof rhs === 'boolean') {throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the second argument to be string, number or element'));}
             const [firstString] = convertProcessedExprNodesToStrings(firstArgResult);
             const [secondString] = convertProcessedExprNodesToStrings(secondArgResult);
             const index = firstString.indexOf(secondString);
-            if (index === -1) return ['' as T];
+            if (index === -1) {return ['' as T];}
             return name === SUBSTRING_BEFORE ? [firstString.slice(0, index) as T] : [firstString.slice(index + 1) as T];
         }
         case SUBSTRING: {
-            if (args.length < 2) throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'at least 2 arguments'));
-            if (args.length > 3) throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'no more than 3 arguments'));
+            if (args.length < 2) {throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'at least 2 arguments'));}
+            if (args.length > 3) {throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'no more than 3 arguments'));}
             const [stringArg, fromArg, countArg] = await processArgs(...args);
             if (typeof stringArg[0] === 'boolean' || typeof stringArg[0] === 'number') {
                 throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the first argument to be string or element'));
@@ -284,13 +284,13 @@ export async function handleFunctionCall<T>(name: FunctionName, context: XPathEl
             const [string] = convertProcessedExprNodesToStrings(stringArg);
             const [indexVal] = fromArg;
             const [count] = countArg;
-            if (typeof indexVal !== 'number') throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the second argument to be number'));
-            if (typeof count !== 'number' && typeof count !== 'undefined') throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the second argument to be number'));
-            if (count && count < 0) return ['' as T];
+            if (typeof indexVal !== 'number') {throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the second argument to be number'));}
+            if (typeof count !== 'number' && typeof count !== 'undefined') {throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'the second argument to be number'));}
+            if (count && count < 0) {return ['' as T];}
             return [string.slice(indexVal + 1, count ? indexVal + count : string.length) as T];
         }
         case SUM: {
-            if (args.length !== 1) throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'exactly 1 argument'));
+            if (args.length !== 1) {throw new errors.InvalidArgumentError(FUNCTION_ARGUMENT_ERROR.format(name, 'exactly 1 argument'));}
             const [arg] = await processArgs(args[0]);
             const argAsNumbers = convertProcessedExprNodesToNumbers(arg);
             return [argAsNumbers.reduce((a, b) => a + b) as T];

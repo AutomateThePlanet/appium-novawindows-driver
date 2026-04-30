@@ -380,7 +380,7 @@ export async function processExprNodeAsPredicate(exprNode: ExprNode, context: XP
                         positions.add(0x7FFFFFFF);
                     } else {
                         const [value] = await processExprNode<number>(exprNode.rhs, context, sendCommand);
-                        if (typeof value !== 'number') return [new FalseCondition()];
+                        if (typeof value !== 'number') {return [new FalseCondition()];}
                         positions.add(value);
                     }
                     return [new TrueCondition()];
@@ -390,7 +390,7 @@ export async function processExprNodeAsPredicate(exprNode: ExprNode, context: XP
                         positions.add(0x7FFFFFFF);
                     } else {
                         const [value] = await processExprNode<number>(exprNode.lhs, context, sendCommand);
-                        if (typeof value !== 'number') return [new FalseCondition()];
+                        if (typeof value !== 'number') {return [new FalseCondition()];}
                         positions.add(value);
                     }
                     return [new TrueCondition()];
@@ -570,7 +570,7 @@ function removeDuplicateElements(elements: XPathElement[]): XPathElement[] {
     const seen = new Set<string>();
     return elements.filter((el) => {
         if (el.type === 'found' && el.elementId) {
-            if (seen.has(el.elementId)) return false;
+            if (seen.has(el.elementId)) {return false;}
             seen.add(el.elementId);
         }
         return true;

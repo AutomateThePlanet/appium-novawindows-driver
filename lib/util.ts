@@ -15,7 +15,7 @@ export async function findFreePort(start: number, end: number): Promise<number> 
             srv.once('listening', () => srv.close(() => resolve(true)));
             srv.listen(port);
         });
-        if (free) return port;
+        if (free) {return port;}
     }
     throw new Error(`No free port available in range ${start}-${end}.`);
 }

@@ -60,7 +60,7 @@ export function attachLogFileMirror(log: LogLike, value: unknown): LogFileMirror
     const restorers: Array<() => void> = [];
     for (const level of MIRRORED_LEVELS) {
         const original = log[level];
-        if (typeof original !== 'function') continue;
+        if (typeof original !== 'function') {continue;}
         const originalFn = original as LogFn;
         const hadOwn = Object.prototype.hasOwnProperty.call(log, level);
         const wrapped: LogFn = (...args: unknown[]) => {
@@ -83,9 +83,9 @@ export function attachLogFileMirror(log: LogLike, value: unknown): LogFileMirror
     return {
         path,
         detach: () => {
-            if (detached) return;
+            if (detached) {return;}
             detached = true;
-            for (const restore of restorers) restore();
+            for (const restore of restorers) {restore();}
             stream.end();
         },
     };

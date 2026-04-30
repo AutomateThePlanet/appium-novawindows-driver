@@ -127,7 +127,7 @@ export async function tryAttachToRunningApp(this: NovaWindowsDriver, appPath: st
     try {
         if (isUwp) {
             const processIds = await this.sendCommand('getProcessIds', { processName: 'ApplicationFrameHost' }) as number[];
-            if (processIds.length === 0) return false;
+            if (processIds.length === 0) {return false;}
             await this.attachToApplicationWindow(processIds, { isUwp: true });
             return true;
         }
@@ -137,7 +137,7 @@ export async function tryAttachToRunningApp(this: NovaWindowsDriver, appPath: st
         const executable = breadcrumbs[breadcrumbs.length - 1];
         const processName = executable.endsWith('.exe') ? executable.slice(0, executable.length - 4) : executable;
         const processIds = await this.sendCommand('getProcessIds', { processName }) as number[];
-        if (processIds.length === 0) return false;
+        if (processIds.length === 0) {return false;}
         await this.attachToApplicationWindow(processIds, { isUwp: false });
         return true;
     } catch {

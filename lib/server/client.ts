@@ -108,7 +108,7 @@ export class NovaUIAutomationClient {
         this.buffer = lines.pop() ?? '';
 
         for (const line of lines) {
-            if (!line.trim()) continue;
+            if (!line.trim()) {continue;}
 
             try {
                 const response: ServerResponse = JSON.parse(line);
@@ -163,7 +163,7 @@ export class NovaUIAutomationClient {
     }
 
     async dispose(): Promise<void> {
-        if (!this.process) return;
+        if (!this.process) {return;}
 
         try {
             await this.sendCommand('dispose', {});

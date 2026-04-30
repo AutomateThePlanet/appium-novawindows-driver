@@ -417,10 +417,10 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
             await sleep(interClickDelayMs);
         }
 
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyDown(Key.CONTROL);
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyDown(Key.ALT);
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyDown(Key.SHIFT);
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyDown(Key.META);
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyDown(Key.CONTROL);}
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyDown(Key.ALT);}
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyDown(Key.SHIFT);}
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyDown(Key.META);}
 
         mouseDown(mouseButton);
         if (durationMs > 0) {
@@ -428,10 +428,10 @@ export async function executeClick(this: NovaWindowsDriver, clickArgs: {
         }
         mouseUp(mouseButton);
 
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyUp(Key.CONTROL);
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyUp(Key.ALT);
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyUp(Key.SHIFT);
-        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyUp(Key.META);
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyUp(Key.CONTROL);}
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyUp(Key.ALT);}
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyUp(Key.SHIFT);}
+        if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyUp(Key.META);}
     }
 
     if (this.caps.delayAfterClick) {
@@ -483,17 +483,17 @@ export async function executeHover(this: NovaWindowsDriver, hoverArgs: {
 
     await mouseMoveAbsolute(startPos[0], startPos[1], 0);
 
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyDown(Key.CONTROL);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyDown(Key.ALT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyDown(Key.SHIFT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyDown(Key.META);
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyDown(Key.CONTROL);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyDown(Key.ALT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyDown(Key.SHIFT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyDown(Key.META);}
 
     await mouseMoveAbsolute(endPos[0], endPos[1], durationMs, this.caps.smoothPointerMove);
 
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyUp(Key.CONTROL);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyUp(Key.ALT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyUp(Key.SHIFT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyUp(Key.META);
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyUp(Key.CONTROL);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyUp(Key.ALT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyUp(Key.SHIFT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyUp(Key.META);}
 }
 
 export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
@@ -529,17 +529,17 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
 
     await mouseMoveAbsolute(pos[0], pos[1], 0);
 
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyDown(Key.CONTROL);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyDown(Key.ALT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyDown(Key.SHIFT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyDown(Key.META);
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyDown(Key.CONTROL);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyDown(Key.ALT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyDown(Key.SHIFT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyDown(Key.META);}
 
     mouseScroll(deltaX ?? 0, deltaY ?? 0);
 
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyUp(Key.CONTROL);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyUp(Key.ALT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyUp(Key.SHIFT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyUp(Key.META);
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyUp(Key.CONTROL);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyUp(Key.ALT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyUp(Key.SHIFT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyUp(Key.META);}
 }
 
 export async function startRecordingScreen(this: NovaWindowsDriver, args?: {
@@ -699,19 +699,19 @@ export async function executeClickAndDrag(this: NovaWindowsDriver, dragArgs: {
 
     await mouseMoveAbsolute(startPos[0], startPos[1], 0);
 
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyDown(Key.CONTROL);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyDown(Key.ALT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyDown(Key.SHIFT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyDown(Key.META);
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyDown(Key.CONTROL);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyDown(Key.ALT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyDown(Key.SHIFT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyDown(Key.META);}
 
     mouseDown(mouseButton);
     await mouseMoveAbsolute(endPos[0], endPos[1], durationMs, this.caps.smoothPointerMove);
     mouseUp(mouseButton);
 
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) keyUp(Key.CONTROL);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) keyUp(Key.ALT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) keyUp(Key.SHIFT);
-    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) keyUp(Key.META);
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'ctrl')) {keyUp(Key.CONTROL);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'alt')) {keyUp(Key.ALT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'shift')) {keyUp(Key.SHIFT);}
+    if (processesModifierKeys.some((key) => key.toLowerCase() === 'win')) {keyUp(Key.META);}
 }
 
 export async function windowsGetDeviceTime(this: NovaWindowsDriver, args?: { format?: string }): Promise<string> {

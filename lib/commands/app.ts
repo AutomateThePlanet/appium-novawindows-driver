@@ -53,7 +53,7 @@ const SET_WINDOW_MAX_POLL_ATTEMPTS = 2;
  * treated as seconds and converted to ms.
  */
 function normalizeWaitForAppLaunchMs(raw: number | undefined): number {
-    if (raw == null || raw <= 0) return 0;
+    if (raw == null || raw <= 0) {return 0;}
     // Values > 120 are almost certainly milliseconds (120 seconds is already very generous;
     // WinAppDriver caps at 50s). Values ≤ 120 are seconds per the original spec.
     return raw > 120 ? raw : raw * 1000;
@@ -451,8 +451,8 @@ export async function attachToApplicationWindow(
                 } catch {
                     continue;
                 }
-                if (!candidateId) continue;
-                if (!fallbackElementId) fallbackElementId = candidateId;
+                if (!candidateId) {continue;}
+                if (!fallbackElementId) {fallbackElementId = candidateId;}
 
                 const focusables = await this.sendCommand('findElements', {
                     scope: 'descendants',
