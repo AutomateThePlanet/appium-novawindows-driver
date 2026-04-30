@@ -36,12 +36,22 @@ export const UI_AUTOMATION_DRIVER_CONSTRAINTS = {
     isolatedScriptExecution: {
         isBoolean: true,
     },
+    deviceName: {
+        isString: true,
+    },
+    systemPort: {
+        isNumber: true,
+    },
     'ms:waitForAppLaunch': {
         isNumber: true,
+    },
+    'ms:experimental-webdriver': {
+        isBoolean: true,
     },
     'ms:forcequit': {
         isBoolean: true,
     },
+    logFile: {},
     webviewEnabled: {
         isBoolean: true,
     },

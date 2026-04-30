@@ -18,8 +18,15 @@ jobs:
               with:
                   node-version: '24.x'
 
+            - uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: '10.x'
+
             - name: Install dev dependencies
               run: npm install --no-package-lock
+
+            - name: Build C# UIAutomation server
+              run: npm run build:native
 
             - name: Run unit tests
               run: npm run test

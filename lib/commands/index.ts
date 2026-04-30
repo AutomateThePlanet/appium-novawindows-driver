@@ -1,5 +1,5 @@
 import * as actions from './actions';
-import * as powershell from './powershell';
+import * as serverSession from './server-session';
 import * as element from './element';
 import * as extension from './extension';
 import * as device from './device';
@@ -9,7 +9,7 @@ import * as contexts from './contexts';
 
 const commands = {
     ...actions,
-    ...powershell,
+    ...serverSession,
     ...element,
     ...extension,
     ...system,

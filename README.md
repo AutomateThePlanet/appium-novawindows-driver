@@ -24,30 +24,39 @@ Beside of standard Appium requirements NovaWindows Driver adds the following pre
 
 > **Note**
 >
-> The driver currently uses a PowerShell session as a back-end, and
-> should not require Developer Mode to be on, or any other software.
-> There's a plan to update to a better, .NET-based backend for improved
-> realiability and better code and error management, as well as supporting
-> more features, that are currently not possible using PowerShell alone.
-> It is unlikely for the prerequisites to change, as this is one of the
-> main goals of NovaWindows driver – seamless setup on any PC.
+> The driver uses a native C# UIAutomation server as its backend. The server
+> is a compiled .NET executable (`NovaUIAutomationServer.exe`) that talks to
+> the UIA3 COM API (`IUIAutomation`) via hand-written `[ComImport]`
+> interop and communicates with the driver via JSON over stdin/stdout. This
+> eliminates the antivirus false positives caused by the previous
+> PowerShell-based approach, avoids the 60 s COM hangs the UIA1 managed
+> wrapper (`System.Windows.Automation`) occasionally produces when WPF
+> rebuilds its automation peer tree, and provides structured error handling
+> and debugging capabilities. No Developer Mode or additional software is
+> required. See [docs/architecture.md](docs/architecture.md) for details.
 
 NovaWindows Driver supports the following capabilities:
 
 Capability Name | Description
 --- | ---
 platformName | Must be set to `Windows` (case-insensitive).
-automationName | Must be set to `NovaWindows` (case-insensitive).
+automationName | Must be set to `NovaWindows` (case-insensitive). When migrating from WinAppDriver, see [automationName aliasing](#automationname-aliasing) below.
+deviceName | Accepted for compatibility (e.g. `"WindowsPC"`). Informational only.
 smoothPointerMove | CSS-like easing function (including valid Bezier curve). This controls the smooth movement of the mouse for `delayBeforeClick` ms. Example: `ease-in`, `cubic-bezier(0.42, 0, 0.58, 1)`.
 delayBeforeClick | Time in milliseconds before a click is performed.
 delayAfterClick | Time in milliseconds after a click is performed.
 appTopLevelWindow | The handle of an existing application top-level window to attach to. It can be a number or string (not necessarily hexadecimal). Example: `12345`, `0x12345`.
 shouldCloseApp | Whether to close the window of the application in test after the session finishes. Default is `true`.
 appArguments | Optional string of arguments to pass to the app on launch.
-appWorkingDir | Optional working directory path for the application.
+appWorkingDir | Optional working directory path for the application (classic/Win32 apps only). Supports `%ENVVAR%` placeholders.
+ms:waitForAppLaunch | Maximum time in seconds to wait for the app window to appear after launch. The driver polls continuously and attaches as soon as the window is found. Useful for slow-starting apps and apps with splash screens. Values > 120 are treated as milliseconds for backward compatibility.
+ms:experimental-webdriver | Accepted for WinAppDriver compatibility. Currently a no-op.
+ms:forcequit | When `true`, session termination forcefully kills the app process instead of a graceful close. Default is `false`.
 prerun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed prior to the WinAppDriver session startup. See [Power Shell commands execution](#power-shell-commands-execution) for more details. Example: `{script: 'Get-Process outlook -ErrorAction SilentlyContinue'}`
 postrun | An object containing either `script` or `command` key. The value of each key must be a valid PowerShell script or command to be executed after WinAppDriver session is stopped. See [Power Shell commands execution](#power-shell-commands-execution) for more details.
-isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session. Default is `false`.
+isolatedScriptExecution | Whether PowerShell scripts are executed in an isolated session (no user profile loaded). Default is `false`.
+systemPort | Accepted for appium-windows-driver compatibility. Ignored — NovaWindows uses stdin/stdout IPC.
+logFile | Mirror the driver log for this session to a file on disk. Accepts `true` (writes to `%LOCALAPPDATA%\novawindows-driver\session-<ISO-timestamp>.log`), a full file path, or a directory path ending in `\` or `/` (the driver will create a timestamped file inside). Parent directories are created automatically. Useful for capturing reproducible logs across restarts without running Appium itself in verbose mode. Example: `C:\Temp\nova.log` or `C:\Temp\`.
 webviewEnabled | Whether to enable WebView support. Set to true to allow switching into WebView contexts. Default is `false`.
 webviewDevtoolsPort | The local port number to use for devtools communication. By default the first free port from 10900..11000 range is selected. Set a custom port if running parallel tests or when app is "none"/"root"/appTopLevelWindow is specified.
 chromedriverCdnUrl | Base URL used to download ChromeDriver binaries for automating Chromium-based WebViews in desktop applications. Defaults to `https://storage.googleapis.com/chrome-for-testing-public`.
@@ -56,7 +65,11 @@ edgedriverExecutablePath | Absolute file path to a locally provided Microsoft Ed
 chromedriverExecutablePath | Absolute file path to a locally provided ChromeDriver binary. When this is set, automatic download via chromedriverCdnUrl is disabled and the provided executable is used directly. The binary must be explicitly supplied (manually downloaded or managed externally, such as in CI). The user must ensure version compatibility between ChromeDriver and the target Chromium / WebView version, as mismatches can break automation.
 ffmpegExecutablePath | Absolute file path to a locally provided FFmpeg executable binary. When this is set, automatic download of FFmpeg is disabled and the provided executable is used directly. The binary must be supplied manually (e.g. downloaded and stored in CI artifacts or bundled externally). It is the user’s responsibility to ensure the FFmpeg build is compatible with the target Windows environment. If the path is invalid or the file does not exist, execution will fail with an error.
 
-Please note that more capabilities will be added as the development of this driver progresses. Since it is still in its early stages, some features may be missing or subject to change. If you need a specific capability or encounter any issues, please feel free to open an issue.
+All capabilities above can also be sent with the `appium:` prefix (e.g. `appium:appWorkingDir`) for W3C compliance. The driver accepts both forms.
+
+### automationName Aliasing
+
+NovaWindows registers as `automationName: "NovaWindows"`. If you are migrating from WinAppDriver and your test suites use `automationName: "Windows"`, you can configure Appium to alias the driver. Alternatively, update your test suite to use `"NovaWindows"` as the automation name.
 
 ## Example
 
@@ -144,10 +157,9 @@ else:
 
 > **Note**
 >
-> NovaWindows Driver runs on a single PowerShell session,
-> therefore you may share variables between executed PowerShell
-> scripts. Unless the PowerShell session exits or crashes for some
-> reason, you should be able to reuse the variables that you create.
+> PowerShell scripts executed via the `powerShell` command or `prerun`/`postrun`
+> capabilities run in isolated one-shot PowerShell processes. Variables are
+> **not** shared between script executions.
 
 
 ## Element Location
@@ -531,7 +543,7 @@ Stops the current screen recording and returns the video (base64 or uploads to a
 
 ### windows: deleteFile
 
-Deletes a file on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force`. Paths containing `[`, `]`, or `?` use `-LiteralPath` for correct interpretation.
+Deletes a file on the Windows machine.
 
 #### Arguments
 
@@ -541,7 +553,7 @@ path | string | yes | Absolute or relative path to the file to delete. | `C:\Tem
 
 ### windows: deleteFolder
 
-Deletes a folder on the Windows machine. Uses PowerShell `Remove-Item -Path ... -Force` with optional `-Recurse`. Paths containing `[`, `]`, or `?` use `-LiteralPath`.
+Deletes a folder on the Windows machine.
 
 #### Arguments
 
@@ -598,14 +610,35 @@ button | string | no | Mouse button: `left` (default), `middle`, `right`, `back`
 
 ## Development
 
-it is recommended to use Matt Bierner's [Comment tagged templates](https://marketplace.visualstudio.com/items?itemName=bierner.comment-tagged-templates)
-Visual Studio Code plugin so it highlights the powershell and C code used throughout the project.
+### Prerequisites
+
+- **Node.js 24.x** — for the TypeScript driver
+- **.NET 10 SDK** — for building the C# UIAutomation server (only needed for development; the published exe is self-contained)
+
+### Build
 
 ```bash
-# Checkout the current repository and run
+# Install dependencies
 npm install
-# Run linting to check for code quality
-npm run lint
-# Transpile TypeScript files to build the project
+
+# Build the C# server (output: native/win-x64/NovaUIAutomationServer.exe)
+npm run build:native
+
+# Build TypeScript (output: build/lib/)
 npm run build
+
+# Build both
+npm run build:all
+
+# Run linting
+npm run lint
+
+# Run unit tests
+npm run test
 ```
+
+### Architecture
+
+See [docs/architecture.md](docs/architecture.md) for the full architecture documentation, including the C# server protocol, command reference, and debugging features.
+
+For a benefit-by-benefit comparison against WinAppDriver and a status check on every claim from the original [Automate The Planet announcement article](https://www.automatetheplanet.com/reviving-windows-app-automation-novawindows-driver-for-appium-2/), see [docs/why-novawindows.md](docs/why-novawindows.md).

@@ -1,26 +1,15 @@
 import { Element, Rect } from '@appium/types';
 import { NovaWindowsDriver } from '../driver';
-import {
-    AndCondition,
-    AutomationElement,
-    ControlType,
-    FoundAutomationElement,
-    OrCondition,
-    Property,
-    PropertyCondition,
-    PSBoolean,
-    PSControlType,
-    PSString,
-    TreeScope,
-    pwsh$,
-} from '../powershell';
+import { Property } from '../powershell/types';
+import { propertyCondition, andCondition, orCondition } from '../server/conditions';
 import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
-import { mouseDown, mouseMoveAbsolute, mouseUp } from '../winapi/user32';
+import { mouseDown, mouseMoveAbsolute, mouseUp, getCursorPos } from '../winapi/user32';
 import { Key } from '../enums';
 import { sleep } from '../util';
+import type { RectResult } from '../server/protocol';
 
 export async function getProperty(this: NovaWindowsDriver, propertyName: string, elementId: string): Promise<string> {
-    return await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetPropertyCommand(propertyName));
+    return await this.sendCommand('getProperty', { elementId, property: propertyName }) as string;
 }
 
 export async function getAttribute(this: NovaWindowsDriver, propertyName: string, elementId: string) {
@@ -29,23 +18,24 @@ export async function getAttribute(this: NovaWindowsDriver, propertyName: string
 }
 
 export async function active(this: NovaWindowsDriver): Promise<Element> {
-    return { [W3C_ELEMENT_KEY]: await this.sendPowerShellCommand(AutomationElement.focusedElement.buildCommand()) };
+    const elementId = await this.sendCommand('findElementFocused', {}) as string;
+    return { [W3C_ELEMENT_KEY]: elementId };
 }
 
 export async function getName(this: NovaWindowsDriver, elementId: string): Promise<string> {
-    return await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetTagNameCommand());
+    return await this.sendCommand('getTagName', { elementId }) as string;
 }
 
 export async function getText(this: NovaWindowsDriver, elementId: string): Promise<string> {
-    return await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetTextCommand());
+    return await this.sendCommand('getText', { elementId }) as string;
 }
 
 export async function clear(this: NovaWindowsDriver, elementId: string): Promise<void> {
-    await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildSetValueCommand(''));
+    await this.sendCommand('setElementValue', { elementId, value: '' });
 }
 
 export async function setValue(this: NovaWindowsDriver, value: string | string[], elementId: string): Promise<void> {
-    await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildSetFocusCommand());
+    await this.sendCommand('setFocus', { elementId });
     const metaKeyStates = {
         shift: false,
         ctrl: false,
@@ -60,8 +50,10 @@ export async function setValue(this: NovaWindowsDriver, value: string | string[]
     let keysToSend: string[] = [];
 
     const sendKeysAndResetArray = async () => {
-        await this.sendPowerShellCommand(/* ps1 */ `[Windows.Forms.SendKeys]::SendWait(${new PSString(keysToSend.join(''))})`);
-        keysToSend = [];
+        if (keysToSend.length > 0) {
+            await this.sendCommand('sendKeys', { text: keysToSend.join('') });
+            keysToSend = [];
+        }
     };
 
     for (const char of value) {
@@ -164,10 +156,8 @@ export async function setValue(this: NovaWindowsDriver, value: string | string[]
 }
 
 export async function getElementRect(this: NovaWindowsDriver, elementId: string): Promise<Rect> {
-    const result = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetElementRectCommand());
-    const rootRectJson = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetElementRectCommand());
-    const rootRect = JSON.parse(rootRectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-    const rect = JSON.parse(result.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+    const rect = await this.sendCommand('getRect', { elementId }) as RectResult;
+    const rootRect = await this.sendCommand('getRootRect', {}) as RectResult;
     rect.x -= rootRect.x;
     rect.y -= rootRect.y;
     rect.x = Math.min(0x7FFFFFFF, rect.x);
@@ -176,91 +166,143 @@ export async function getElementRect(this: NovaWindowsDriver, elementId: string)
 }
 
 export async function elementDisplayed(this: NovaWindowsDriver, elementId: string): Promise<boolean> {
-    const result = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetPropertyCommand(Property.IS_OFFSCREEN));
-    return result.toLowerCase() === 'true' ? false : true;
+    const result = await this.sendCommand('getProperty', { elementId, property: 'IsOffscreen' });
+    // UIA3 getProperty returns a JS boolean for bool-typed properties; the old
+    // PowerShell/UIA1 path returned the stringified "True"/"False". Handle both.
+    const isOffscreen = typeof result === 'boolean' ? result : String(result).toLowerCase() === 'true';
+    return !isOffscreen;
 }
 
 // TODO: find better way to handle whether to use select or toggle
 export async function elementSelected(this: NovaWindowsDriver, elementId: string): Promise<boolean> {
     try {
-        const result = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildIsSelectedCommand());
-        return result === 'True';
+        const result = await this.sendCommand('isElementSelected', { elementId }) as boolean;
+        return result === true || String(result) === 'True';
     } catch {
-        const result = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetToggleStateCommand());
+        const result = await this.sendCommand('getToggleState', { elementId }) as string;
         return result === 'On';
     }
 }
 
 export async function elementEnabled(this: NovaWindowsDriver, elementId: string): Promise<boolean> {
-    const result = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetPropertyCommand(Property.IS_ENABLED));
-    return result.toLowerCase() === 'true' ? true : false;
+    const result = await this.sendCommand('getProperty', { elementId, property: 'IsEnabled' });
+    return typeof result === 'boolean' ? result : String(result).toLowerCase() === 'true';
 }
 
 export async function click(this: NovaWindowsDriver, elementId: string): Promise<void> {
     const easingFunction = this.caps.smoothPointerMove;
-    const element = new FoundAutomationElement(elementId);
 
-    const focusCondition = new AndCondition(
-        new PropertyCondition(Property.IS_KEYBOARD_FOCUSABLE, new PSBoolean(true)),
-        new OrCondition(
-            new PropertyCondition(Property.CONTROL_TYPE, new PSControlType(ControlType.PANE)),
-            new PropertyCondition(Property.CONTROL_TYPE, new PSControlType(ControlType.WINDOW)),
-        ),
-    );
-
+    // Detect menu items up-front — focusing an ancestor Pane/Window closes
+    // the open popup, so subsequent ClickablePoint reads return stale coords
+    // and the mouse click lands on empty space. WPF menus in particular lose
+    // their dropdown on focus-change. Menu items don't need pre-focus anyway;
+    // the mouseDown/mouseUp activates them directly.
+    let controlType = '';
     try {
-        const focusableElementId = await this.sendPowerShellCommand(element.findFirst(TreeScope.ANCESTORS_OR_SELF, focusCondition).buildCommand());
-        await this.sendPowerShellCommand(new FoundAutomationElement(focusableElementId.trim()).buildSetFocusCommand());
+        controlType = await this.sendCommand('getProperty', { elementId, property: 'ControlType' }) as string;
     } catch {
-        // ignore if it fails, focus may fail if there is a forced popup window
+        // not fatal — fall through, we just won't know the type
+    }
+    const isMenuItem = controlType === 'MenuItem' || controlType === 'Menu' || controlType === 'MenuBar';
+
+    if (!isMenuItem) {
+        const focusCondition = andCondition(
+            propertyCondition('IsKeyboardFocusable', true),
+            orCondition(
+                propertyCondition('ControlType', 'Pane'),
+                propertyCondition('ControlType', 'Window'),
+            ),
+        );
+
+        try {
+            const focusableElementId = await this.sendCommand('findElement', {
+                scope: 'ancestors-or-self',
+                condition: focusCondition,
+                contextElementId: elementId,
+            }) as string | null;
+            if (focusableElementId) {
+                await this.sendCommand('setFocus', { elementId: focusableElementId.trim() });
+            }
+        } catch {
+            // ignore if it fails, focus may fail if there is a forced popup window
+        }
     }
 
     const coordinates = {
-        x: undefined,
-        y: undefined,
-    } as Partial<Rect>;
+        x: undefined as number | undefined,
+        y: undefined as number | undefined,
+    };
 
     try {
-        const clickablePointJson = await this.sendPowerShellCommand(element.buildGetPropertyCommand(Property.CLICKABLE_POINT));
-        const clickablePoint = JSON.parse(clickablePointJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+        const clickablePoint = await this.sendCommand('getProperty', { elementId, property: 'ClickablePoint' }) as { x: number; y: number };
         coordinates.x = clickablePoint.x;
         coordinates.y = clickablePoint.y;
     } catch {
-        const rectJson = await this.sendPowerShellCommand(element.buildGetElementRectCommand());
-        const rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+        const rect = await this.sendCommand('getRect', { elementId }) as RectResult;
         coordinates.x = rect.x + rect.width / 2;
         coordinates.y = rect.y + rect.height / 2;
     }
 
-    await mouseMoveAbsolute(coordinates.x, coordinates.y, this.caps.delayBeforeClick ?? 0, easingFunction);
+    // Teleport for menu items (an interpolated path crosses sibling items and
+    // WPF hover-opens their submenus mid-flight); non-menu callers can opt
+    // into an interpolated path via delayBeforeClick + smoothPointerMove.
+    const moveDuration = isMenuItem ? 0 : (this.caps.delayBeforeClick ?? 0);
+    this.log.debug(`click(${elementId}) controlType=${controlType || '?'} coords=(${coordinates.x},${coordinates.y}) menu=${isMenuItem}`);
+    await mouseMoveAbsolute(coordinates.x!, coordinates.y!, moveDuration, easingFunction);
+
+    if (isMenuItem) {
+        // WPF ContextMenu items need the WM_MOUSEMOVE to be fully processed
+        // before WM_LBUTTONDOWN arrives. Without this gap, the popup's hover
+        // tracker hasn't yet marked the target as IsMouseOver, so the click
+        // is routed to the popup background and silently dismissed.
+        await sleep(100);
+
+        // Re-check ClickablePoint: the popup can still be animating when the
+        // initial coordinate read happened (observed 14 px y-drift between
+        // consecutive runs of the same click, first one fast enough to catch
+        // the popup mid-flight). If the coord moved meaningfully, re-teleport
+        // to the final position; otherwise the stale coord lands on the
+        // sibling item below/above the target.
+        try {
+            const refreshed = await this.sendCommand('getProperty', { elementId, property: 'ClickablePoint' }) as { x: number; y: number };
+            const drift = Math.abs(refreshed.x - coordinates.x!) + Math.abs(refreshed.y - coordinates.y!);
+            if (drift > 2) {
+                this.log.debug(`click(${elementId}) popup settled: (${coordinates.x},${coordinates.y}) → (${refreshed.x},${refreshed.y}) — re-teleporting`);
+                coordinates.x = refreshed.x;
+                coordinates.y = refreshed.y;
+                await mouseMoveAbsolute(coordinates.x, coordinates.y, 0, easingFunction);
+                await sleep(100);
+            }
+        } catch {
+            // ClickablePoint no longer available — fall through with the
+            // original coords; better to click the old spot than skip.
+        }
+
+        const afterMovePos = getCursorPos();
+        if (afterMovePos) {
+            const cursorDrift = Math.abs(afterMovePos.x - coordinates.x!) + Math.abs(afterMovePos.y - coordinates.y!);
+            if (cursorDrift > 2) {
+                this.log.warn(`click(${elementId}) cursor drift: wanted (${coordinates.x},${coordinates.y}), got (${afterMovePos.x},${afterMovePos.y})`);
+            } else {
+                this.log.debug(`click(${elementId}) cursor confirmed at (${afterMovePos.x},${afterMovePos.y})`);
+            }
+        }
+    }
 
     mouseDown();
     mouseUp();
 
-    if (this.caps.delayAfterClick) {
-        await sleep(this.caps.delayAfterClick ?? 0);
-    }
+    // Post-click settle — FlaUI's Wait.UntilInputIsProcessed
+    // (FlaUI.Core/Input/Wait.cs:19-25, Thread.Sleep(100)). Lets Windows
+    // finish dispatching mouseDown/mouseUp before the next UIA call runs.
+    const postClickSettleMs = isMenuItem ? 100 : 50;
+    await sleep(this.caps.delayAfterClick ?? postClickSettleMs);
 }
 
-const GET_ELEMENT_SCREENSHOT_COMMAND = pwsh$ /* ps1 */ `
-    $element = ${0}
-    $rect = $element.Current.BoundingRectangle
-    $bitmap = New-Object Drawing.Bitmap([int32]$rect.Width, [int32]$rect.Height)
-    $graphics = [Drawing.Graphics]::FromImage($bitmap)
-    $graphics.CopyFromScreen([int32]$rect.Left, [int32]$rect.Top, 0, 0, $bitmap.Size)
-    $graphics.Dispose()
-    $stream = New-Object IO.MemoryStream
-    $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
-    $bitmap.Dispose()
-    [Convert]::ToBase64String($stream.ToArray())
-`;
-
 export async function getElementScreenshot(this: NovaWindowsDriver, elementId: string): Promise<string> {
-    const rootId = (await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand())).trim();
+    const rootId = (await this.sendCommand('saveRootElementToTable', {}) as string)?.trim();
     if (!rootId) {
         throw new errors.NoSuchWindowError('No active window found for this session.');
     }
-    return await this.sendPowerShellCommand(
-        GET_ELEMENT_SCREENSHOT_COMMAND.format(new FoundAutomationElement(elementId))
-    );
+    return await this.sendCommand('getElementScreenshot', { elementId }) as string;
 }

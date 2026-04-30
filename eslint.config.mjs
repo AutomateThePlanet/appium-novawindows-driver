@@ -11,4 +11,10 @@ export default defineConfig(
   {
     files: ['test/e2e/**/*.ts'],
   },
+  {
+    files: ['scripts/**/*.js'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
 );

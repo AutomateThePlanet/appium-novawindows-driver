@@ -64,11 +64,12 @@ describe('executeClickAndDrag', () => {
     it('drags with elementId when element exists', async () => {
         const driver = createMockDriver() as any;
         (driver as any).caps = {};
-        const rectJson = '{"x":10,"y":20,"width":100,"height":50}';
-        const returnValues = ['True', '1.2.3.4.5', rectJson, 'True', '1.2.3.4.5', rectJson];
+        const rect = { x: 10, y: 20, width: 100, height: 50 };
+        // lookupElement returns true, getRect returns rect object (for both start and end)
+        const returnValues = [true, rect, true, rect];
         let callIndex = 0;
-        driver.sendPowerShellCommand.mockImplementation(() =>
-            Promise.resolve(returnValues[callIndex++] ?? rectJson)
+        driver.sendCommand.mockImplementation(() =>
+            Promise.resolve(returnValues[callIndex++] ?? rect)
         );
         const { mouseMoveAbsolute } = await import('../../../lib/winapi/user32');
 

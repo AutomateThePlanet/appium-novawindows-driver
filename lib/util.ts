@@ -4,7 +4,21 @@ import { pipeline } from 'node:stream/promises';
 import { NovaWindowsDriver } from './driver';
 import http from 'node:http';
 import https from 'node:https';
+import net from 'node:net';
 import path from 'node:path';
+
+export async function findFreePort(start: number, end: number): Promise<number> {
+    for (let port = start; port <= end; port++) {
+        const free = await new Promise<boolean>((resolve) => {
+            const srv = net.createServer();
+            srv.once('error', () => resolve(false));
+            srv.once('listening', () => srv.close(() => resolve(true)));
+            srv.listen(port);
+        });
+        if (free) {return port;}
+    }
+    throw new Error(`No free port available in range ${start}-${end}.`);
+}
 
 export const MODULE_NAME = 'appium-novawindows-driver';
 

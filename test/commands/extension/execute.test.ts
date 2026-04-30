@@ -42,17 +42,12 @@ describe('execute (command router)', () => {
 
     it('routes windows:deleteFile to deleteFile with args', async () => {
         await extension.execute.call(driver, 'windows: deleteFile', [{ path: 'C:\\temp\\file.txt' }]);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('Remove-Item')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('deleteFile', { path: 'C:\\temp\\file.txt' });
     });
 
     it('routes windows:invoke to patternInvoke with element', async () => {
         await extension.execute.call(driver, 'windows: invoke', [MOCK_ELEMENT]);
-        // Command is base64-encoded; verify [InvokePattern] is used
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('W0ludm9rZVBhdHRlcm5d')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('invokeElement', { elementId: MOCK_ELEMENT['element-6066-11e4-a52e-4f735466cecf'] });
     });
 
     it('throws UnknownCommandError for unknown windows command', async () => {
@@ -64,22 +59,21 @@ describe('execute (command router)', () => {
     it('routes powerShell to executePowerShellScript', async () => {
         driver.assertFeatureEnabled = vi.fn();
         driver.caps = {};
-        driver.sendPowerShellCommand.mockResolvedValue('output');
+        driver.sendCommand.mockResolvedValue('output');
         await extension.execute.call(driver, 'powerShell', ['Get-Process']);
         expect(driver.assertFeatureEnabled).toHaveBeenCalledWith('power_shell');
-        // Script is base64-encoded in pwsh wrapper; verify Get-Process is present
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('R2V0LVByb2Nlc3M')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('executePowerShellScript', expect.objectContaining({
+            script: 'Get-Process',
+        }));
     });
 
-    it('routes return window.name to sendPowerShellCommand', async () => {
-        driver.sendPowerShellCommand.mockResolvedValue('WindowName');
+    it('routes return window.name to sendCommand', async () => {
+        driver.sendCommand
+            .mockResolvedValueOnce('root-id') // saveRootElementToTable
+            .mockResolvedValueOnce('WindowName'); // getProperty Name
         const result = await extension.execute.call(driver, 'return window.name', []);
-        // Command is base64-encoded; verify it uses rootElement and fetches Name property
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('JHJvb3RFbGVtZW50')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledWith('saveRootElementToTable', {});
+        expect(driver.sendCommand).toHaveBeenCalledWith('getProperty', { elementId: 'root-id', property: 'Name' });
         expect(result).toBe('WindowName');
     });
 

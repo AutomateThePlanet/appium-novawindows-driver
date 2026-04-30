@@ -14,7 +14,7 @@ import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { NovaWindowsDriver } from '../driver';
 import { keyDown, keyUp, mouseMoveRelative, mouseMoveAbsolute, mouseDown, mouseUp, mouseScroll } from '../winapi/user32';
 import { sleep } from '../util';
-import { AutomationElement, FoundAutomationElement } from '../powershell';
+import type { RectResult } from '../server/protocol';
 import { Key } from '../enums';
 
 export async function performActions(this: NovaWindowsDriver, actionSequences: ActionSequence[]): Promise<void> {
@@ -115,20 +115,18 @@ export async function handleMouseMoveAction(this: NovaWindowsDriver, action: Poi
             await mouseMoveRelative(action.x, action.y, action.duration, easingFunction);
             break;
         case 'viewport': {
-            const rootRectJson = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetElementRectCommand());
-            const rootRect = JSON.parse(rootRectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+            const rootRect = await this.sendCommand('getRootRect', {}) as RectResult;
             await mouseMoveAbsolute(action.x + rootRect.x, action.y + rootRect.y, action.duration, easingFunction);
             break;
         }
         default:
             if (action.origin?.[W3C_ELEMENT_KEY]) {
-                const element = new FoundAutomationElement(action.origin[W3C_ELEMENT_KEY]);
-                const rectJson = await this.sendPowerShellCommand(element.buildGetElementRectCommand());
-                let rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+                const elementId = action.origin[W3C_ELEMENT_KEY];
+                let rect = await this.sendCommand('getRect', { elementId }) as RectResult;
 
                 if (Object.values(rect).some((x) => x === 0x7FFFFFFF)) {
-                    await this.sendPowerShellCommand(element.buildScrollIntoViewCommand());
-                    rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+                    await this.sendCommand('scrollElementIntoView', { elementId });
+                    rect = await this.sendCommand('getRect', { elementId }) as RectResult;
                 }
 
                 await mouseMoveAbsolute(action.x === 0 ? rect.x + rect.width / 2 : action.x, action.y === 0 ? rect.y + rect.height / 2 : action.y, action.duration, easingFunction);

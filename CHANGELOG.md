@@ -1,3 +1,29 @@
+## [1.4.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.1...v1.4.0) (2026-04-14)
+
+### Features
+
+* making screen recorder ffmpeg auto-downloadable and updated webview capability names ([095b2af](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/095b2af7d5a85dd757e92d5666d19ed2a20699b3))
+* **webview:** enable WebView2 support ([644034f](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/644034f866efcca48b87e0344b88d34f4471f608))
+
+### Bug Fixes
+
+* changed logic of attaching the root window not working on some machines ([ee12870](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/ee12870d4f83a1b830c18b65f9dc1a7493825f96))
+* debug cdp json issue ([fe3f762](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/fe3f762ae666fc9de5158f03c2b7c9acb62c52c0))
+* **debug:** changed logic for finding window on app launch ([00edf24](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/00edf24d751672123eec0cb6db0b3c34a4bfd51c))
+* fixed port cdpRequest issue ([37b9291](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/37b9291369c30ff2a39f7618d5d20d3b9725d9a0))
+* **webview:** fix current webview not being set ([a08f775](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/a08f775f935b90660e1229c1ed294822a93a024e))
+* **webview:** fix error when no webview endpoint is available ([c15567c](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/c15567c6d06db5b1581afd441c1a1eb7887ee1b8))
+
+### Miscellaneous Chores
+
+* **release:** 1.2.0-preview.1 [skip ci] ([f9cb5c5](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/f9cb5c5c8e7e88b7929171fe39c59635b721f4de))
+* **release:** 1.2.0-preview.2 [skip ci] ([6ad9bdb](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/6ad9bdbdbe26cb5c7f881a8e1e80f064dfc6863b))
+* **release:** 1.4.0-preview.1 [skip ci] ([7880d26](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/7880d2626d956eb2e7b6e8fe4965e7bf00161e80))
+* **release:** 1.4.0-preview.2 [skip ci] ([3bd5408](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/3bd54088887217deb5f43c3780c2aec16b3183d5))
+* **release:** 1.4.0-preview.3 [skip ci] ([9bd5189](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/9bd5189429a705e3d59f3d32ef5cf608c17a34ec))
+* **release:** 1.4.0-preview.4 [skip ci] ([bd21178](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/bd211782ca0e0fc5fe2cca81fff68d7bd0cdc33d))
+* **release:** 1.4.0-preview.5 [skip ci] ([b4757b2](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/b4757b23d1b47144c8bb149fb41b430674c8cbea))
+
 ## [1.4.0-preview.5](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0-preview.4...v1.4.0-preview.5) (2026-04-14)
 
 ### Features

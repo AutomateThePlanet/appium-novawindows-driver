@@ -18,27 +18,43 @@ describe('pushCacheRequest', () => {
         await expect(
             pushCacheRequest.call(driver, { treeScope: undefined, treeFilter: undefined, automationElementMode: undefined })
         ).rejects.toThrow('At least one property of the cache request must be set.');
-        expect(driver.sendPowerShellCommand).not.toHaveBeenCalled();
+        expect(driver.sendCommand).not.toHaveBeenCalled();
     });
 
-    it('sends treeFilter command when treeFilter is set', async () => {
+    it('sends setCacheRequestTreeFilter command when treeFilter is set', async () => {
         const driver = createMockDriver() as any;
         await pushCacheRequest.call(driver, { treeFilter: 'TrueCondition' });
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
-        expect(driver.sendPowerShellCommand).toHaveBeenCalledWith(
-            expect.stringContaining('TreeFilter')
-        );
+        expect(driver.sendCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('setCacheRequestTreeFilter', expect.objectContaining({
+            condition: expect.any(Object),
+        }));
     });
 
-    it('throws for invalid treeScope value', async () => {
+    it('sends setCacheRequestTreeScope command when treeScope is set', async () => {
         const driver = createMockDriver() as any;
+        await pushCacheRequest.call(driver, { treeScope: 'Children' });
+        expect(driver.sendCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('setCacheRequestTreeScope', { scope: 'Children' });
+    });
+
+    it('sends setCacheRequestAutomationElementMode command when automationElementMode is set', async () => {
+        const driver = createMockDriver() as any;
+        await pushCacheRequest.call(driver, { automationElementMode: 'Full' });
+        expect(driver.sendCommand).toHaveBeenCalledTimes(1);
+        expect(driver.sendCommand).toHaveBeenCalledWith('setCacheRequestAutomationElementMode', { mode: 'Full' });
+    });
+
+    it('throws for invalid treeScope value when server rejects', async () => {
+        const driver = createMockDriver() as any;
+        driver.sendCommand.mockRejectedValue(new Error('Invalid value for treeScope'));
         await expect(
             pushCacheRequest.call(driver, { treeScope: 'InvalidScope' })
         ).rejects.toThrow('Invalid value');
     });
 
-    it('throws for invalid automationElementMode value', async () => {
+    it('throws for invalid automationElementMode value when server rejects', async () => {
         const driver = createMockDriver() as any;
+        driver.sendCommand.mockRejectedValue(new Error('Invalid value for automationElementMode'));
         await expect(
             pushCacheRequest.call(driver, { automationElementMode: 'InvalidMode' })
         ).rejects.toThrow('Invalid value');
