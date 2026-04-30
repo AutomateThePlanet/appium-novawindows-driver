@@ -35,7 +35,7 @@ export class NovaUIAutomationClient {
         return join(__dirname, '..', '..', '..', 'native', 'win-x64', SERVER_EXE_NAME);
     }
 
-    async start(recordingPath?: string): Promise<void> {
+    async start(recordingPath?: string, env?: NodeJS.ProcessEnv): Promise<void> {
         const serverPath = this.getServerPath();
         this.log.info(`Starting NovaUIAutomationServer from: ${serverPath}`);
 
@@ -44,7 +44,7 @@ export class NovaUIAutomationClient {
             args.push('--record', recordingPath);
         }
 
-        this.process = spawn(serverPath, args);
+        this.process = spawn(serverPath, args, env ? { env } : undefined);
         this.process.stdout.setEncoding('utf8');
         this.process.stderr.setEncoding('utf8');
 

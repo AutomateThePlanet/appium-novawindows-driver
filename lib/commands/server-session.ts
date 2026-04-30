@@ -9,16 +9,22 @@ const WEBVIEW_DEVTOOLS_PORT_LOWER = 10900;
 const WEBVIEW_DEVTOOLS_PORT_UPPER = 11000;
 
 export async function startServerSession(this: NovaWindowsDriver): Promise<void> {
+    // Build a per-session env overlay rather than mutating process.env, which
+    // is global across all sessions in the Appium server process.
+    let serverEnv: NodeJS.ProcessEnv | undefined;
+
     // When WebView2 support is enabled, set the env var the WebView2 runtime
     // reads at startup so that the AUT exposes a Chrome DevTools Protocol
-    // endpoint we can attach Chromedriver to. Must be set before the C#
-    // server starts so it (and any process it spawns) inherits the env.
+    // endpoint we can attach Chromedriver to. The C# server inherits this env
+    // and any AUT it spawns inherits it in turn.
     if (this.caps.webviewEnabled) {
         this.webviewDevtoolsPort = this.caps.webviewDevtoolsPort
             ? Number(this.caps.webviewDevtoolsPort)
             : await findFreePort(WEBVIEW_DEVTOOLS_PORT_LOWER, WEBVIEW_DEVTOOLS_PORT_UPPER);
-        process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS =
-            `--remote-debugging-port=${this.webviewDevtoolsPort}`;
+        serverEnv = {
+            ...process.env,
+            WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${this.webviewDevtoolsPort}`,
+        };
         this.log.info(`WebView2 remote debugging enabled on port ${this.webviewDevtoolsPort}.`);
     }
 
@@ -28,7 +34,7 @@ export async function startServerSession(this: NovaWindowsDriver): Promise<void>
     // The only recovery is to restart the server process and try again.
     for (let attempt = 1; attempt <= MAX_INIT_RETRIES; attempt++) {
         this.serverClient = new NovaUIAutomationClient(this.log);
-        await this.serverClient.start();
+        await this.serverClient.start(undefined, serverEnv);
 
         try {
             await this.sendCommand('init', {});
