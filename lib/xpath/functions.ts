@@ -308,5 +308,5 @@ function convertProcessedExprNodesToStrings<T>(...arrayOfProcessedExprNodes: T[]
 
 function convertProcessedExprNodesToNumbers<T>(...arrayOfProcessedExprNodes: T[]): number[] {
     const arrayOfStrings = convertProcessedExprNodesToStrings(...arrayOfProcessedExprNodes);
-    return arrayOfStrings.map((str) => /^\s*(?<![\d.+-])[+-]?(?:\d*[.])?\d+(?![\d.])\s*$/.test(str) ? NaN : Number(str));
+    return arrayOfStrings.map((str) => /^\s*(?<![\d.+-])[+-]?(?:\d*[.])?\d+(?![\d.])\s*$/.test(str) ? Number(str) : NaN);
 }
