@@ -52,6 +52,27 @@ export const UI_AUTOMATION_DRIVER_CONSTRAINTS = {
         isBoolean: true,
     },
     logFile: {},
+    webviewEnabled: {
+        isBoolean: true,
+    },
+    webviewDevtoolsPort: {
+        isNumber: true,
+    },
+    chromedriverCdnUrl: {
+        isString: true,
+    },
+    edgedriverCdnUrl: {
+        isString: true,
+    },
+    chromedriverExecutablePath: {
+        isString: true,
+    },
+    edgedriverExecutablePath: {
+        isString: true,
+    },
+    ffmpegExecutablePath: {
+        isString: true,
+    },
 } as const satisfies Constraints;
 
 export default UI_AUTOMATION_DRIVER_CONSTRAINTS;

@@ -26,11 +26,14 @@ import {
 import { setDpiAwareness } from './winapi/user32';
 import { xpathToElIdOrIds } from './xpath';
 
+import type { Chromedriver } from 'appium-chromedriver';
 import type {
     DefaultCreateSessionResult,
     DriverData,
     Element,
+    ExternalDriver,
     InitialOpts,
+    RouteMatcher,
     StringRecord,
     W3CDriverCaps
 } from '@appium/types';
@@ -56,6 +59,30 @@ const LOCATION_STRATEGIES = Object.freeze([
     '-windows uiautomation',
 ] as const);
 
+// This is a set of methods and paths that we never want to proxy to Chromedriver.
+const CHROMEDRIVER_NO_PROXY: RouteMatcher[] = [
+    ['GET', new RegExp('^/session/[^/]+/appium')],
+    ['GET', new RegExp('^/session/[^/]+/context')],
+    ['GET', new RegExp('^/session/[^/]+/element/[^/]+/rect')],
+    ['GET', new RegExp('^/session/[^/]+/orientation')],
+    ['POST', new RegExp('^/session/[^/]+/appium')],
+    ['POST', new RegExp('^/session/[^/]+/context')],
+    ['POST', new RegExp('^/session/[^/]+/orientation')],
+
+    // this is needed to make the windows: and powerShell commands work in web context
+    ['POST', new RegExp('^/session/[^/]+/execute$')],
+    ['POST', new RegExp('^/session/[^/]+/execute/sync')],
+
+    // MJSONWP commands
+    ['GET', new RegExp('^/session/[^/]+/log/types$')],
+    ['POST', new RegExp('^/session/[^/]+/log$')],
+    // W3C commands
+    // For Selenium v4 (W3C does not have this route)
+    ['GET', new RegExp('^/session/[^/]+/se/log/types$')],
+    // For Selenium v4 (W3C does not have this route)
+    ['POST', new RegExp('^/session/[^/]+/se/log$')],
+];
+
 export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, StringRecord> {
     serverClient?: NovaUIAutomationClient;
     keyboardState: KeyboardState = {
@@ -65,8 +92,15 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         meta: false,
         shift: false,
     };
+    chromedriver: Chromedriver | null = null;
+    proxyReqRes: ((...args: any) => any) | null = null;
+    proxyCommand: ExternalDriver['proxyCommand'] | null = null;
+    contexts: string[] = [];
+    jwpProxyActive: boolean = false;
+    currentContext: string | null = null;
     _screenRecorder: ScreenRecorder | null = null;
     _logFileMirror: LogFileMirror | null = null;
+    webviewDevtoolsPort: number | null = null;
 
     constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
         super(opts, shouldValidateCaps);
@@ -86,6 +120,18 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
             throw new errors.UnknownError('NovaUIAutomationServer is not running.');
         }
         return await this.serverClient.sendCommand(method, params);
+    }
+
+    override canProxy(): boolean {
+        return true;
+    }
+
+    override proxyActive(): boolean {
+        return this.jwpProxyActive;
+    }
+
+    override getProxyAvoidList(): RouteMatcher[] {
+        return this.jwpProxyActive && this.chromedriver ? CHROMEDRIVER_NO_PROXY : [];
     }
 
     override async findElement(strategy: string, selector: string): Promise<Element> {
@@ -239,6 +285,20 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
 
     override async deleteSession(sessionId?: string | null | undefined): Promise<void> {
         this.log.debug('Deleting NovaWindows driver session...');
+
+        if (this.chromedriver) {
+            try {
+                await this.chromedriver.stop();
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                this.log.warn(`Failed to stop chromedriver during session teardown: ${msg}`);
+            }
+            this.chromedriver = null;
+            this.jwpProxyActive = false;
+            this.proxyReqRes = null;
+            this.proxyCommand = null;
+            this.currentContext = null;
+        }
 
         if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
             try {

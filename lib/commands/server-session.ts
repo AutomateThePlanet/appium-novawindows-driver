@@ -1,11 +1,27 @@
 import { normalize } from 'node:path';
 import { NovaWindowsDriver } from '../driver';
 import { NovaUIAutomationClient } from '../server/client';
+import { findFreePort } from '../util';
 
 const MAX_INIT_RETRIES = 5;
 const INIT_RETRY_DELAY_MS = 500;
+const WEBVIEW_DEVTOOLS_PORT_LOWER = 10900;
+const WEBVIEW_DEVTOOLS_PORT_UPPER = 11000;
 
 export async function startServerSession(this: NovaWindowsDriver): Promise<void> {
+    // When WebView2 support is enabled, set the env var the WebView2 runtime
+    // reads at startup so that the AUT exposes a Chrome DevTools Protocol
+    // endpoint we can attach Chromedriver to. Must be set before the C#
+    // server starts so it (and any process it spawns) inherits the env.
+    if (this.caps.webviewEnabled) {
+        this.webviewDevtoolsPort = this.caps.webviewDevtoolsPort
+            ? Number(this.caps.webviewDevtoolsPort)
+            : await findFreePort(WEBVIEW_DEVTOOLS_PORT_LOWER, WEBVIEW_DEVTOOLS_PORT_UPPER);
+        process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS =
+            `--remote-debugging-port=${this.webviewDevtoolsPort}`;
+        this.log.info(`WebView2 remote debugging enabled on port ${this.webviewDevtoolsPort}.`);
+    }
+
     // The C# server's `init` command triggers UIAutomation static type
     // initializers (COM objects). These can fail intermittently, and once
     // a .NET type initializer fails it stays broken for the process lifetime.
