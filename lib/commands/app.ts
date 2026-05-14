@@ -108,6 +108,7 @@ export async function getWindowHandles(this: NovaWindowsDriver): Promise<string[
 }
 
 export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): Promise<void> {
+    await this.sendCommand('setRootElement', {}); // TODO: do a try catch and restore the original root element in case command fails
     const handle = Number(nameOrHandle);
     for (let i = 1; i <= SET_WINDOW_MAX_POLL_ATTEMPTS; i++) {
         if (!isNaN(handle)) {
