@@ -1,3 +1,9 @@
+## [2.0.0-preview.2](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v2.0.0-preview.1...v2.0.0-preview.2) (2026-05-14)
+
+### Bug Fixes
+
+* switch to root element before trying to set window ([1fcce9f](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/1fcce9f8b709da4b8e2fefd7ebba9f4620189284))
+
 ## [2.0.0-preview.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0...v2.0.0-preview.1) (2026-04-30)
 
 ### ⚠ BREAKING CHANGES
