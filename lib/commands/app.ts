@@ -131,6 +131,7 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
             if (elementId.trim() !== '') {
                 await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
                 trySetForegroundWindow(handle);
+                this.windowHandle = handle;
                 return;
             }
         }
@@ -143,6 +144,7 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
             this.log.info(`Found window with name '${name}'. Setting it as the root element.`);
             await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
             trySetForegroundWindow(handle);
+            this.windowHandle = handle;
             return;
         }
 
@@ -340,6 +342,7 @@ export async function attachToApplicationWindow(this: NovaWindowsDriver, process
                 [W3C_ELEMENT_KEY]: elementId,
             } satisfies Element);
         };
+        this.windowHandle = nativeWindowHandle;
         return;
     }
 }
