@@ -85,8 +85,8 @@ interface DeviceModeAnsi {
             dmDefaultSource: number,
             dmPrintQuality: number,
         },
-      dmPosition: Point,
-      s2: {
+        dmPosition: Point,
+        s2: {
             dmPosition: Point,
             dmDisplayOrientation: number,
             dmDisplayFixedOutput: number,
@@ -175,7 +175,15 @@ const easingFunctions = Object.freeze({
 const UINT32_MAX = 0xFFFFFFFF;
 const UINT16_MAX = 0xFFFF;
 
+// Virtual screen metrics — used for normalizing absolute mouse coordinates
+// across the full virtual desktop (all monitors), matching FlaUI's approach
+const SM_CXVIRTUALSCREEN = 78;
+const SM_CYVIRTUALSCREEN = 79;
+const SM_XVIRTUALSCREEN = 76;
+const SM_YVIRTUALSCREEN = 77;
+
 const user32 = load('user32.dll');
+const kernel32 = load('kernel32.dll');
 
 const POINT = struct('POINT', {
     x: 'long',
@@ -222,22 +230,22 @@ const DEVMODEA = struct('DEVMODEA', {
     dmDriverExtra: 'uint16',
     dmFields: 'uint32',
     u1: union({
-      s1: struct({
-        dmOrientation: 'short',
-        dmPaperSize: 'short',
-        dmPaperLength: 'short',
-        dmPaperWidth: 'short',
-        dmScale: 'short',
-        dmCopies: 'short',
-        dmDefaultSource: 'short',
-        dmPrintQuality: 'short',
-      }),
-      dmPosition: POINT,
-      s2: struct({
+        s1: struct({
+            dmOrientation: 'short',
+            dmPaperSize: 'short',
+            dmPaperLength: 'short',
+            dmPaperWidth: 'short',
+            dmScale: 'short',
+            dmCopies: 'short',
+            dmDefaultSource: 'short',
+            dmPrintQuality: 'short',
+        }),
         dmPosition: POINT,
-        dmDisplayOrientation: 'uint32',
-        dmDisplayFixedOutput: 'uint32',
-      }),
+        s2: struct({
+            dmPosition: POINT,
+            dmDisplayOrientation: 'uint32',
+            dmDisplayFixedOutput: 'uint32',
+        }),
     }),
     dmColor: 'short',
     dmDuplex: 'short',
@@ -250,8 +258,8 @@ const DEVMODEA = struct('DEVMODEA', {
     dmPelsWidth: 'uint32',
     dmPelsHeight: 'uint32',
     u2: union({
-      dmDisplayFlags: 'uint32',
-      dmNup: 'uint32',
+        dmDisplayFlags: 'uint32',
+        dmNup: 'uint32',
     }),
     dmDisplayFrequency: 'uint32',
     dmICMMethod: 'uint32',
@@ -283,6 +291,7 @@ type LPDWORD = number;
 type HWND = unknown;
 type LPARAM = number;
 type LPSTR = Buffer;
+type POINT = Point;
 
 type EnumWindowsProc = (hWnd: HWND, lParam: LPARAM) => BOOL;
 
@@ -293,6 +302,12 @@ const SetProcessDPIAware = user32.func(/* c */ `bool __stdcall SetProcessDPIAwar
 const GetDpiForSystem = user32.func(/* c */ `unsigned int __stdcall GetDpiForSystem()`) as () => number;
 const GetCursorPos = user32.func(/* c */ `bool __stdcall GetCursorPos(_Out_ POINT *lpPoint)`) as (lpPoint: Point) => boolean;
 const EnumDisplaySettingsA = user32.func(/* c */ `bool __stdcall EnumDisplaySettingsA(str lpszDeviceName, uint iModeNum, _Out_ DEVMODEA *lpDevMode)`) as (lpszDeviceName: string | null, iModeNum: number, lpDevMode: Buffer) => boolean;
+const SystemParametersInfoA = user32.func(/* c */ `BOOL __stdcall SystemParametersInfoA(uint uiAction, uint uiParam, _Out_ uintptr* pvParam, uint fWinIni)`) as (uiAction: number, uiParam: number, pvParam: [number], fWinIni: number) => boolean;
+
+const SPI_GETFOREGROUNDLOCKTIMEOUT = 0x2000;
+const SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001;
+const SPIF_UPDATEINIFILE = 0x01;
+const SPIF_SENDWININICHANGE = 0x02;
 // end TODO
 
 const GetWindowThreadProcessId = user32.func(/* c */ `DWORD __stdcall GetWindowThreadProcessId(HWND hWnd, _Out_ LPDWORD lpdwProcessId)`) as (hWnd: HWND, lpdwProcessId: [LPDWORD | null]) => DWORD;
@@ -300,15 +315,19 @@ const GetWindowTextA = user32.func(/* c */ `int __stdcall GetWindowTextA(HWND hW
 const IsWindowVisible = user32.func(/* c */ `BOOL __stdcall IsWindowVisible(HWND hWnd)`) as (hWnd: HWND) => BOOL;
 const EnumWindows = user32.func(/* c */ `BOOL __stdcall EnumWindows(EnumWindowsProc *enumProc, LPARAM lParam)`) as (enumProc: EnumWindowsProc, lParam: LPARAM) => BOOL;
 const SetForegroundWindow = user32.func(/* c */ `BOOL __stdcall SetForegroundWindow(HWND hWnd)`) as (hWnd: HWND) => BOOL;
+const GetMessageExtraInfo = user32.func(/* c */ `LPARAM __stdcall GetMessageExtraInfo()`) as () => LPARAM;
+const WindowFromPoint = user32.func(/* c */ `HWND __stdcall WindowFromPoint(POINT point)`) as (point: Point) => HWND;
+const AttachThreadInput = user32.func(/* c */ `BOOL __stdcall AttachThreadInput(DWORD idAttach, DWORD idAttachTo, BOOL fAttach)`) as (idAttach: DWORD, idAttachTo: DWORD, fAttach: BOOL) => BOOL;
+const GetCurrentThreadId = kernel32.func(/* c */ `DWORD __stdcall GetCurrentThreadId()`) as () => DWORD;
 
 function makeKeyboardEvent(args: {
-        /** A virtual-key code. The code must be a value in the range 1 to 254. If the dwFlags member specifies KEYEVENTF_UNICODE, wVk must be 0. */
-        vk?: VirtualKey,
-        /** A hardware scan code for the key. If dwFlags specifies KEYEVENTF_UNICODE, wScan specifies a Unicode character which is to be sent to the foreground application. */
-        scan?: ScanCode | string,
-        /** Set to true if the key should be pressed, and false if key is should be released. */
-        down: boolean,
-    }
+    /** A virtual-key code. The code must be a value in the range 1 to 254. If the dwFlags member specifies KEYEVENTF_UNICODE, wVk must be 0. */
+    vk?: VirtualKey,
+    /** A hardware scan code for the key. If dwFlags specifies KEYEVENTF_UNICODE, wScan specifies a Unicode character which is to be sent to the foreground application. */
+    scan?: ScanCode | string,
+    /** Set to true if the key should be pressed, and false if key is should be released. */
+    down: boolean,
+}
 ): KeyboardEvent {
     let flags: KeyEventFlags = 0;
 
@@ -421,19 +440,19 @@ function makeMouseUpEvents(button: number): MouseEvent[] {
 }
 
 function makeMouseMoveEvents(args: {
-        /** The absolute position of the mouse, or the amount of motion since the last mouse event was generated, depending on the value of the dwFlags member. Absolute data is specified as the x coordinate of the mouse; relative data is specified as the number of pixels moved. */
-        x: number,
-        /** The absolute position of the mouse, or the amount of motion since the last mouse event was generated, depending on the value of the dwFlags member. Absolute data is specified as the y coordinate of the mouse; relative data is specified as the number of pixels moved. */
-        y: number,
-        /** Set to true if the event is a mouse wheel move, and false if it's a mouse move. */
-        wheel: boolean,
-        /** Set to true if the event is a mouse move with relative coordinates. This argument is ignored for mouse wheel move. */
-        relative?: boolean,
-        /** Set to screen resolution [width, height] when the mouse move is absolute. */
-        screenResolutionAndRefreshRate?: ReturnType<typeof getScreenResolutionAndRefreshRate>;
-    }
+    /** The absolute position of the mouse, or the amount of motion since the last mouse event was generated, depending on the value of the dwFlags member. Absolute data is specified as the x coordinate of the mouse; relative data is specified as the number of pixels moved. */
+    x: number,
+    /** The absolute position of the mouse, or the amount of motion since the last mouse event was generated, depending on the value of the dwFlags member. Absolute data is specified as the y coordinate of the mouse; relative data is specified as the number of pixels moved. */
+    y: number,
+    /** Set to true if the event is a mouse wheel move, and false if it's a mouse move. */
+    wheel: boolean,
+    /** Set to true if the event is a mouse move with relative coordinates. This argument is ignored for mouse wheel move. */
+    relative?: boolean,
+    /** Set to screen resolution [width, height] when the mouse move is absolute. */
+    screenResolutionAndRefreshRate?: ReturnType<typeof getScreenResolutionAndRefreshRate>;
+}
 ): MouseEvent[] {
-    const { x, y, wheel, relative, screenResolutionAndRefreshRate} = args;
+    const { x, y, wheel, relative, screenResolutionAndRefreshRate } = args;
 
     if (wheel) {
         const mouseEvents: MouseEvent[] = [];
@@ -461,14 +480,18 @@ function makeMouseMoveEvents(args: {
         throw new errors.InvalidArgumentError('screenResolution parameter must be set for absolute mouse move.');
     }
 
-    const [screenWidth, screenHeight] = screenResolutionAndRefreshRate;
+    const [, , , vScreenWidth, vScreenHeight, vScreenLeft, vScreenTop] = screenResolutionAndRefreshRate;
 
-    mouseEvent.u.mi.dx = relative ? Math.trunc(x) : Math.trunc((x * UINT16_MAX) / screenWidth);
-    mouseEvent.u.mi.dy = relative ? Math.trunc(y) : Math.trunc((y * UINT16_MAX) / screenHeight);
+    // Normalize coordinates to the 0-65535 range across the full virtual desktop,
+    // matching FlaUI's NormalizeCoordinates approach to handle multi-monitor setups correctly
+    mouseEvent.u.mi.dx = relative ? Math.trunc(x) : Math.trunc((x - vScreenLeft) * UINT16_MAX / vScreenWidth + UINT16_MAX / (vScreenWidth * 2));
+    mouseEvent.u.mi.dy = relative ? Math.trunc(y) : Math.trunc((y - vScreenTop) * UINT16_MAX / vScreenHeight + UINT16_MAX / (vScreenHeight * 2));
     mouseEvent.u.mi.dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE;
 
     if (!relative) {
         mouseEvent.u.mi.dwFlags |= MouseEventFlags.MOUSEEVENTF_ABSOLUTE;
+        // MOUSEEVENTF_VIRTUALDESK is required when using virtual screen coordinates
+        mouseEvent.u.mi.dwFlags |= MouseEventFlags.MOUSEEVENTF_VIRTUALDESK;
     }
 
     return [mouseEvent];
@@ -636,6 +659,10 @@ function charToKeyboardEvents(char: string, down: boolean, forceUnicode: boolean
 
 function sendKeyInput(char: string, down: boolean, forceUnicode: boolean = false): void {
     const events = charToKeyboardEvents(char, down, forceUnicode);
+    const extraInfo = GetMessageExtraInfo();
+    for (const event of events) {
+        event.u.ki.dwExtraInfo = extraInfo ?? 0;
+    }
     const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
     assertSuccessSendInputReturnCode(returnCode);
@@ -643,6 +670,10 @@ function sendKeyInput(char: string, down: boolean, forceUnicode: boolean = false
 
 function sendMouseButtonInput(button: number, down: boolean) {
     const events = down ? makeMouseDownEvents(button) : makeMouseUpEvents(button);
+    const extraInfo = GetMessageExtraInfo();
+    for (const event of events) {
+        event.u.mi.dwExtraInfo = extraInfo ?? 0;
+    }
     const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
     assertSuccessSendInputReturnCode(returnCode);
@@ -689,20 +720,26 @@ async function sendMouseMoveInput(args: { x: number, y: number, relative: boolea
         }
 
         for (let i = 1; i < iterations; i++) {
-            setTimeout(() => {
-                const normalizedProgress = (i + 1) / iterations;
-                const easedProgress = i !== iterations - 1 ? calculatePoint(normalizedProgress) : 1;
-                const interpolatedX = cursorPosition.x + (x - cursorPosition.x) * easedProgress;
-                const interpolatedY = cursorPosition.y + (y - cursorPosition.y) * easedProgress;
+            await sleep(i * updateInterval - (i > 1 ? (i - 1) * updateInterval : 0));
+            const normalizedProgress = (i + 1) / iterations;
+            const easedProgress = i !== iterations - 1 ? calculatePoint(normalizedProgress) : 1;
+            const interpolatedX = cursorPosition.x + (x - cursorPosition.x) * easedProgress;
+            const interpolatedY = cursorPosition.y + (y - cursorPosition.y) * easedProgress;
 
-                const events = makeMouseMoveEvents({ x: interpolatedX, y: interpolatedY, wheel: false, screenResolutionAndRefreshRate });
-                const returnCode = SendInput(events.length, events, sizeof(INPUT));
-
-                assertSuccessSendInputReturnCode(returnCode);
-            }, i * updateInterval);
+            const events = makeMouseMoveEvents({ x: interpolatedX, y: interpolatedY, wheel: false, screenResolutionAndRefreshRate });
+            const extraInfo = GetMessageExtraInfo();
+            for (const event of events) {
+                event.u.mi.dwExtraInfo = extraInfo ?? 0;
+            }
+            const returnCode = SendInput(events.length, events, sizeof(INPUT));
+            assertSuccessSendInputReturnCode(returnCode);
         }
     } else {
         const events = makeMouseMoveEvents({ x, y, wheel: false, screenResolutionAndRefreshRate });
+        const extraInfo = GetMessageExtraInfo();
+        for (const event of events) {
+            event.u.mi.dwExtraInfo = extraInfo ?? 0;
+        }
         const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
         assertSuccessSendInputReturnCode(returnCode);
@@ -713,6 +750,10 @@ async function sendMouseMoveInput(args: { x: number, y: number, relative: boolea
 
 function sendMouseScrollInput(x: number, y: number) {
     const events = makeMouseMoveEvents({ x, y, wheel: true });
+    const extraInfo = GetMessageExtraInfo();
+    for (const event of events) {
+        event.u.mi.dwExtraInfo = extraInfo ?? 0;
+    }
     const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
     assertSuccessSendInputReturnCode(returnCode);
@@ -736,7 +777,7 @@ function getResolutionScalingFactor(): number {
     return scalingFactor;
 }
 
-function getScreenResolutionAndRefreshRate(): [number, number, number] {
+function getScreenResolutionAndRefreshRate(): [number, number, number, number, number, number, number] {
     const width = GetSystemMetrics(SystemMetric.SM_CXSCREEN);
     const height = GetSystemMetrics(SystemMetric.SM_CYSCREEN);
     let refreshRate: number | null = null;
@@ -746,7 +787,14 @@ function getScreenResolutionAndRefreshRate(): [number, number, number] {
     const deviceMode = { dmDisplayFrequency: buffer.readUInt32LE(120) } as DeviceModeAnsi;
     refreshRate = deviceMode.dmDisplayFrequency;
 
-    const resolution = [width, height, refreshRate] satisfies ReturnType<typeof getScreenResolutionAndRefreshRate>;
+    // Virtual screen metrics span all monitors and are required for correct
+    // MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK coordinate normalization
+    const vScreenWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN as SystemMetric);
+    const vScreenHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN as SystemMetric);
+    const vScreenLeft = GetSystemMetrics(SM_XVIRTUALSCREEN as SystemMetric);
+    const vScreenTop = GetSystemMetrics(SM_YVIRTUALSCREEN as SystemMetric);
+
+    const resolution = [width, height, refreshRate, vScreenWidth, vScreenHeight, vScreenLeft, vScreenTop] satisfies ReturnType<typeof getScreenResolutionAndRefreshRate>;
 
     const nonMemoizedMethod = getScreenResolutionAndRefreshRate;
     const currentTime = new Date().getTime();
@@ -772,7 +820,7 @@ export function keyUp(char: string, forceUnicode: boolean = false): void {
 }
 
 export async function mouseMoveRelative(x: number, y: number, duration: number = 0, easingFunction?: string): Promise<void> {
-    await sendMouseMoveInput({x, y, relative: true, duration, easingFunction});
+    await sendMouseMoveInput({ x, y, relative: true, duration, easingFunction });
 }
 
 export function mouseScroll(x: number, y: number): void {
@@ -780,7 +828,7 @@ export function mouseScroll(x: number, y: number): void {
 }
 
 export async function mouseMoveAbsolute(x: number, y: number, duration: number = 0, easingFunction?: string): Promise<void> {
-    await sendMouseMoveInput({x, y, relative: false, duration, easingFunction});
+    await sendMouseMoveInput({ x, y, relative: false, duration, easingFunction });
 }
 
 export function mouseDown(button: number = 0): void {
@@ -824,20 +872,68 @@ export function getWindowAllHandlesForProcessIds(processIds: number[]): number[]
     return handles;
 }
 
-export function trySetForegroundWindow(windowHandle: number): boolean {
-    return EnumWindows((hWnd) => {
+export function getHwndByHandle(windowHandle: number): HWND | null {
+    let result: HWND | null = null;
+    EnumWindows((hWnd) => {
         if (windowHandle === Number(address(hWnd))) {
-            SetForegroundWindow(hWnd);
+            result = hWnd;
             return false;
         }
-
         return true;
     }, 0);
+    return result;
+}
+
+export function getHwndByPoint(x: number, y: number): HWND | null {
+    const hwnd = WindowFromPoint({ x, y });
+    return hwnd || null;
+}
+
+export function trySetForegroundWindow(windowHandle: number): boolean {
+    const hwnd = getHwndByHandle(windowHandle);
+    if (hwnd) {
+        const timeout: [number] = [0];
+        SystemParametersInfoA(SPI_GETFOREGROUNDLOCKTIMEOUT, 0, timeout, 0);
+        SystemParametersInfoA(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, [0], SPIF_SENDWININICHANGE | SPIF_UPDATEINIFILE);
+
+        const isSuccessful = SetForegroundWindow(hwnd);
+        SystemParametersInfoA(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, timeout, SPIF_SENDWININICHANGE | SPIF_UPDATEINIFILE);
+        return isSuccessful;
+    }
+    return false;
 }
 
 export function sendKeyboardEvents(inputs: (KeyboardEvent['u']['ki'])[]): number {
+    const extraInfo = GetMessageExtraInfo();
+    for (const input of inputs) {
+        input.dwExtraInfo = extraInfo ?? 0;
+    }
+
     return SendInput(inputs.length, inputs.map((ki) => ({
         type: InputType.INPUT_KEYBOARD,
         u: { ki },
     })), sizeof(INPUT));
+}
+
+export async function withAttachedInput(hwnd: HWND, fn: () => Promise<void>): Promise<void> {
+    const currentThreadId = GetCurrentThreadId();
+    const targetThreadId = GetWindowThreadProcessId(hwnd, [null]);
+    AttachThreadInput(currentThreadId, targetThreadId, true);
+
+    const timeout: [number] = [0];
+    SystemParametersInfoA(SPI_GETFOREGROUNDLOCKTIMEOUT, 0, timeout, 0);
+    SystemParametersInfoA(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, [0], SPIF_SENDWININICHANGE | SPIF_UPDATEINIFILE);
+
+    try {
+        SetForegroundWindow(hwnd);
+    } catch {
+        // ignore
+    }
+
+    try {
+        await fn();
+    } finally {
+        AttachThreadInput(currentThreadId, targetThreadId, false);
+        SystemParametersInfoA(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, timeout, SPIF_SENDWININICHANGE | SPIF_UPDATEINIFILE);
+    }
 }

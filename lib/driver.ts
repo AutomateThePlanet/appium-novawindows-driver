@@ -100,6 +100,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
     currentContext: string | null = null;
     _screenRecorder: ScreenRecorder | null = null;
     webviewDevtoolsPort: number | null = null;
+    windowHandle: number | null;
 
     constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
         super(opts, shouldValidateCaps);
