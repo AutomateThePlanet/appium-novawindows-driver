@@ -31,8 +31,8 @@
     "appium": "^3.0.0-rc.2"
   },
   "dependencies": {
-    "@appium/base-driver": "^10.1.0",
-    "appium-chromedriver": "^8.2.21",
+    "@appium/base-driver": "^10.6.0",
+    "appium-chromedriver": "^8.4.5",
     "bezier-easing": "^2.1.0",
     "koffi": "^2.14.1",
     "xpath-analyzer": "^3.0.1"
