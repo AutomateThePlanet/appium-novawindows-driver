@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0...v1.4.1) (2026-06-12)
+
+### Bug Fixes
+
+* improve UI interaction stability ([9b33a0c](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/9b33a0c5b8a49030d6aea3530f935f2c1f4f166e))
+
 ## [1.4.0](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.3.1...v1.4.0) (2026-04-14)
 
 ### Features
