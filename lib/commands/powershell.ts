@@ -216,7 +216,7 @@ export async function terminatePowerShellSession(this: NovaWindowsDriver): Promi
         return;
     }
 
-    if (this.powerShell.exitCode !== null) {
+    if (this.powerShell.exitCode != null) {
         this.log.debug(`PowerShell session already terminated.`);
         return;
     }
