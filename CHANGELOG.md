@@ -1,3 +1,17 @@
+## [1.4.2](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.1...v1.4.2) (2026-07-27)
+
+### Bug Fixes
+
+* fixed broken if check [skip changelog] ([4b0ae6d](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/4b0ae6d99eed60183cf0cb4660de0043004c9491))
+* fixed test again after revert [skip changelog] ([7d7c96c](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/7d7c96c5e413c6b50fbbb347a3192cbeae9edc71))
+* re-added lines that should not have been reverted [skip changelog] ([44510bc](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/44510bcf8389413087f298bde07995322bfd7c22))
+* update null checks ([edfb598](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/edfb5985f15493d15c3637bcc2490187b696b44e))
+
+### Reverts
+
+* Revert "chore(release): 1.4.1 [skip ci]" ([c524b79](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/c524b791a74a5750a7b33a9102df750210184e04))
+* reverted stability-related changes from 1.4.1 as they introduced no benefit ([d3abc9e](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/d3abc9e3b9335db7d72455803441c860a0e3ff75))
+
 ## [1.4.1](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.0...v1.4.1) (2026-06-12)
 
 ### Bug Fixes
