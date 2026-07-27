@@ -619,7 +619,7 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
         throw new errors.InvalidArgumentError('Either elementId or x and y must be provided.');
     }
 
-    if (x != null && y != null) {
+    if ((x != null) !== (y != null)) {
         throw new errors.InvalidArgumentError('Both x and y must be provided.');
     }
 
