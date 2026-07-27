@@ -44,7 +44,7 @@ describe('startRecordingScreen', () => {
 
         expect(MockScreenRecorder).toHaveBeenCalledWith(
             'C:\\temp\\rec.mp4',
-            driver.log,
+            driver,
             expect.any(Object),
         );
         expect(mockRecorderInstance.start).toHaveBeenCalledOnce();
