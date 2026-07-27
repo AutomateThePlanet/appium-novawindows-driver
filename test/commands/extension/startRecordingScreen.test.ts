@@ -68,7 +68,7 @@ describe('startRecordingScreen', () => {
 
         expect(MockScreenRecorder).toHaveBeenCalledWith(
             'C:\\rec.mp4',
-            driver.log,
+            driver,
             expect.objectContaining({
                 fps: 30,
                 timeLimit: 60,
