@@ -267,7 +267,7 @@ export async function processExprNode<T>(exprNode: ExprNode, context: Automation
 }
 
 async function handleLocationNode(location: LocationNode, context: AutomationElement, sendPowerShellCommand: (command: string) => Promise<string>): Promise<AutomationElement[] | string[]> {
-    if (location.steps.some((step) => step.test.name === null)) {
+    if (location.steps.some((step) => step.test.name == null)) {
         throw new errors.InvalidSelectorError('Expected path step expression.');
     }
 

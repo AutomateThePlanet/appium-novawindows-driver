@@ -615,11 +615,11 @@ export async function executeScroll(this: NovaWindowsDriver, scrollArgs: {
         modifierKeys = [],
     } = scrollArgs;
 
-    if (!!elementId && ((x !== null && x !== undefined) || (y !== null && y !== undefined))) {
+    if (!!elementId && (x != null || y != null)) {
         throw new errors.InvalidArgumentError('Either elementId or x and y must be provided.');
     }
 
-    if ((x !== null && x !== undefined) !== (y !== null && y !== undefined)) {
+    if ((x != null) !== (y != null)) {
         throw new errors.InvalidArgumentError('Both x and y must be provided.');
     }
 

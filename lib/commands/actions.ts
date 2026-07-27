@@ -12,23 +12,22 @@ import {
 
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { NovaWindowsDriver } from '../driver';
-import { keyDown, keyUp, mouseMoveRelative, mouseMoveAbsolute, mouseDown, mouseUp, mouseScroll, withAttachedInput, getHwndByPoint } from '../winapi/user32';
+import { keyDown, keyUp, mouseMoveRelative, mouseMoveAbsolute, mouseDown, mouseUp, mouseScroll } from '../winapi/user32';
 import { sleep } from '../util';
 import { AutomationElement, FoundAutomationElement } from '../powershell';
 import { Key } from '../enums';
 
 export async function performActions(this: NovaWindowsDriver, actionSequences: ActionSequence[]): Promise<void> {
-    const currentPos = { x: 0, y: 0 };
     for (const actionSequence of actionSequences) {
         switch (actionSequence.type) {
             case 'key':
                 await this.handleKeyActionSequence(actionSequence);
                 break;
             case 'wheel':
-                await this.handleWheelActionSequence(actionSequence, currentPos);
+                await this.handleWheelActionSequence(actionSequence);
                 break;
             case 'pointer':
-                await this.handlePointerActionSequence(actionSequence, currentPos);
+                await this.handlePointerActionSequence(actionSequence);
                 break;
             case 'none':
                 await this.handleNullActionSequence(actionSequence);
@@ -46,31 +45,29 @@ export async function handleKeyActionSequence(this: NovaWindowsDriver, actionSeq
     }
 }
 
-export async function handlePointerActionSequence(this: NovaWindowsDriver, actionSequence: PointerActionSequence, currentPos: { x: number, y: number }): Promise<void> {
+export async function handlePointerActionSequence(this: NovaWindowsDriver, actionSequence: PointerActionSequence): Promise<void> {
     switch (actionSequence.parameters?.pointerType) {
         case 'touch':
         case 'pen':
             throw new errors.NotImplementedError(`Pointer type ${actionSequence.parameters?.pointerType} not implemented yet.`);
         case 'mouse':
         default:
-            await this.handleMousePointerActionSequence(actionSequence, currentPos);
+            await this.handleMousePointerActionSequence(actionSequence);
     }
 }
 
-export async function handleMousePointerActionSequence(this: NovaWindowsDriver, actionSequence: PointerActionSequence, currentPos: { x: number, y: number }): Promise<void> {
+export async function handleMousePointerActionSequence(this: NovaWindowsDriver, actionSequence: PointerActionSequence): Promise<void> {
     const actions = actionSequence.actions;
     for (const action of actions) {
         switch (action.type) {
             case 'pointerMove':
                 await this.handleMouseMoveAction(action);
-                currentPos.x = action.x;
-                currentPos.y = action.y;
                 break;
             case 'pointerDown':
-                await withAttachedInput(getHwndByPoint(currentPos.x, currentPos.y), async () => mouseDown(action.button));
+                mouseDown(action.button);
                 break;
             case 'pointerUp':
-                await withAttachedInput(getHwndByPoint(currentPos.x, currentPos.y), async () => mouseUp(action.button));
+                mouseUp(action.button);
                 break;
             case 'pause':
                 if (action.duration) {
@@ -83,13 +80,13 @@ export async function handleMousePointerActionSequence(this: NovaWindowsDriver, 
     }
 }
 
-export async function handleWheelActionSequence(this: NovaWindowsDriver, actionSequence: WheelActionSequence, currentPos: { x: number, y: number }): Promise<void> {
+export async function handleWheelActionSequence(this: NovaWindowsDriver, actionSequence: WheelActionSequence): Promise<void> {
     const actions = actionSequence.actions;
     for (const action of actions) {
         switch (action.type) {
             case 'scroll':
                 await this.handleMouseMoveAction(action);
-                await withAttachedInput(getHwndByPoint(currentPos.x, currentPos.y), async () => mouseScroll(action.deltaX, action.deltaY));
+                mouseScroll(action.deltaX, action.deltaY);
                 break;
             case 'pause':
                 if (action.duration) {
@@ -113,7 +110,7 @@ export async function handleNullActionSequence(this: NovaWindowsDriver, actionSe
 
 export async function handleMouseMoveAction(this: NovaWindowsDriver, action: PointerMoveAction | ScrollAction): Promise<void> {
     const easingFunction = this.caps.smoothPointerMove;
-    switch (action.origin ?? 'viewport') {
+    switch (action.origin) {
         case 'pointer':
             await mouseMoveRelative(action.x, action.y, action.duration, easingFunction);
             break;

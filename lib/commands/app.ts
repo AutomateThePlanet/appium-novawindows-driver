@@ -131,7 +131,6 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
             if (elementId.trim() !== '') {
                 await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
                 trySetForegroundWindow(handle);
-                this.windowHandle = handle;
                 return;
             }
         }
@@ -144,7 +143,6 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
             this.log.info(`Found window with name '${name}'. Setting it as the root element.`);
             await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
             trySetForegroundWindow(handle);
-            this.windowHandle = handle;
             return;
         }
 
@@ -279,10 +277,10 @@ export async function setWindowRect(
     width: number | null,
     height: number | null
 ): Promise<Rect> {
-    if (width !== null && width < 0) {
+    if (width != null && width < 0) {
         throw new errors.InvalidArgumentError('width must be a non-negative integer.');
     }
-    if (height !== null && height < 0) {
+    if (height != null && height < 0) {
         throw new errors.InvalidArgumentError('height must be a non-negative integer.');
     }
 
@@ -292,10 +290,10 @@ export async function setWindowRect(
     }
 
     const el = new FoundAutomationElement(elementId);
-    if (x !== null && y !== null) {
+    if (x != null && y != null) {
         await this.sendPowerShellCommand(el.buildMoveCommand(x, y));
     }
-    if (width !== null && height !== null) {
+    if (width != null && height != null) {
         await this.sendPowerShellCommand(el.buildResizeCommand(width, height));
     }
 
@@ -342,7 +340,6 @@ export async function attachToApplicationWindow(this: NovaWindowsDriver, process
                 [W3C_ELEMENT_KEY]: elementId,
             } satisfies Element);
         };
-        this.windowHandle = nativeWindowHandle;
         return;
     }
 }

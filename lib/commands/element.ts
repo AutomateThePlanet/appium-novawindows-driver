@@ -15,7 +15,7 @@ import {
     pwsh$,
 } from '../powershell';
 import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
-import { withAttachedInput, getHwndByHandle, mouseDown, mouseMoveAbsolute, mouseUp, getHwndByPoint } from '../winapi/user32';
+import { mouseDown, mouseMoveAbsolute, mouseUp } from '../winapi/user32';
 import { Key } from '../enums';
 import { sleep } from '../util';
 
@@ -232,13 +232,10 @@ export async function click(this: NovaWindowsDriver, elementId: string): Promise
         coordinates.y = rect.y + rect.height / 2;
     }
 
-    await mouseMoveAbsolute(coordinates.x, coordinates.y, 0, easingFunction);
-    const hwnd = this.windowHandle ? getHwndByHandle(this.windowHandle) : getHwndByPoint(coordinates.x, coordinates.y);
+    await mouseMoveAbsolute(coordinates.x, coordinates.y, this.caps.delayBeforeClick ?? 0, easingFunction);
 
-    withAttachedInput(hwnd, async () => {
-        mouseDown();
-        mouseUp();
-    });
+    mouseDown();
+    mouseUp();
 
     if (this.caps.delayAfterClick) {
         await sleep(this.caps.delayAfterClick ?? 0);

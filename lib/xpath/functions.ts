@@ -357,7 +357,7 @@ export async function handleFunctionCall<T>(name: FunctionName, context: Automat
 function convertProcessedExprNodesToStrings<T>(...arrayOfProcessedExprNodes: T[]): string[] {
     return arrayOfProcessedExprNodes
         .map((item) => (item instanceof AutomationElement) ? '' : item) // windows element xml representaton never contains text nodes
-        .map((item) => item === undefined || item === null ? '' : String(item)); // convert not found elements to empty string and others to string
+        .map((item) => item == null ? '' : String(item)); // convert not found elements to empty string and others to string
 }
 
 function convertProcessedExprNodesToNumbers<T>(...arrayOfProcessedExprNodes: T[]): number[] {
