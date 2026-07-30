@@ -1,3 +1,9 @@
+## [1.4.3](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.2...v1.4.3) (2026-07-30)
+
+### Bug Fixes
+
+* fixed return value of trySetForegroundWindow ([89a7a55](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/89a7a55fec26aaf2234cb65125c4e3e93ada49c5))
+
 ## [1.4.2](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.1...v1.4.2) (2026-07-27)
 
 ### Bug Fixes
