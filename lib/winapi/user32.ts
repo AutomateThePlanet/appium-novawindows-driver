@@ -825,13 +825,23 @@ export function getWindowAllHandlesForProcessIds(processIds: number[]): number[]
 }
 
 export function trySetForegroundWindow(windowHandle: number): boolean {
-    return EnumWindows((hWnd) => {
+    let succeeded = false;
+
+    EnumWindows((hWnd) => {
         if (windowHandle === Number(address(hWnd))) {
-            return SetForegroundWindow(hWnd);
+            // Save whether SetForegroundWindow succeeded
+            succeeded = SetForegroundWindow(hWnd);
+
+            // Stop enumerating
+            return false;
         }
 
-        return false;
+        // Continue enumerating
+        return true;
     }, 0);
+
+    // Return true if SetForegroundWindow was invoked successfully
+    return succeeded;
 }
 
 export function sendKeyboardEvents(inputs: (KeyboardEvent['u']['ki'])[]): number {
