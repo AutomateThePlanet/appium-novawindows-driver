@@ -827,11 +827,10 @@ export function getWindowAllHandlesForProcessIds(processIds: number[]): number[]
 export function trySetForegroundWindow(windowHandle: number): boolean {
     return EnumWindows((hWnd) => {
         if (windowHandle === Number(address(hWnd))) {
-            SetForegroundWindow(hWnd);
-            return false;
+            return SetForegroundWindow(hWnd);
         }
 
-        return true;
+        return false;
     }, 0);
 }
 
