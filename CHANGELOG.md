@@ -1,3 +1,9 @@
+## [1.4.4](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.3...v1.4.4) (2026-08-06)
+
+### Bug Fixes
+
+* return whether the window was actually brought to the foreground ([6f0f741](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/6f0f741bb700d8e5c3a65d95d4382b4c5c6dbdd3))
+
 ## [1.4.3](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.2...v1.4.3) (2026-07-30)
 
 ### Bug Fixes
