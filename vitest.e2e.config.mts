@@ -10,15 +10,13 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 60_000,
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true, // sequential execution — only one app on screen at a time
-      },
-    },
+    // sequential execution — only one app on screen at a time
+    maxWorkers: 1,
+    isolate: false,
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'lib'),
+      '@': resolve(import.meta.dirname, 'lib'),
     },
   },
 });
