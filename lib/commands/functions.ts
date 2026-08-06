@@ -1,4 +1,4 @@
-import { pwsh } from '../powershell';
+import {pwsh} from '../powershell';
 
 export const FIND_CHILDREN_RECURSIVELY = pwsh /* ps1 */ `
     function Find-ChildrenRecursively {

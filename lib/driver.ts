@@ -1,303 +1,332 @@
-import { BaseDriver, W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
-import { system } from 'appium/support';
-import { ChildProcessWithoutNullStreams } from 'node:child_process';
-import type { ScreenRecorder } from './commands/screen-recorder';
-import commands from './commands';
-import {
-    NovaWindowsDriverConstraints,
-    UI_AUTOMATION_DRIVER_CONSTRAINTS
-} from './constraints';
-import {
-    AutomationElement,
-    Condition,
-    FoundAutomationElement,
-    PSControlType,
-    PSInt32Array,
-    PSString,
-    Property,
-    PropertyCondition,
-    TreeScope,
-    convertStringToCondition,
-} from './powershell';
-import { assertSupportedEasingFunction } from './util';
-import { setDpiAwareness } from './winapi/user32';
-import { xpathToElIdOrIds } from './xpath';
+import type {ChildProcessWithoutNullStreams} from 'node:child_process';
 
-import type { Chromedriver } from 'appium-chromedriver';
+import {BaseDriver, W3C_ELEMENT_KEY, errors} from '@appium/base-driver';
 import type {
-    DefaultCreateSessionResult,
-    DriverData,
-    Element,
-    ExternalDriver,
-    InitialOpts,
-    RouteMatcher,
-    StringRecord,
-    W3CDriverCaps
+  DefaultCreateSessionResult,
+  DriverData,
+  Element,
+  ExternalDriver,
+  InitialOpts,
+  RouteMatcher,
+  StringRecord,
+  W3CDriverCaps,
 } from '@appium/types';
+import type {Chromedriver} from 'appium-chromedriver';
+import {system} from 'appium/support';
+
+import commands from './commands';
+import type {ScreenRecorder} from './commands/screen-recorder';
+import type {NovaWindowsDriverConstraints} from './constraints';
+import {UI_AUTOMATION_DRIVER_CONSTRAINTS} from './constraints';
+import type {Condition} from './powershell';
+import {
+  AutomationElement,
+  FoundAutomationElement,
+  PSControlType,
+  PSInt32Array,
+  PSString,
+  Property,
+  PropertyCondition,
+  TreeScope,
+  convertStringToCondition,
+} from './powershell';
+import {assertSupportedEasingFunction} from './util';
+import {setDpiAwareness} from './winapi/user32';
+import {xpathToElIdOrIds} from './xpath';
 
 type W3CNovaWindowsDriverCaps = W3CDriverCaps<NovaWindowsDriverConstraints>;
 type DefaultWindowsCreateSessionResult = DefaultCreateSessionResult<NovaWindowsDriverConstraints>;
 
 type KeyboardState = {
-    pressed: Set<string>,
-    shift: boolean,
-    ctrl: boolean,
-    meta: boolean,
-    alt: boolean,
-}
+  pressed: Set<string>;
+  shift: boolean;
+  ctrl: boolean;
+  meta: boolean;
+  alt: boolean;
+};
 
 const LOCATION_STRATEGIES = Object.freeze([
-    'id',
-    'name',
-    'xpath',
-    'tag name',
-    'class name',
-    'accessibility id',
-    '-windows uiautomation',
+  'id',
+  'name',
+  'xpath',
+  'tag name',
+  'class name',
+  'accessibility id',
+  '-windows uiautomation',
 ] as const);
 
 // This is a set of methods and paths that we never want to proxy to Chromedriver.
 const CHROMEDRIVER_NO_PROXY: RouteMatcher[] = [
-    ['GET', new RegExp('^/session/[^/]+/appium')],
-    ['GET', new RegExp('^/session/[^/]+/context')],
-    ['GET', new RegExp('^/session/[^/]+/element/[^/]+/rect')],
-    ['GET', new RegExp('^/session/[^/]+/orientation')],
-    ['POST', new RegExp('^/session/[^/]+/appium')],
-    ['POST', new RegExp('^/session/[^/]+/context')],
-    ['POST', new RegExp('^/session/[^/]+/orientation')],
+  ['GET', new RegExp('^/session/[^/]+/appium')],
+  ['GET', new RegExp('^/session/[^/]+/context')],
+  ['GET', new RegExp('^/session/[^/]+/element/[^/]+/rect')],
+  ['GET', new RegExp('^/session/[^/]+/orientation')],
+  ['POST', new RegExp('^/session/[^/]+/appium')],
+  ['POST', new RegExp('^/session/[^/]+/context')],
+  ['POST', new RegExp('^/session/[^/]+/orientation')],
 
-    // this is needed to make the windows: and powerShell commands work in web context
-    ['POST', new RegExp('^/session/[^/]+/execute$')],
-    ['POST', new RegExp('^/session/[^/]+/execute/sync')],
+  // this is needed to make the windows: and powerShell commands work in web context
+  ['POST', new RegExp('^/session/[^/]+/execute$')],
+  ['POST', new RegExp('^/session/[^/]+/execute/sync')],
 
-    // MJSONWP commands
-    ['GET', new RegExp('^/session/[^/]+/log/types$')],
-    ['POST', new RegExp('^/session/[^/]+/log$')],
-    // W3C commands
-    // For Selenium v4 (W3C does not have this route)
-    ['GET', new RegExp('^/session/[^/]+/se/log/types$')],
-    // For Selenium v4 (W3C does not have this route)
-    ['POST', new RegExp('^/session/[^/]+/se/log$')],
+  // MJSONWP commands
+  ['GET', new RegExp('^/session/[^/]+/log/types$')],
+  ['POST', new RegExp('^/session/[^/]+/log$')],
+  // W3C commands
+  // For Selenium v4 (W3C does not have this route)
+  ['GET', new RegExp('^/session/[^/]+/se/log/types$')],
+  // For Selenium v4 (W3C does not have this route)
+  ['POST', new RegExp('^/session/[^/]+/se/log$')],
 ];
 
 export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, StringRecord> {
-    isPowerShellSessionStarted: boolean = false;
-    powerShell?: ChildProcessWithoutNullStreams;
-    powerShellStdOut: string = '';
-    powerShellStdErr: string = '';
-    keyboardState: KeyboardState = {
-        pressed: new Set(),
-        alt: false,
-        ctrl: false,
-        meta: false,
-        shift: false,
-    };
-    chromedriver: Chromedriver | null = null;
-    proxyReqRes: ((...args: any) => any) | null = null;
-    proxyCommand: ExternalDriver['proxyCommand'] | null = null;
-    contexts: string[] = [];
-    jwpProxyActive: boolean = false;
-    currentContext: string | null = null;
-    _screenRecorder: ScreenRecorder | null = null;
-    webviewDevtoolsPort: number | null = null;
+  isPowerShellSessionStarted: boolean = false;
+  powerShell?: ChildProcessWithoutNullStreams;
+  powerShellStdOut: string = '';
+  powerShellStdErr: string = '';
+  keyboardState: KeyboardState = {
+    pressed: new Set(),
+    alt: false,
+    ctrl: false,
+    meta: false,
+    shift: false,
+  };
+  chromedriver: Chromedriver | null = null;
+  proxyReqRes: ((...args: any) => any) | null = null;
+  proxyCommand: ExternalDriver['proxyCommand'] | null = null;
+  contexts: string[] = [];
+  jwpProxyActive: boolean = false;
+  currentContext: string | null = null;
+  _screenRecorder: ScreenRecorder | null = null;
+  webviewDevtoolsPort: number | null = null;
 
-    constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
-        super(opts, shouldValidateCaps);
+  constructor(opts: InitialOpts = {} as InitialOpts, shouldValidateCaps = true) {
+    super(opts, shouldValidateCaps);
 
-        this.locatorStrategies = [...LOCATION_STRATEGIES];
-        this.desiredCapConstraints = UI_AUTOMATION_DRIVER_CONSTRAINTS;
+    this.locatorStrategies = [...LOCATION_STRATEGIES];
+    this.desiredCapConstraints = UI_AUTOMATION_DRIVER_CONSTRAINTS;
 
-        // Bind commands to this instance (not prototype) so each driver instance uses its own
-        // PowerShell session and state when multiple sessions exist
-        for (const key in commands) { // TODO: create a decorator that will do that for the class
-            (this as any)[key] = commands[key].bind(this);
-        }
+    // Bind commands to this instance (not prototype) so each driver instance uses its own
+    // PowerShell session and state when multiple sessions exist
+    for (const key in commands) {
+      // TODO: create a decorator that will do that for the class
+      (this as any)[key] = commands[key].bind(this);
+    }
+  }
+
+  override canProxy(): boolean {
+    return true;
+  }
+
+  override proxyActive(): boolean {
+    return this.jwpProxyActive;
+  }
+
+  override getProxyAvoidList(): RouteMatcher[] {
+    return this.jwpProxyActive && this.chromedriver ? CHROMEDRIVER_NO_PROXY : [];
+  }
+
+  override async findElement(strategy: string, selector: string): Promise<Element> {
+    [strategy, selector] = this.processSelector(strategy, selector);
+    return super.findElement(strategy, selector);
+  }
+
+  override async findElements(strategy: string, selector: string): Promise<Element[]> {
+    [strategy, selector] = this.processSelector(strategy, selector);
+    return super.findElements(strategy, selector);
+  }
+
+  override async findElementFromElement(strategy: string, selector: string, elementId: string): Promise<Element> {
+    [strategy, selector] = this.processSelector(strategy, selector);
+    return super.findElementFromElement(strategy, selector, elementId);
+  }
+
+  override async findElementsFromElement(strategy: string, selector: string, elementId: string): Promise<Element[]> {
+    [strategy, selector] = this.processSelector(strategy, selector);
+    return super.findElementsFromElement(strategy, selector, elementId);
+  }
+
+  override async findElOrEls(
+    strategy: (typeof LOCATION_STRATEGIES)[number],
+    selector: string,
+    mult: true,
+    context?: string,
+  ): Promise<Element[]>;
+  override async findElOrEls(
+    strategy: (typeof LOCATION_STRATEGIES)[number],
+    selector: string,
+    mult: false,
+    context?: string,
+  ): Promise<Element>;
+  override async findElOrEls(
+    strategy: (typeof LOCATION_STRATEGIES)[number],
+    selector: string,
+    mult: boolean,
+    context?: string,
+  ): Promise<Element | Element[]> {
+    let condition: Condition;
+    switch (strategy) {
+      case 'id':
+        condition = new PropertyCondition(Property.RUNTIME_ID, new PSInt32Array(selector.split('.').map(Number)));
+        break;
+      case 'tag name':
+        condition = new PropertyCondition(Property.CONTROL_TYPE, new PSControlType(selector));
+        break;
+      case 'accessibility id':
+        condition = new PropertyCondition(Property.AUTOMATION_ID, new PSString(selector));
+        break;
+      case 'name':
+        condition = new PropertyCondition(Property.NAME, new PSString(selector));
+        break;
+      case 'class name':
+        condition = new PropertyCondition(Property.CLASS_NAME, new PSString(selector));
+        break;
+      case '-windows uiautomation':
+        condition = convertStringToCondition(selector);
+        break;
+      case 'xpath':
+        return await xpathToElIdOrIds(selector, mult, context, this.sendPowerShellCommand.bind(this));
+      default:
+        throw new errors.InvalidArgumentError(`Invalid find strategy ${strategy}`);
     }
 
-    override canProxy(): boolean {
-        return true;
+    const searchContext = context ? new FoundAutomationElement(context) : AutomationElement.automationRoot;
+
+    if (mult) {
+      const result = await this.sendPowerShellCommand(
+        searchContext.findAll(TreeScope.DESCENDANTS, condition).buildCommand(),
+      );
+      const elIds = result
+        .split('\n')
+        .map((elId) => elId.trim())
+        .filter(Boolean);
+      return elIds.filter(Boolean).map((elId) => ({[W3C_ELEMENT_KEY]: elId}));
     }
 
-    override proxyActive(): boolean {
-        return this.jwpProxyActive;
+    const result = await this.sendPowerShellCommand(
+      searchContext.findFirst(TreeScope.DESCENDANTS, condition).buildCommand(),
+    );
+    const elId = result.trim();
+
+    if (!elId) {
+      throw new errors.NoSuchElementError();
     }
 
-    override getProxyAvoidList(): RouteMatcher[] {
-        return this.jwpProxyActive && this.chromedriver ? CHROMEDRIVER_NO_PROXY : [];
+    return {[W3C_ELEMENT_KEY]: elId};
+  }
+
+  override async createSession(
+    jwpCaps: W3CNovaWindowsDriverCaps,
+    reqCaps?: W3CNovaWindowsDriverCaps,
+    w3cCaps?: W3CNovaWindowsDriverCaps,
+    driverData?: DriverData[],
+  ): Promise<DefaultWindowsCreateSessionResult> {
+    if (!system.isWindows()) {
+      this.log.errorWithException('Windows UI Automation tests only run on Windows.');
     }
 
-    override async findElement(strategy: string, selector: string): Promise<Element> {
-        [strategy, selector] = this.processSelector(strategy, selector);
-        return super.findElement(strategy, selector);
+    if (typeof w3cCaps?.alwaysMatch?.['appium:appTopLevelWindow'] === 'number') {
+      w3cCaps.alwaysMatch['appium:appTopLevelWindow'] = String(w3cCaps.alwaysMatch['appium:appTopLevelWindow']);
     }
 
-    override async findElements(strategy: string, selector: string): Promise<Element[]> {
-        [strategy, selector] = this.processSelector(strategy, selector);
-        return super.findElements(strategy, selector);
+    if (typeof w3cCaps?.firstMatch?.some['appium:appTopLevelWindow'] === 'number') {
+      w3cCaps.firstMatch['appium:appTopLevelWindow'] = w3cCaps.firstMatch['appium:appTopLevelWindow'].map(String);
     }
 
-    override async findElementFromElement(strategy: string, selector: string, elementId: string): Promise<Element> {
-        [strategy, selector] = this.processSelector(strategy, selector);
-        return super.findElementFromElement(strategy, selector, elementId);
+    try {
+      this.log.debug('Creating NovaWindows driver session...');
+      const [sessionId, caps] = await super.createSession(jwpCaps, reqCaps, w3cCaps, driverData);
+      if (caps.smoothPointerMove) {
+        assertSupportedEasingFunction(caps.smoothPointerMove);
+      }
+      if (caps.app && caps.appTopLevelWindow) {
+        throw new errors.InvalidArgumentError('Invalid capabilities. Specify either app or appTopLevelWindow.');
+      }
+      if (this.caps.shouldCloseApp === undefined) {
+        this.caps.shouldCloseApp = true; // set default value
+      }
+
+      await this.startPowerShellSession();
+
+      if (this.caps.prerun) {
+        this.log.info('Executing prerun PowerShell script...');
+        await this.executePowerShellScript(
+          this.caps.prerun as Exclude<Parameters<(typeof commands)['executePowerShellScript']>[0], string>,
+        );
+      }
+
+      setDpiAwareness();
+      this.log.debug(`Started session ${sessionId}.`);
+      return [sessionId, caps];
+    } catch (e) {
+      await this.deleteSession();
+      throw e;
     }
+  }
 
-    override async findElementsFromElement(strategy: string, selector: string, elementId: string): Promise<Element[]> {
-        [strategy, selector] = this.processSelector(strategy, selector);
-        return super.findElementsFromElement(strategy, selector, elementId);
-    }
+  override async deleteSession(sessionId?: string | null | undefined): Promise<void> {
+    this.log.debug('Deleting NovaWindows driver session...');
 
-    override async findElOrEls(strategy: typeof LOCATION_STRATEGIES[number], selector: string, mult: true, context?: string): Promise<Element[]>;
-    override async findElOrEls(strategy: typeof LOCATION_STRATEGIES[number], selector: string, mult: false, context?: string): Promise<Element>;
-    override async findElOrEls(strategy: typeof LOCATION_STRATEGIES[number], selector: string, mult: boolean, context?: string): Promise<Element | Element[]> {
-        let condition: Condition;
-        switch (strategy) {
-            case 'id':
-                condition = new PropertyCondition(Property.RUNTIME_ID, new PSInt32Array(selector.split('.').map(Number)));
-                break;
-            case 'tag name':
-                condition = new PropertyCondition(Property.CONTROL_TYPE, new PSControlType(selector));
-                break;
-            case 'accessibility id':
-                condition = new PropertyCondition(Property.AUTOMATION_ID, new PSString(selector));
-                break;
-            case 'name':
-                condition = new PropertyCondition(Property.NAME, new PSString(selector));
-                break;
-            case 'class name':
-                condition = new PropertyCondition(Property.CLASS_NAME, new PSString(selector));
-                break;
-            case '-windows uiautomation':
-                condition = convertStringToCondition(selector);
-                break;
-            case 'xpath':
-                return await xpathToElIdOrIds(selector, mult, context, this.sendPowerShellCommand.bind(this));
-            default:
-                throw new errors.InvalidArgumentError(`Invalid find strategy ${strategy}`);
-        }
-
-        const searchContext = context ? new FoundAutomationElement(context) : AutomationElement.automationRoot;
-
-        if (mult) {
-            const result = await this.sendPowerShellCommand(searchContext.findAll(TreeScope.DESCENDANTS, condition).buildCommand());
-            const elIds = result.split('\n').map((elId) => elId.trim()).filter(Boolean);
-            return elIds.filter(Boolean).map((elId) => ({ [W3C_ELEMENT_KEY]: elId }));
-        }
-
-        const result = await this.sendPowerShellCommand(searchContext.findFirst(TreeScope.DESCENDANTS, condition).buildCommand());
-        const elId = result.trim();
-
-        if (!elId) {
-            throw new errors.NoSuchElementError();
-        }
-
-        return { [W3C_ELEMENT_KEY]: elId };
-    }
-
-    override async createSession(
-        jwpCaps: W3CNovaWindowsDriverCaps,
-        reqCaps?: W3CNovaWindowsDriverCaps,
-        w3cCaps?: W3CNovaWindowsDriverCaps,
-        driverData?: DriverData[]
-    ): Promise<DefaultWindowsCreateSessionResult> {
-        if (!system.isWindows()) {
-            this.log.errorWithException('Windows UI Automation tests only run on Windows.');
-        }
-
-        if (typeof w3cCaps?.alwaysMatch?.['appium:appTopLevelWindow'] === 'number') {
-            w3cCaps.alwaysMatch['appium:appTopLevelWindow'] = String(w3cCaps.alwaysMatch['appium:appTopLevelWindow']);
-        }
-
-        if (typeof w3cCaps?.firstMatch?.some['appium:appTopLevelWindow'] === 'number') {
-            w3cCaps.firstMatch['appium:appTopLevelWindow'] = w3cCaps.firstMatch['appium:appTopLevelWindow'].map(String);
-        }
-
-        try {
-            this.log.debug('Creating NovaWindows driver session...');
-            const [sessionId, caps] = await super.createSession(jwpCaps, reqCaps, w3cCaps, driverData);
-            if (caps.smoothPointerMove) {
-                assertSupportedEasingFunction(caps.smoothPointerMove);
-            }
-            if (caps.app && caps.appTopLevelWindow) {
-                throw new errors.InvalidArgumentError('Invalid capabilities. Specify either app or appTopLevelWindow.');
-            }
-            if (this.caps.shouldCloseApp === undefined) {
-                this.caps.shouldCloseApp = true; // set default value
-            }
-
-            await this.startPowerShellSession();
-
-            if (this.caps.prerun) {
-                this.log.info('Executing prerun PowerShell script...');
-                await this.executePowerShellScript(this.caps.prerun as Exclude<Parameters<typeof commands['executePowerShellScript']>[0], string>);
-            }
-
-            setDpiAwareness();
-            this.log.debug(`Started session ${sessionId}.`);
-            return [sessionId, caps];
-        } catch (e) {
-            await this.deleteSession();
-            throw e;
-        }
-    }
-
-    override async deleteSession(sessionId?: string | null | undefined): Promise<void> {
-        this.log.debug('Deleting NovaWindows driver session...');
-
-        if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
-            try {
-                if (this.caps['ms:forcequit'] === true) {
-                    await this.sendPowerShellCommand(/* ps1 */ `
+    if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
+      try {
+        if (this.caps['ms:forcequit'] === true) {
+          await this.sendPowerShellCommand(/* ps1 */ `
                         if ($null -ne $rootElement) {
                             $processId = $rootElement.Current.ProcessId
                             Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
                         }
                     `);
-                } else {
-                    const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
-                    const elementId = result.split('\n').map((id) => id.trim()).filter(Boolean)[0];
-                    if (elementId) {
-                        await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
-                    }
-                }
-            } catch {
-                // noop
-            }
+        } else {
+          const result = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildCommand());
+          const elementId = result
+            .split('\n')
+            .map((id) => id.trim())
+            .filter(Boolean)[0];
+          if (elementId) {
+            await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildCloseCommand());
+          }
         }
-        if (this.caps.postrun) {
-            this.log.info('Executing postrun PowerShell script...');
-            await this.executePowerShellScript(this.caps.postrun as Exclude<Parameters<typeof commands['executePowerShellScript']>[0], string>);
-        }
-
-        await this.terminatePowerShellSession();
-        await super.deleteSession(sessionId);
+      } catch {
+        // noop
+      }
+    }
+    if (this.caps.postrun) {
+      this.log.info('Executing postrun PowerShell script...');
+      await this.executePowerShellScript(
+        this.caps.postrun as Exclude<Parameters<(typeof commands)['executePowerShellScript']>[0], string>,
+      );
     }
 
-    private processSelector(strategy: string, selector: string): [string, string] {
-        if (strategy !== 'css selector') {
-            return [strategy, selector];
-        }
+    await this.terminatePowerShellSession();
+    await super.deleteSession(sessionId);
+  }
 
-        this.log.warn('Warning: Use Appium mobile selectors instead of Selenium By, since most of them are based on CSS.');
-        const digitRegex = /\\3(\d) /;
-
-        if (selector.startsWith('.')) {
-            selector = selector.substring(1).replace(digitRegex, '$1');
-            strategy = 'class name';
-            return [strategy, selector];
-        }
-
-        if (selector.startsWith('#')) {
-            selector = selector.substring(1).replace(digitRegex, '$1');
-            strategy = 'id';
-            return [strategy, selector];
-        }
-
-        if (selector.startsWith('*[name')) {
-            selector = selector.substring(selector.indexOf('"') + 1, selector.lastIndexOf('"')).replace(digitRegex, '$1');
-            strategy = 'name';
-            return [strategy, selector];
-        }
-
-        return [strategy, selector];
+  private processSelector(strategy: string, selector: string): [string, string] {
+    if (strategy !== 'css selector') {
+      return [strategy, selector];
     }
+
+    this.log.warn('Warning: Use Appium mobile selectors instead of Selenium By, since most of them are based on CSS.');
+    const digitRegex = /\\3(\d) /;
+
+    if (selector.startsWith('.')) {
+      selector = selector.substring(1).replace(digitRegex, '$1');
+      strategy = 'class name';
+      return [strategy, selector];
+    }
+
+    if (selector.startsWith('#')) {
+      selector = selector.substring(1).replace(digitRegex, '$1');
+      strategy = 'id';
+      return [strategy, selector];
+    }
+
+    if (selector.startsWith('*[name')) {
+      selector = selector.substring(selector.indexOf('"') + 1, selector.lastIndexOf('"')).replace(digitRegex, '$1');
+      strategy = 'name';
+      return [strategy, selector];
+    }
+
+    return [strategy, selector];
+  }
 }

@@ -1,15 +1,16 @@
-import { defineConfig } from 'vitest/config';
-import { resolve } from 'node:path';
+import {resolve} from 'node:path';
+
+import {defineConfig} from 'vitest/config';
 
 export default defineConfig({
-    test: {
-        globals: true,
-        include: ['test/**/*.test.ts'],
-        setupFiles: ['test/setup/mocks.ts'],
+  test: {
+    globals: true,
+    include: ['test/**/*.test.ts'],
+    setupFiles: ['test/setup/mocks.ts'],
+  },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'lib'),
     },
-    resolve: {
-        alias: {
-            '@': resolve(__dirname, 'lib'),
-        },
-    },
+  },
 });
