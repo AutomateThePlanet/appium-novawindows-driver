@@ -7,7 +7,7 @@
     "strict": false,
     "checkJs": true,
     "types": ["node"],
-    "noImplicitOverride": true,
+    "noImplicitOverride": true
   },
-  "include": ["lib", "eslint.config.mjs"]
+  "include": ["lib"]
 }

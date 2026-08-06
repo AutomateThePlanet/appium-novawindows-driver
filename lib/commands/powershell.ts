@@ -1,8 +1,10 @@
-import { spawn } from 'node:child_process';
+import {spawn} from 'node:child_process';
 import net from 'node:net';
-import { NovaWindowsDriver } from '../driver';
-import { errors } from '@appium/base-driver';
-import { FIND_CHILDREN_RECURSIVELY, PAGE_SOURCE } from './functions';
+
+import {errors} from '@appium/base-driver';
+
+import type {NovaWindowsDriver} from '../driver';
+import {FIND_CHILDREN_RECURSIVELY, PAGE_SOURCE} from './functions';
 
 const SET_UTF8_ENCODING = /* ps1 */ `$OutputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8`;
 const ADD_NECESSARY_ASSEMBLIES = /* ps1 */ `Add-Type -AssemblyName UIAutomationClient; Add-Type -AssemblyName System.Drawing; Add-Type -AssemblyName PresentationCore; Add-Type -AssemblyName System.Windows.Forms`;
@@ -16,245 +18,261 @@ const DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER = 10900;
 const DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER = 11000;
 
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
-    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+  const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+  powerShell.stdout.setEncoding('utf8');
+  powerShell.stderr.setEncoding('utf8');
+
+  powerShell.stdout.on('data', (chunk: any) => {
+    this.powerShellStdOut += chunk.toString();
+  });
+
+  powerShell.stderr.on('data', (chunk: any) => {
+    this.powerShellStdErr += chunk.toString();
+  });
+
+  this.powerShell = powerShell;
+
+  if (this.caps.appWorkingDir) {
+    const envVarsSet: Set<string> = new Set();
+    const matches = this.caps.appWorkingDir.matchAll(/%([^%]+)%/g);
+
+    for (const match of matches) {
+      envVarsSet.add(match[1]);
+    }
+    const envVars = Array.from(envVarsSet);
+    for (const envVar of envVars) {
+      this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(
+        `%${envVar}%`,
+        process.env[envVar.toUpperCase()] ?? '',
+      );
+    }
+    this.sendPowerShellCommand(`Set-Location -Path '${this.caps.appWorkingDir}'`);
+  }
+
+  await this.sendPowerShellCommand(SET_UTF8_ENCODING);
+  await this.sendPowerShellCommand(ADD_NECESSARY_ASSEMBLIES);
+  await this.sendPowerShellCommand(USE_UI_AUTOMATION_CLIENT);
+  await this.sendPowerShellCommand(INIT_CACHE_REQUEST);
+  await this.sendPowerShellCommand(INIT_ELEMENT_TABLE);
+
+  // initialize functions
+  await this.sendPowerShellCommand(PAGE_SOURCE);
+  await this.sendPowerShellCommand(FIND_CHILDREN_RECURSIVELY);
+
+  if ((!this.caps.app && !this.caps.appTopLevelWindow) || !this.caps.app || this.caps.app.toLowerCase() === 'none') {
+    this.log.info(`No app or top-level window specified in capabilities. Setting root element to null.`);
+    await this.sendPowerShellCommand(NULL_ROOT_ELEMENT);
+  }
+
+  if (this.caps.app && this.caps.app.toLowerCase() === 'root') {
+    this.log.info(`'root' specified as app in capabilities. Setting root element to desktop root.`);
+    await this.sendPowerShellCommand(INIT_ROOT_ELEMENT);
+  }
+
+  if (this.caps.app && this.caps.app.toLowerCase() !== 'none' && this.caps.app.toLowerCase() !== 'root') {
+    this.log.info(`Application path specified in capabilities: ${this.caps.app}`);
+    const envVarsSet: Set<string> = new Set();
+    const matches = this.caps.app.matchAll(/%([^%]+)%/g);
+
+    for (const match of matches) {
+      envVarsSet.add(match[1]);
+    }
+
+    const envVars = Array.from(envVarsSet);
+    this.log.info(
+      `Detected the following environment variables in app path: ${envVars.map((envVar) => `%${envVar}%`).join(', ')}`,
+    );
+
+    for (const envVar of envVars) {
+      this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+    }
+
+    if (this.caps.webviewEnabled) {
+      this.webviewDevtoolsPort = this.caps.webviewDevtoolsPort
+        ? Number(this.caps.webviewDevtoolsPort)
+        : await findFreePort(DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER, DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER);
+
+      this.log.info(`WebView support is enabled. DevTools will be served on port ${this.webviewDevtoolsPort}`);
+      await this.sendPowerShellCommand(
+        /* ps1 */ `$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=${this.webviewDevtoolsPort}'`,
+      );
+    }
+
+    await this.changeRootElement(this.caps.app);
+  }
+
+  if (this.caps.appTopLevelWindow) {
+    const nativeWindowHandle = Number(this.caps.appTopLevelWindow);
+
+    if (isNaN(nativeWindowHandle)) {
+      throw new errors.InvalidArgumentError(
+        `Invalid capabilities. Capability 'appTopLevelWindow' is not a valid native window handle.`,
+      );
+    }
+
+    await this.changeRootElement(nativeWindowHandle);
+  }
+}
+
+export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
+  const magicNumber = 0xf2ee;
+
+  const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
+  try {
     powerShell.stdout.setEncoding('utf8');
-    powerShell.stderr.setEncoding('utf8');
+    powerShell.stdout.setEncoding('utf8');
+
+    let localStdOut = '';
+    let localStdErr = '';
 
     powerShell.stdout.on('data', (chunk: any) => {
-        this.powerShellStdOut += chunk.toString();
+      localStdOut += chunk.toString();
     });
 
     powerShell.stderr.on('data', (chunk: any) => {
-        this.powerShellStdErr += chunk.toString();
+      localStdErr += chunk.toString();
     });
 
-    this.powerShell = powerShell;
+    const result = await new Promise<string>((resolve, reject) => {
+      localStdOut = '';
+      localStdErr = '';
 
-    if (this.caps.appWorkingDir) {
+      powerShell.stdin.write(`${SET_UTF8_ENCODING}\n`);
+      if (this.caps.appWorkingDir) {
         const envVarsSet: Set<string> = new Set();
         const matches = this.caps.appWorkingDir.matchAll(/%([^%]+)%/g);
 
         for (const match of matches) {
-            envVarsSet.add(match[1]);
+          envVarsSet.add(match[1]);
         }
         const envVars = Array.from(envVarsSet);
         for (const envVar of envVars) {
-            this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
+          this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(
+            `%${envVar}%`,
+            process.env[envVar.toUpperCase()] ?? '',
+          );
         }
-        this.sendPowerShellCommand(`Set-Location -Path '${this.caps.appWorkingDir}'`);
-    }
+        powerShell.stdin.write(`Set-Location -Path '${this.caps.appWorkingDir}'\n`);
+      }
+      powerShell.stdin.write(`${command}\n`);
+      powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
 
-    await this.sendPowerShellCommand(SET_UTF8_ENCODING);
-    await this.sendPowerShellCommand(ADD_NECESSARY_ASSEMBLIES);
-    await this.sendPowerShellCommand(USE_UI_AUTOMATION_CLIENT);
-    await this.sendPowerShellCommand(INIT_CACHE_REQUEST);
-    await this.sendPowerShellCommand(INIT_ELEMENT_TABLE);
-
-    // initialize functions
-    await this.sendPowerShellCommand(PAGE_SOURCE);
-    await this.sendPowerShellCommand(FIND_CHILDREN_RECURSIVELY);
-
-    if ((!this.caps.app && !this.caps.appTopLevelWindow) || (!this.caps.app || this.caps.app.toLowerCase() === 'none')) {
-        this.log.info(`No app or top-level window specified in capabilities. Setting root element to null.`);
-        await this.sendPowerShellCommand(NULL_ROOT_ELEMENT);
-    }
-
-    if (this.caps.app && this.caps.app.toLowerCase() === 'root') {
-        this.log.info(`'root' specified as app in capabilities. Setting root element to desktop root.`);
-        await this.sendPowerShellCommand(INIT_ROOT_ELEMENT);
-    }
-
-    if (this.caps.app && this.caps.app.toLowerCase() !== 'none' && this.caps.app.toLowerCase() !== 'root') {
-        this.log.info(`Application path specified in capabilities: ${this.caps.app}`);
-        const envVarsSet: Set<string> = new Set();
-        const matches = this.caps.app.matchAll(/%([^%]+)%/g);
-
-        for (const match of matches) {
-            envVarsSet.add(match[1]);
+      const onData: Parameters<typeof powerShell.stdout.on>[1] = (chunk: any) => {
+        const magicChar = String.fromCharCode(magicNumber);
+        if (chunk.toString().includes(magicChar)) {
+          powerShell.stdout.off('data', onData);
+          if (localStdErr) {
+            reject(new errors.UnknownError(localStdErr));
+          } else {
+            resolve(localStdOut.replace(`${magicChar}`, '').trim());
+          }
         }
+      };
 
-        const envVars = Array.from(envVarsSet);
-        this.log.info(`Detected the following environment variables in app path: ${envVars.map((envVar) => `%${envVar}%`).join(', ')}`);
-
-        for (const envVar of envVars) {
-            this.caps.app = this.caps.app.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
-        }
-
-        if (this.caps.webviewEnabled) {
-            this.webviewDevtoolsPort = this.caps.webviewDevtoolsPort
-                ? Number(this.caps.webviewDevtoolsPort)
-                : await findFreePort(DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER, DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER);
-
-            this.log.info(`WebView support is enabled. DevTools will be served on port ${this.webviewDevtoolsPort}`);
-            await this.sendPowerShellCommand(/* ps1 */ `$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=${this.webviewDevtoolsPort}'`);
-        }
-
-        await this.changeRootElement(this.caps.app);
-    }
-
-    if (this.caps.appTopLevelWindow) {
-        const nativeWindowHandle = Number(this.caps.appTopLevelWindow);
-
-        if (isNaN(nativeWindowHandle)) {
-            throw new errors.InvalidArgumentError(`Invalid capabilities. Capability 'appTopLevelWindow' is not a valid native window handle.`);
-        }
-
-        await this.changeRootElement(nativeWindowHandle);
-    }
-}
-
-export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
-    const magicNumber = 0xF2EE;
-
-    const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
-    try {
-        powerShell.stdout.setEncoding('utf8');
-        powerShell.stdout.setEncoding('utf8');
-
-        let localStdOut = '';
-        let localStdErr = '';
-
-        powerShell.stdout.on('data', (chunk: any) => {
-            localStdOut += chunk.toString();
-        });
-
-        powerShell.stderr.on('data', (chunk: any) => {
-            localStdErr += chunk.toString();
-        });
-
-        const result = await new Promise<string>((resolve, reject) => {
-            localStdOut = '';
-            localStdErr = '';
-
-            powerShell.stdin.write(`${SET_UTF8_ENCODING}\n`);
-            if (this.caps.appWorkingDir) {
-                const envVarsSet: Set<string> = new Set();
-                const matches = this.caps.appWorkingDir.matchAll(/%([^%]+)%/g);
-
-                for (const match of matches) {
-                    envVarsSet.add(match[1]);
-                }
-                const envVars = Array.from(envVarsSet);
-                for (const envVar of envVars) {
-                    this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
-                }
-                powerShell.stdin.write(`Set-Location -Path '${this.caps.appWorkingDir}'\n`);
-            }
-            powerShell.stdin.write(`${command}\n`);
-            powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
-
-            const onData: Parameters<typeof powerShell.stdout.on>[1] = (chunk: any) => {
-                const magicChar = String.fromCharCode(magicNumber);
-                if (chunk.toString().includes(magicChar)) {
-                    powerShell.stdout.off('data', onData);
-                    if (localStdErr) {
-                        reject(new errors.UnknownError(localStdErr));
-                    } else {
-                        resolve(localStdOut.replace(`${magicChar}`, '').trim());
-                    }
-                }
-            };
-
-            powerShell.stdout.on('data', onData);
-        });
-
-        // commented out for now to avoid cluttering the logs with long command outputs
-        // this.log.debug(`PowerShell command executed:\n${command}\n\nCommand output below:\n${result}\n   --------`);
-
-        return result;
-    } finally {
-        // Ensure the isolated PowerShell process is terminated
-        try {
-            powerShell.kill();
-        } catch (e) {
-            this.log.warn(`Failed to terminate isolated PowerShell process: ${e}`);
-        }
-    }
-}
-
-export async function sendPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
-    const magicNumber = 0xF2EE;
-
-    if (!this.powerShell) {
-        this.log.warn('PowerShell session not running. It was either closed or has crashed. Attempting to start a new session...');
-        await this.startPowerShellSession();
-    }
-
-    const result = await new Promise<string>((resolve, reject) => {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const powerShell = this.powerShell!;
-
-        this.powerShellStdOut = '';
-        this.powerShellStdErr = '';
-
-        powerShell.stdin.write(`${command}\n`);
-        powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
-
-        const onData: Parameters<typeof powerShell.stdout.on>[1] = ((chunk: any) => {
-            const magicChar = String.fromCharCode(magicNumber);
-            if (chunk.toString().includes(magicChar)) {
-                powerShell.stdout.off('data', onData);
-                if (this.powerShellStdErr) {
-                    reject(new errors.UnknownError(this.powerShellStdErr));
-                } else {
-                    resolve(this.powerShellStdOut.replace(`${magicChar}`, '').trim());
-                }
-            }
-        }).bind(this);
-
-        powerShell.stdout.on('data', onData);
+      powerShell.stdout.on('data', onData);
     });
 
     // commented out for now to avoid cluttering the logs with long command outputs
     // this.log.debug(`PowerShell command executed:\n${command}\n\nCommand output below:\n${result}\n   --------`);
 
     return result;
+  } finally {
+    // Ensure the isolated PowerShell process is terminated
+    try {
+      powerShell.kill();
+    } catch (e) {
+      this.log.warn(`Failed to terminate isolated PowerShell process: ${e}`);
+    }
+  }
+}
+
+export async function sendPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
+  const magicNumber = 0xf2ee;
+
+  if (!this.powerShell) {
+    this.log.warn(
+      'PowerShell session not running. It was either closed or has crashed. Attempting to start a new session...',
+    );
+    await this.startPowerShellSession();
+  }
+
+  const result = await new Promise<string>((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const powerShell = this.powerShell!;
+
+    this.powerShellStdOut = '';
+    this.powerShellStdErr = '';
+
+    powerShell.stdin.write(`${command}\n`);
+    powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
+
+    const onData: Parameters<typeof powerShell.stdout.on>[1] = ((chunk: any) => {
+      const magicChar = String.fromCharCode(magicNumber);
+      if (chunk.toString().includes(magicChar)) {
+        powerShell.stdout.off('data', onData);
+        if (this.powerShellStdErr) {
+          reject(new errors.UnknownError(this.powerShellStdErr));
+        } else {
+          resolve(this.powerShellStdOut.replace(`${magicChar}`, '').trim());
+        }
+      }
+    }).bind(this);
+
+    powerShell.stdout.on('data', onData);
+  });
+
+  // commented out for now to avoid cluttering the logs with long command outputs
+  // this.log.debug(`PowerShell command executed:\n${command}\n\nCommand output below:\n${result}\n   --------`);
+
+  return result;
 }
 
 export async function terminatePowerShellSession(this: NovaWindowsDriver): Promise<void> {
+  if (!this.powerShell) {
+    return;
+  }
+
+  if (this.powerShell.exitCode != null) {
+    this.log.debug(`PowerShell session already terminated.`);
+    return;
+  }
+
+  this.log.debug(`Terminating PowerShell session...`);
+  const waitForClose = new Promise<void>((resolve, reject) => {
     if (!this.powerShell) {
-        return;
+      resolve();
     }
 
-    if (this.powerShell.exitCode != null) {
-        this.log.debug(`PowerShell session already terminated.`);
-        return;
-    }
-
-    this.log.debug(`Terminating PowerShell session...`);
-    const waitForClose = new Promise<void>((resolve, reject) => {
-        if (!this.powerShell) {
-            resolve();
-        }
-
-        this.powerShell?.once('close', () => {
-            resolve();
-        });
-
-        this.powerShell?.once('error', (err: Error) => {
-            reject(err);
-        });
+    this.powerShell?.once('close', () => {
+      resolve();
     });
 
+    this.powerShell?.once('error', (err: Error) => {
+      reject(err);
+    });
+  });
 
-    this.powerShell.kill();
-    await waitForClose;
-    this.log.debug(`PowerShell session terminated successfully.`);
+  this.powerShell.kill();
+  await waitForClose;
+  this.log.debug(`PowerShell session terminated successfully.`);
 }
 
 async function findFreePort(start: number, end: number): Promise<number> {
-    for (let port = start; port <= end; port++) {
-        const isFree = await new Promise<boolean>((resolve) => {
-            const server = net.createServer()
-                .once('error', () => resolve(false)) // port in use
-                .once('listening', () => server.close(() => resolve(true))) // port free
-                .listen(port);
-        });
+  for (let port = start; port <= end; port++) {
+    const isFree = await new Promise<boolean>((resolve) => {
+      const server = net
+        .createServer()
+        .once('error', () => resolve(false)) // port in use
+        .once('listening', () => server.close(() => resolve(true))) // port free
+        .listen(port);
+    });
 
-        if (isFree) {
-            return port;
-        }
+    if (isFree) {
+      return port;
     }
+  }
 
-    throw new errors.InvalidArgumentError(`No free port found between ${start} and ${end}. Consider specifying a port explicitly via the 'webviewDevtoolsPort' capability.`);
+  throw new errors.InvalidArgumentError(
+    `No free port found between ${start} and ${end}. Consider specifying a port explicitly via the 'webviewDevtoolsPort' capability.`,
+  );
 }

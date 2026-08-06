@@ -1,7 +1,7 @@
-import { Enum } from '../enums';
-import { pwsh$, PSObject } from './core';
-import { PSString } from './common';
-import { Condition } from './conditions';
+import type {Enum} from '../enums';
+import {PSString} from './common';
+import type {Condition} from './conditions';
+import {pwsh$, PSObject} from './core';
 
 // TODO: Move the methods to a separate file, some of them are too complicated and are not easy to maintain
 const FIND_ALL_ANCESTOR = pwsh$ /* ps1 */ `
@@ -270,8 +270,10 @@ const FIND_ALL_CHILDREN_OR_SELF = pwsh$ /* ps1 */ `
 const FIND_DESCENDANTS = pwsh$ /* ps1 */ `Find-ChildrenRecursively -element (${0}) -condition (${1})`;
 const FIND_ALL_DESCENDANTS = pwsh$ /* ps1 */ `Find-AllChildrenRecursively -element (${0}) -condition (${1})`;
 
-const FIND_DESCENDANTS_OR_SELF = pwsh$ /* ps1 */ `Find-ChildrenRecursively -element (${0}) -condition (${1}) -includeSelf $true`;
-const FIND_ALL_DESCENDANTS_OR_SELF = pwsh$ /* ps1 */ `Find-AllChildrenRecursively -element (${0}) -condition (${1}) -includeSelf $true`;
+const FIND_DESCENDANTS_OR_SELF = pwsh$
+/* ps1 */ `Find-ChildrenRecursively -element (${0}) -condition (${1}) -includeSelf $true`;
+const FIND_ALL_DESCENDANTS_OR_SELF = pwsh$
+/* ps1 */ `Find-AllChildrenRecursively -element (${0}) -condition (${1}) -includeSelf $true`;
 
 const FIND_FIRST = pwsh$ /* ps1 */ `${0}.FindFirst([TreeScope]::${1}, ${2})`;
 const FIND_ALL = pwsh$ /* ps1 */ `${0}.FindAll([TreeScope]::${1}, ${2})`;
@@ -332,263 +334,272 @@ const GET_ELEMENT_TEXT = pwsh$ /* ps1 */ `
 const INVOKE_ELEMENT = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([InvokePattern]::Pattern).Invoke()`;
 const EXPAND_ELEMENT = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([ExpandCollapsePattern]::Pattern).Expand()`;
 const COLLAPSE_ELEMENT = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([ExpandCollapsePattern]::Pattern).Collapse()`;
-const SCROLL_ELEMENT_INTO_VIEW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([ScrollItemPattern]::Pattern).ScrollIntoView()`;
-const IS_MULTIPLE_SELECT_ELEMENT = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([SelectionPattern]::Pattern).Current.CanSelectMultiple`;
-const GET_SELECTED_ELEMENT = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([SelectionPattern]::Pattern).Current.GetSelection()`;
-const IS_ELEMENT_SELECTED = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([SelectionItemPattern]::Pattern).Current.IsSelected`;
-const ADD_ELEMENT_TO_SELECTION = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([SelectionItemPattern]::Pattern).AddToSelection()`;
-const REMOVE_ELEMENT_FROM_SELECTION = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([SelectionItemPattern]::Pattern).RemoveFromSelection()`;
+const SCROLL_ELEMENT_INTO_VIEW = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([ScrollItemPattern]::Pattern).ScrollIntoView()`;
+const IS_MULTIPLE_SELECT_ELEMENT = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([SelectionPattern]::Pattern).Current.CanSelectMultiple`;
+const GET_SELECTED_ELEMENT = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([SelectionPattern]::Pattern).Current.GetSelection()`;
+const IS_ELEMENT_SELECTED = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([SelectionItemPattern]::Pattern).Current.IsSelected`;
+const ADD_ELEMENT_TO_SELECTION = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([SelectionItemPattern]::Pattern).AddToSelection()`;
+const REMOVE_ELEMENT_FROM_SELECTION = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([SelectionItemPattern]::Pattern).RemoveFromSelection()`;
 const SELECT_ELEMENT = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([SelectionItemPattern]::Pattern).Select()`;
 const TOGGLE_ELEMENT = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([TogglePattern]::Pattern).Toggle()`;
 const SET_ELEMENT_VALUE = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([ValuePattern]::Pattern).SetValue(${1})`;
 const SET_ELEMENT_RANGE_VALUE = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([RangeValuePattern]::Pattern).SetValue(${1})`;
 const GET_ELEMENT_VALUE = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([ValuePattern]::Pattern).Current.Value`;
 const GET_ELEMENT_TOGGLE_STATE = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([TogglePattern]::Pattern).Current.ToggleState`;
-const MAXIMIZE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Maximized)`;
-const MINIMIZE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Minimized)`;
-const RESTORE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Normal)`;
+const MAXIMIZE_WINDOW = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Maximized)`;
+const MINIMIZE_WINDOW = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Minimized)`;
+const RESTORE_WINDOW = pwsh$
+/* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).SetWindowVisualState([WindowVisualState]::Normal)`;
 const CLOSE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([WindowPattern]::Pattern).Close()`;
 const MOVE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([TransformPattern]::Pattern).Move(${1}, ${2})`;
 const RESIZE_WINDOW = pwsh$ /* ps1 */ `${0}.GetCurrentPattern([TransformPattern]::Pattern).Resize(${1}, ${2})`;
 
 export const TreeScope = Object.freeze({
-    ANCESTORS_OR_SELF: 'ancestors-or-self',
-    FOLLOWING: 'following',
-    FOLLOWING_SIBLING: 'following-sibling',
-    PRECEDING: 'preceding',
-    PRECEDING_SIBLING: 'preceding-sibling',
-    ANCESTORS: 'ancestors',
-    CHILDREN_OR_SELF: 'child-or-self',
-    CHILDREN: 'children',
-    DESCENDANTS: 'descendants',
-    ELEMENT: 'element',
-    SUBTREE: 'subtree',
-    PARENT: 'parent',
+  ANCESTORS_OR_SELF: 'ancestors-or-self',
+  FOLLOWING: 'following',
+  FOLLOWING_SIBLING: 'following-sibling',
+  PRECEDING: 'preceding',
+  PRECEDING_SIBLING: 'preceding-sibling',
+  ANCESTORS: 'ancestors',
+  CHILDREN_OR_SELF: 'child-or-self',
+  CHILDREN: 'children',
+  DESCENDANTS: 'descendants',
+  ELEMENT: 'element',
+  SUBTREE: 'subtree',
+  PARENT: 'parent',
 } as const);
 
 export type TreeScope = Enum<typeof TreeScope>;
 
 export const AutomationElementMode = Object.freeze({
-    NONE: 'none',
-    FULL: 'full',
+  NONE: 'none',
+  FULL: 'full',
 } as const);
 
 export type AutomationElementMode = Enum<typeof AutomationElementMode>;
 
 export class AutomationElement extends PSObject {
-    constructor(command: string) {
-        super(command);
+  constructor(command: string) {
+    super(command);
+  }
+
+  static get automationRoot(): AutomationElement {
+    return new AutomationElement(AUTOMATION_ROOT);
+  }
+
+  static get rootElement(): AutomationElement {
+    return new AutomationElement(ROOT_ELEMENT);
+  }
+
+  static get focusedElement(): AutomationElement {
+    return new AutomationElement(FOCUSED_ELEMENT);
+  }
+
+  findFirst(scope: TreeScope, condition: Condition): AutomationElement {
+    switch (scope) {
+      case TreeScope.ANCESTORS_OR_SELF:
+        return new AutomationElement(FIND_FIRST_ANCESTOR_OR_SELF.format(this, condition));
+      case TreeScope.ANCESTORS:
+        return new AutomationElement(FIND_FIRST_ANCESTOR.format(this, condition));
+      case TreeScope.PARENT:
+        return new AutomationElement(FIND_PARENT.format(this, condition));
+      case TreeScope.FOLLOWING:
+        return new AutomationElement(FIND_FOLLOWING.format(this, condition));
+      case TreeScope.FOLLOWING_SIBLING:
+        return new AutomationElement(FIND_FOLLOWING_SIBLING.format(this, condition));
+      case TreeScope.PRECEDING:
+        return new AutomationElement(FIND_PRECEDING.format(this, condition));
+      case TreeScope.PRECEDING_SIBLING:
+        return new AutomationElement(FIND_PRECEDING_SIBLING.format(this, condition));
+      case TreeScope.CHILDREN_OR_SELF:
+        return new AutomationElement(FIND_CHILDREN_OR_SELF.format(this, condition));
+      case TreeScope.DESCENDANTS:
+        return new AutomationElement(FIND_DESCENDANTS.format(this, condition));
+      case TreeScope.SUBTREE:
+        return new AutomationElement(FIND_DESCENDANTS_OR_SELF.format(this, condition));
+      default:
+        return new AutomationElement(FIND_FIRST.format(this, scope, condition));
+    }
+  }
+
+  findAll(scope: TreeScope, condition: Condition): AutomationElement {
+    switch (scope) {
+      case TreeScope.ANCESTORS_OR_SELF:
+        return new AutomationElement(FIND_ALL_ANCESTOR_OR_SELF.format(this, condition));
+      case TreeScope.ANCESTORS:
+        return new AutomationElement(FIND_ALL_ANCESTOR.format(this, condition));
+      case TreeScope.PARENT:
+        return new AutomationElement(FIND_PARENT.format(this, condition));
+      case TreeScope.FOLLOWING:
+        return new AutomationElement(FIND_ALL_FOLLOWING.format(this, condition));
+      case TreeScope.FOLLOWING_SIBLING:
+        return new AutomationElement(FIND_ALL_FOLLOWING_SIBLING.format(this, condition));
+      case TreeScope.PRECEDING:
+        return new AutomationElement(FIND_ALL_PRECEDING.format(this, condition));
+      case TreeScope.PRECEDING_SIBLING:
+        return new AutomationElement(FIND_ALL_PRECEDING_SIBLING.format(this, condition));
+      case TreeScope.CHILDREN_OR_SELF:
+        return new AutomationElement(FIND_ALL_CHILDREN_OR_SELF.format(this, condition));
+      case TreeScope.DESCENDANTS:
+        return new AutomationElement(FIND_ALL_DESCENDANTS.format(this, condition));
+      case TreeScope.SUBTREE:
+        return new AutomationElement(FIND_ALL_DESCENDANTS_OR_SELF.format(this, condition));
+      default:
+        return new AutomationElement(FIND_ALL.format(this, scope, condition));
+    }
+  }
+
+  buildGetTagNameCommand(): string {
+    return GET_ELEMENT_TAG_NAME.format(this);
+  }
+
+  buildGetPropertyCommand(property: string): string {
+    if (property.toLowerCase() === 'runtimeid') {
+      return GET_ELEMENT_RUNTIME_ID.format(this);
     }
 
-    static get automationRoot(): AutomationElement {
-        return new AutomationElement(AUTOMATION_ROOT);
+    if (property.toLowerCase() === 'controltype') {
+      return GET_ELEMENT_TAG_NAME.format(this);
     }
 
-    static get rootElement(): AutomationElement {
-        return new AutomationElement(ROOT_ELEMENT);
-    }
+    return GET_ELEMENT_PROPERTY.format(this, property);
+  }
 
-    static get focusedElement(): AutomationElement {
-        return new AutomationElement(FOCUSED_ELEMENT);
-    }
+  buildGetElementRectCommand(): string {
+    return GET_ELEMENT_RECT.format(this);
+  }
 
-    findFirst(scope: TreeScope, condition: Condition): AutomationElement {
-        switch (scope) {
-            case TreeScope.ANCESTORS_OR_SELF:
-                return new AutomationElement(FIND_FIRST_ANCESTOR_OR_SELF.format(this, condition));
-            case TreeScope.ANCESTORS:
-                return new AutomationElement(FIND_FIRST_ANCESTOR.format(this, condition));
-            case TreeScope.PARENT:
-                return new AutomationElement(FIND_PARENT.format(this, condition));
-            case TreeScope.FOLLOWING:
-                return new AutomationElement(FIND_FOLLOWING.format(this, condition));
-            case TreeScope.FOLLOWING_SIBLING:
-                return new AutomationElement(FIND_FOLLOWING_SIBLING.format(this, condition));
-            case TreeScope.PRECEDING:
-                return new AutomationElement(FIND_PRECEDING.format(this, condition));
-            case TreeScope.PRECEDING_SIBLING:
-                return new AutomationElement(FIND_PRECEDING_SIBLING.format(this, condition));
-            case TreeScope.CHILDREN_OR_SELF:
-                return new AutomationElement(FIND_CHILDREN_OR_SELF.format(this, condition));
-            case TreeScope.DESCENDANTS:
-                return new AutomationElement(FIND_DESCENDANTS.format(this, condition));
-            case TreeScope.SUBTREE:
-                return new AutomationElement(FIND_DESCENDANTS_OR_SELF.format(this, condition));
-            default:
-                return new AutomationElement(FIND_FIRST.format(this, scope, condition));
-        }
-    }
+  buildSetFocusCommand(): string {
+    return SET_FOCUS_TO_ELEMENT.format(this);
+  }
 
-    findAll(scope: TreeScope, condition: Condition): AutomationElement {
-        switch (scope) {
-            case TreeScope.ANCESTORS_OR_SELF:
-                return new AutomationElement(FIND_ALL_ANCESTOR_OR_SELF.format(this, condition));
-            case TreeScope.ANCESTORS:
-                return new AutomationElement(FIND_ALL_ANCESTOR.format(this, condition));
-            case TreeScope.PARENT:
-                return new AutomationElement(FIND_PARENT.format(this, condition));
-            case TreeScope.FOLLOWING:
-                return new AutomationElement(FIND_ALL_FOLLOWING.format(this, condition));
-            case TreeScope.FOLLOWING_SIBLING:
-                return new AutomationElement(FIND_ALL_FOLLOWING_SIBLING.format(this, condition));
-            case TreeScope.PRECEDING:
-                return new AutomationElement(FIND_ALL_PRECEDING.format(this, condition));
-            case TreeScope.PRECEDING_SIBLING:
-                return new AutomationElement(FIND_ALL_PRECEDING_SIBLING.format(this, condition));
-            case TreeScope.CHILDREN_OR_SELF:
-                return new AutomationElement(FIND_ALL_CHILDREN_OR_SELF.format(this, condition));
-            case TreeScope.DESCENDANTS:
-                return new AutomationElement(FIND_ALL_DESCENDANTS.format(this, condition));
-            case TreeScope.SUBTREE:
-                return new AutomationElement(FIND_ALL_DESCENDANTS_OR_SELF.format(this, condition));
-            default:
-                return new AutomationElement(FIND_ALL.format(this, scope, condition));
-        }
-    }
-
-    buildGetTagNameCommand(): string {
-        return GET_ELEMENT_TAG_NAME.format(this);
-    }
-
-    buildGetPropertyCommand(property: string): string {
-        if (property.toLowerCase() === 'runtimeid') {
-            return GET_ELEMENT_RUNTIME_ID.format(this);
-        }
-
-        if (property.toLowerCase() === 'controltype') {
-            return GET_ELEMENT_TAG_NAME.format(this);
-        }
-
-        return GET_ELEMENT_PROPERTY.format(this, property);
-    }
-
-    buildGetElementRectCommand(): string {
-        return GET_ELEMENT_RECT.format(this);
-    }
-
-    buildSetFocusCommand(): string {
-        return SET_FOCUS_TO_ELEMENT.format(this);
-    }
-
-    buildCommand(): string {
-        return SAVE_TO_ELEMENT_TABLE_AND_RETURN_ID.format(this);
-    }
+  buildCommand(): string {
+    return SAVE_TO_ELEMENT_TABLE_AND_RETURN_ID.format(this);
+  }
 }
 
 export class AutomationElementGroup extends AutomationElement {
-    readonly groups: AutomationElement[];
+  readonly groups: AutomationElement[];
 
-    constructor(...automationElements: AutomationElement[]) {
-        super(`@( ${automationElements.map((el) => `(${el.buildCommand()})`).join(', ')} )`);
-        this.groups = automationElements;
-    }
+  constructor(...automationElements: AutomationElement[]) {
+    super(`@( ${automationElements.map((el) => `(${el.buildCommand()})`).join(', ')} )`);
+    this.groups = automationElements;
+  }
 
-    findAllGroups(scope: TreeScope, condition: Condition): AutomationElement[] {
-        return this.groups.map((el) => el.findAll(scope, condition));
-    }
+  findAllGroups(scope: TreeScope, condition: Condition): AutomationElement[] {
+    return this.groups.map((el) => el.findAll(scope, condition));
+  }
 
-    findFirstGroups(scope: TreeScope, condition: Condition): AutomationElement[] {
-        return this.groups.map((el) => el.findFirst(scope, condition));
-    }
+  findFirstGroups(scope: TreeScope, condition: Condition): AutomationElement[] {
+    return this.groups.map((el) => el.findFirst(scope, condition));
+  }
 }
 
 export class FoundAutomationElement extends AutomationElement {
-    readonly runtimeId: string;
+  readonly runtimeId: string;
 
-    constructor(runtimeId: string) {
-        super(ELEMENT_TABLE_GET.format(runtimeId));
-        this.runtimeId = runtimeId;
-    }
+  constructor(runtimeId: string) {
+    super(ELEMENT_TABLE_GET.format(runtimeId));
+    this.runtimeId = runtimeId;
+  }
 
-    buildGetTextCommand(): string {
-        return GET_ELEMENT_TEXT.format(this);
-    }
+  buildGetTextCommand(): string {
+    return GET_ELEMENT_TEXT.format(this);
+  }
 
-    buildInvokeCommand(): string {
-        return INVOKE_ELEMENT.format(this);
-    }
+  buildInvokeCommand(): string {
+    return INVOKE_ELEMENT.format(this);
+  }
 
-    buildExpandCommand(): string {
-        return EXPAND_ELEMENT.format(this);
-    }
+  buildExpandCommand(): string {
+    return EXPAND_ELEMENT.format(this);
+  }
 
-    buildCollapseCommand(): string {
-        return COLLAPSE_ELEMENT.format(this);
-    }
+  buildCollapseCommand(): string {
+    return COLLAPSE_ELEMENT.format(this);
+  }
 
-    buildScrollIntoViewCommand(): string {
-        return SCROLL_ELEMENT_INTO_VIEW.format(this);
-    }
+  buildScrollIntoViewCommand(): string {
+    return SCROLL_ELEMENT_INTO_VIEW.format(this);
+  }
 
-    buildIsMultipleSelectCommand(): string {
-        return IS_MULTIPLE_SELECT_ELEMENT.format(this);
-    }
+  buildIsMultipleSelectCommand(): string {
+    return IS_MULTIPLE_SELECT_ELEMENT.format(this);
+  }
 
-    buildGetSelectionCommand(): string {
-        return SAVE_TO_ELEMENT_TABLE_AND_RETURN_ID.format(GET_SELECTED_ELEMENT.format(this));
-    }
+  buildGetSelectionCommand(): string {
+    return SAVE_TO_ELEMENT_TABLE_AND_RETURN_ID.format(GET_SELECTED_ELEMENT.format(this));
+  }
 
-    buildIsSelectedCommand(): string {
-        return IS_ELEMENT_SELECTED.format(this);
-    }
+  buildIsSelectedCommand(): string {
+    return IS_ELEMENT_SELECTED.format(this);
+  }
 
-    buildAddToSelectionCommand(): string {
-        return ADD_ELEMENT_TO_SELECTION.format(this);
-    }
+  buildAddToSelectionCommand(): string {
+    return ADD_ELEMENT_TO_SELECTION.format(this);
+  }
 
-    buildRemoveFromSelectionCommand(): string {
-        return REMOVE_ELEMENT_FROM_SELECTION.format(this);
-    }
+  buildRemoveFromSelectionCommand(): string {
+    return REMOVE_ELEMENT_FROM_SELECTION.format(this);
+  }
 
-    buildSelectCommand(): string {
-        return SELECT_ELEMENT.format(this);
-    }
+  buildSelectCommand(): string {
+    return SELECT_ELEMENT.format(this);
+  }
 
-    buildToggleCommand(): string {
-        return TOGGLE_ELEMENT.format(this);
-    }
+  buildToggleCommand(): string {
+    return TOGGLE_ELEMENT.format(this);
+  }
 
-    buildSetValueCommand(value: string): string {
-        return SET_ELEMENT_VALUE.format(this, new PSString(value).toString());
-    }
+  buildSetValueCommand(value: string): string {
+    return SET_ELEMENT_VALUE.format(this, new PSString(value).toString());
+  }
 
-    buildSetRangeValueCommand(value: string): string {
-        return SET_ELEMENT_RANGE_VALUE.format(this, Number(value).toString());
-    }
+  buildSetRangeValueCommand(value: string): string {
+    return SET_ELEMENT_RANGE_VALUE.format(this, Number(value).toString());
+  }
 
-    buildGetValueCommand(): string {
-        return GET_ELEMENT_VALUE.format(this);
-    }
+  buildGetValueCommand(): string {
+    return GET_ELEMENT_VALUE.format(this);
+  }
 
-    buildGetToggleStateCommand(): string {
-        return GET_ELEMENT_TOGGLE_STATE.format(this);
-    }
+  buildGetToggleStateCommand(): string {
+    return GET_ELEMENT_TOGGLE_STATE.format(this);
+  }
 
-    buildMaximizeCommand(): string {
-        return MAXIMIZE_WINDOW.format(this);
-    }
+  buildMaximizeCommand(): string {
+    return MAXIMIZE_WINDOW.format(this);
+  }
 
-    buildMinimizeCommand(): string {
-        return MINIMIZE_WINDOW.format(this);
-    }
+  buildMinimizeCommand(): string {
+    return MINIMIZE_WINDOW.format(this);
+  }
 
-    buildRestoreCommand(): string {
-        return RESTORE_WINDOW.format(this);
-    }
+  buildRestoreCommand(): string {
+    return RESTORE_WINDOW.format(this);
+  }
 
-    buildCloseCommand(): string {
-        return CLOSE_WINDOW.format(this);
-    }
+  buildCloseCommand(): string {
+    return CLOSE_WINDOW.format(this);
+  }
 
-    buildMoveCommand(x: number, y: number): string {
-        return MOVE_WINDOW.format(this, x, y);
-    }
+  buildMoveCommand(x: number, y: number): string {
+    return MOVE_WINDOW.format(this, x, y);
+  }
 
-    buildResizeCommand(width: number, height: number): string {
-        return RESIZE_WINDOW.format(this, width, height);
-    }
+  buildResizeCommand(width: number, height: number): string {
+    return RESIZE_WINDOW.format(this, width, height);
+  }
 
-    override buildCommand(): string {
-        return this.toString();
-    }
+  override buildCommand(): string {
+    return this.toString();
+  }
 }
