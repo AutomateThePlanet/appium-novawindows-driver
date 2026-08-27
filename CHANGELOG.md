@@ -1,3 +1,9 @@
+## [1.4.5](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.4...v1.4.5) (2026-08-27)
+
+### Bug Fixes
+
+* Starting app when window can't receive focus no longer fails starting the session ([887dc49](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/887dc4943a2c6e8fcaf72ff0d874c150de4d4030))
+
 ## [1.4.4](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.3...v1.4.4) (2026-08-06)
 
 ### Bug Fixes
