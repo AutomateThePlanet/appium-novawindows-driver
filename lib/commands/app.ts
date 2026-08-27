@@ -336,9 +336,13 @@ export async function attachToApplicationWindow(this: NovaWindowsDriver, process
     if ((await this.sendPowerShellCommand(/* ps1 */ `$null -ne $rootElement`)).toLowerCase() === 'true') {
         const nativeWindowHandle = Number(await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetPropertyCommand(Property.NATIVE_WINDOW_HANDLE)));
         if (!trySetForegroundWindow(nativeWindowHandle)) {
-            await this.focusElement({
-                [W3C_ELEMENT_KEY]: elementId,
-            } satisfies Element);
+            try {
+                await this.focusElement({
+                    [W3C_ELEMENT_KEY]: elementId,
+                } satisfies Element);
+            } catch {
+                // ignore, avoid "Target element cannot receive focus" error
+            }
         };
         return;
     }
