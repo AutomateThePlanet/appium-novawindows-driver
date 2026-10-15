@@ -284,9 +284,8 @@ const SAVE_TO_ELEMENT_TABLE_AND_RETURN_ID = pwsh$ /* ps1 */ `
     ${0} | Where-Object { $null -ne $_ } | ForEach-Object {
         $runtimeId = $_.GetCurrentPropertyValue([AutomationElement]::RuntimeIdProperty) -join '.';
 
-        if (-not $elementTable.ContainsKey($runtimeId)) {
-            $elementTable.Add($runtimeId, $_)
-        };
+        # A rediscovered RuntimeId may identify a new native object.
+        $elementTable[$runtimeId] = $_
 
         $runtimeId
     }
