@@ -450,6 +450,23 @@ Position | Type | Description | Example
 | --- | --- | --- | --- |
 1 | `Element`   | The UI element to toggle. | `element`
 
+### windows: getToggleState
+
+Gets the current toggle state of a UI element that supports the `TogglePattern` (e.g., a checkbox).
+
+#### Arguments
+
+Position | Type | Description | Example
+| --- | --- | --- | --- |
+1 | `Element` | The UI element from which to retrieve the toggle state. | `element`
+
+#### Returns
+
+- `string`: The toggle state of the element, matching `System.Windows.Automation.ToggleState`:
+  - `Off` - the element is not checked (`0`)
+  - `On` - the element is checked (`1`)
+  - `Indeterminate` - the element is in an indeterminate state (`2`)
+
 ### windows: setValue
 
 Sets the value of a UI element using the `ValuePattern` (for elements like text boxes, sliders, etc.).
