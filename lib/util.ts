@@ -1,7 +1,9 @@
 import { errors } from '@appium/base-driver';
+import type { Rect } from '@appium/types';
 import { fs, zip, node, tempDir } from 'appium/support';
 import { pipeline } from 'node:stream/promises';
 import { NovaWindowsDriver } from './driver';
+import type { AutomationElement } from './powershell';
 import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
@@ -238,6 +240,14 @@ export function assertSupportedEasingFunction(value: string) {
         throw new errors.InvalidArgumentError(`Unsupported or invalid easing function '${value}' in appium:smoothPointerMove capability.`
             + `Supported functions are [${SupportedEasingFunctions.join[', ']}, cubic-bezier(x1,y1,x2,y2)].`);
     }
+}
+
+export async function fetchElementRect(driver: NovaWindowsDriver, element: AutomationElement): Promise<Rect> {
+    const json = await driver.sendPowerShellCommand(element.buildGetElementRectCommand());
+    if (!json) {
+        throw new errors.NoSuchElementError();
+    }
+    return JSON.parse(json.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
 }
 
 export function sleep(ms: number): Promise<void> {

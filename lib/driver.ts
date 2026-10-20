@@ -92,6 +92,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         meta: false,
         shift: false,
     };
+    mouseButtonsDown: Set<number> = new Set();
     chromedriver: Chromedriver | null = null;
     proxyReqRes: ((...args: any) => any) | null = null;
     proxyCommand: ExternalDriver['proxyCommand'] | null = null;
@@ -242,6 +243,9 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
 
     override async deleteSession(sessionId?: string | null | undefined): Promise<void> {
         this.log.debug('Deleting NovaWindows driver session...');
+
+        // Don't leave modifier keys or mouse buttons stuck after the session ends
+        await this.releaseActions();
 
         if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
             try {
