@@ -141,8 +141,10 @@ export async function setWindow(this: NovaWindowsDriver, nameOrHandle: string): 
 
         if (elementId.trim() !== '') {
             this.log.info(`Found window with name '${name}'. Setting it as the root element.`);
-            await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${new FoundAutomationElement(elementId).buildCommand()}`);
-            trySetForegroundWindow(handle);
+            const foundElement = new FoundAutomationElement(elementId);
+            await this.sendPowerShellCommand(/* ps1 */ `$rootElement = ${foundElement.buildCommand()}`);
+            const nativeWindowHandle = Number(await this.sendPowerShellCommand(foundElement.buildGetPropertyCommand(Property.NATIVE_WINDOW_HANDLE)));
+            trySetForegroundWindow(nativeWindowHandle);
             return;
         }
 
