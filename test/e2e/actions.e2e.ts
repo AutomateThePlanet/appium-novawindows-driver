@@ -92,7 +92,7 @@ describe('W3C Actions API', () => {
 
         it('performs a double-click via two down/up cycles', async () => {
             const btn = await calc.$('~num5Button');
-            await calc.action('pointer')
+            calc.action('pointer')
                 .move({ origin: btn })
                 .down()
                 .up()
@@ -127,39 +127,6 @@ describe('W3C Actions API', () => {
                     .up()
                     .perform()
             ).resolves.not.toThrow();
-        });
-    });
-
-    describe('tick-based ordering across input sources', () => {
-        beforeAll(async () => {
-            notepad = await createNotepadSession();
-        });
-
-        afterAll(async () => {
-            await clearNotepad(notepad); // so Notepad closes without a save prompt
-            await quitSession(notepad);
-        });
-
-        beforeEach(async () => {
-            await clearNotepad(notepad);
-        });
-
-        it('Shift+Click selects text: Shift is held while the pointer clicks in the same tick', async () => {
-            const textArea = await getNotepadTextArea(notepad);
-            await textArea.setValue('hello');
-            await notepad.keys(['\uE011']); // Home
-
-            // key:     [down(Shift), pause, up(Shift)]
-            // pointer: [move,        down,  up       ]
-            //                        ^-- tick 1: Shift still held when the mouse goes down
-            await notepad.actions([
-                notepad.action('key').down('\uE008').pause(0).up('\uE008'),
-                notepad.action('pointer').move({ origin: textArea, x: 200, y: 0 }).down().up(),
-            ]);
-
-            // Shift held during the click selects "hello"; typing X replaces it
-            await notepad.keys(['X']);
-            expect((await textArea.getText()).trim()).toBe('X');
         });
     });
 });

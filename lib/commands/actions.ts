@@ -5,6 +5,7 @@ import {
     NullActionSequence,
     PointerActionSequence,
     PointerMoveAction,
+    Rect,
     ScrollAction,
     WheelActionSequence,
 } from '@appium/types';
@@ -12,53 +13,28 @@ import {
 import { W3C_ELEMENT_KEY, errors } from '@appium/base-driver';
 import { NovaWindowsDriver } from '../driver';
 import { keyDown, keyUp, mouseMoveRelative, mouseMoveAbsolute, mouseDown, mouseUp, mouseScroll } from '../winapi/user32';
-import { fetchElementRect, sleep } from '../util';
+import { sleep } from '../util';
 import { AutomationElement, FoundAutomationElement } from '../powershell';
 import { Key } from '../enums';
 
 export async function performActions(this: NovaWindowsDriver, actionSequences: ActionSequence[]): Promise<void> {
     for (const actionSequence of actionSequences) {
-        if (actionSequence.type === 'pointer' &&
-            (actionSequence.parameters?.pointerType === 'touch' || actionSequence.parameters?.pointerType === 'pen')) {
-            throw new errors.NotImplementedError(`Pointer type ${actionSequence.parameters.pointerType} not implemented yet.`);
+        switch (actionSequence.type) {
+            case 'key':
+                await this.handleKeyActionSequence(actionSequence);
+                break;
+            case 'wheel':
+                await this.handleWheelActionSequence(actionSequence);
+                break;
+            case 'pointer':
+                await this.handlePointerActionSequence(actionSequence);
+                break;
+            case 'none':
+                await this.handleNullActionSequence(actionSequence);
+                break;
+            default:
+                throw new errors.InvalidArgumentError();
         }
-        if (!['key', 'pointer', 'wheel', 'none'].includes(actionSequence.type)) {
-            throw new errors.InvalidArgumentError();
-        }
-    }
-
-    const maxTicks = Math.max(0, ...actionSequences.map((seq) => seq.actions.length));
-
-    for (let tick = 0; tick < maxTicks; tick++) {
-        const tickPromises: Promise<void>[] = [];
-
-        for (const actionSequence of actionSequences) {
-            const action = actionSequence.actions[tick];
-            if (!action) {
-                continue;
-            }
-
-            switch (actionSequence.type) {
-                case 'key':
-                    tickPromises.push(this.handleKeyAction(action as KeyAction));
-                    break;
-                case 'pointer':
-                    tickPromises.push(this.handleMousePointerAction(action as PointerActionSequence['actions'][number]));
-                    break;
-                case 'wheel':
-                    tickPromises.push(this.handleWheelAction(action as WheelActionSequence['actions'][number]));
-                    break;
-                case 'none': {
-                    const duration = (action as NullActionSequence['actions'][number]).duration;
-                    if (duration) {
-                        tickPromises.push(sleep(duration));
-                    }
-                    break;
-                }
-            }
-        }
-
-        await Promise.all(tickPromises);
     }
 };
 
@@ -69,45 +45,66 @@ export async function handleKeyActionSequence(this: NovaWindowsDriver, actionSeq
     }
 }
 
-export async function handleMousePointerAction(this: NovaWindowsDriver, action: PointerActionSequence['actions'][number]): Promise<void> {
-    switch (action.type) {
-        case 'pointerMove':
-            await this.handleMouseMoveAction(action);
-            break;
-        case 'pointerDown':
-            mouseDown(action.button);
-            this.mouseButtonsDown.add(action.button);
-            break;
-        case 'pointerUp':
-            mouseUp(action.button);
-            this.mouseButtonsDown.delete(action.button);
-            break;
-        case 'pause':
-            if (action.duration) {
-                await sleep(action.duration);
-            }
-            break;
+export async function handlePointerActionSequence(this: NovaWindowsDriver, actionSequence: PointerActionSequence): Promise<void> {
+    switch (actionSequence.parameters?.pointerType) {
+        case 'touch':
+        case 'pen':
+            throw new errors.NotImplementedError(`Pointer type ${actionSequence.parameters?.pointerType} not implemented yet.`);
+        case 'mouse':
         default:
-            throw new errors.InvalidArgumentError();
+            await this.handleMousePointerActionSequence(actionSequence);
     }
 }
 
-export async function handleWheelAction(this: NovaWindowsDriver, action: WheelActionSequence['actions'][number]): Promise<void> {
-    switch (action.type) {
-        case 'scroll':
-            await this.handleMouseMoveAction({ ...action, duration: 0 });
-            mouseScroll(action.deltaX, action.deltaY);
-            if (action.duration) {
-                await sleep(action.duration);
-            }
-            break;
-        case 'pause':
-            if (action.duration) {
-                await sleep(action.duration);
-            }
-            break;
-        default:
-            throw new errors.InvalidArgumentError();
+export async function handleMousePointerActionSequence(this: NovaWindowsDriver, actionSequence: PointerActionSequence): Promise<void> {
+    const actions = actionSequence.actions;
+    for (const action of actions) {
+        switch (action.type) {
+            case 'pointerMove':
+                await this.handleMouseMoveAction(action);
+                break;
+            case 'pointerDown':
+                mouseDown(action.button);
+                break;
+            case 'pointerUp':
+                mouseUp(action.button);
+                break;
+            case 'pause':
+                if (action.duration) {
+                    await sleep(action.duration);
+                }
+                break;
+            default:
+                throw new errors.InvalidArgumentError();
+        }
+    }
+}
+
+export async function handleWheelActionSequence(this: NovaWindowsDriver, actionSequence: WheelActionSequence): Promise<void> {
+    const actions = actionSequence.actions;
+    for (const action of actions) {
+        switch (action.type) {
+            case 'scroll':
+                await this.handleMouseMoveAction(action);
+                mouseScroll(action.deltaX, action.deltaY);
+                break;
+            case 'pause':
+                if (action.duration) {
+                    await sleep(action.duration);
+                }
+                break;
+            default:
+                throw new errors.InvalidArgumentError();
+        }
+    }
+}
+
+export async function handleNullActionSequence(this: NovaWindowsDriver, actionSequence: NullActionSequence): Promise<void> {
+    const actions = actionSequence.actions;
+    for (const action of actions) {
+        if (action.duration) {
+            await sleep(action.duration);
+        }
     }
 }
 
@@ -117,24 +114,24 @@ export async function handleMouseMoveAction(this: NovaWindowsDriver, action: Poi
         case 'pointer':
             await mouseMoveRelative(action.x, action.y, action.duration, easingFunction);
             break;
-        case undefined:
         case 'viewport': {
-            const rootRect = await fetchElementRect(this, AutomationElement.automationRoot);
+            const rootRectJson = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetElementRectCommand());
+            const rootRect = JSON.parse(rootRectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
             await mouseMoveAbsolute(action.x + rootRect.x, action.y + rootRect.y, action.duration, easingFunction);
             break;
         }
         default:
             if (action.origin?.[W3C_ELEMENT_KEY]) {
                 const element = new FoundAutomationElement(action.origin[W3C_ELEMENT_KEY]);
-                let rect = await fetchElementRect(this, element);
+                const rectJson = await this.sendPowerShellCommand(element.buildGetElementRectCommand());
+                let rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
 
                 if (Object.values(rect).some((x) => x === 0x7FFFFFFF)) {
                     await this.sendPowerShellCommand(element.buildScrollIntoViewCommand());
-                    rect = await fetchElementRect(this, element);
+                    rect = JSON.parse(rectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
                 }
 
-                // W3C: x and y are offsets from the element's center point
-                await mouseMoveAbsolute(rect.x + rect.width / 2 + (action.x ?? 0), rect.y + rect.height / 2 + (action.y ?? 0), action.duration, easingFunction);
+                await mouseMoveAbsolute(action.x === 0 ? rect.x + rect.width / 2 : action.x, action.y === 0 ? rect.y + rect.height / 2 : action.y, action.duration, easingFunction);
                 break;
             }
 
@@ -213,7 +210,7 @@ export async function handleKeyAction(this: NovaWindowsDriver, action: KeyAction
                 if (this.keyboardState.alt) {
                     await this.handleKeyAction({ type: 'keyUp', value: Key.ALT });
                 }
-                for (const key of Array.from(this.keyboardState.pressed)) {
+                for (const key in Array.of(this.keyboardState.pressed)) {
                     keyUp(key);
                     this.keyboardState.pressed.delete(key);
                 }
@@ -256,8 +253,7 @@ export async function releaseActions(this: NovaWindowsDriver): Promise<void> {
         keyUp(key);
     }
     this.keyboardState.pressed.clear();
-    for (const button of this.mouseButtonsDown) {
-        mouseUp(button);
-    }
-    this.mouseButtonsDown.clear();
+    mouseUp(0);
+    mouseUp(1);
+    mouseUp(2);
 }
