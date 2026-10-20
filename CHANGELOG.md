@@ -1,9 +1,3 @@
-## [1.4.6](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.5...v1.4.6) (2026-10-20)
-
-### Bug Fixes
-
-* action tick execution – Thanks to [@y-schwab](https://github.com/y-schwab) ([c95c7b2](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/c95c7b284e97a315dc7de40866090cf97ec02714))
-
 ## [1.4.5](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.4...v1.4.5) (2026-08-27)
 
 ### Bug Fixes
