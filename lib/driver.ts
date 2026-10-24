@@ -179,12 +179,12 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         const searchContext = context ? new FoundAutomationElement(context) : AutomationElement.automationRoot;
 
         if (mult) {
-            const result = await this.sendPowerShellCommand(searchContext.findAll(TreeScope.DESCENDANTS, condition).buildCommand());
+            const result = await this.sendPowerShellCommand(searchContext.findAll(TreeScope.SUBTREE, condition).buildCommand());
             const elIds = result.split('\n').map((elId) => elId.trim()).filter(Boolean);
             return elIds.filter(Boolean).map((elId) => ({ [W3C_ELEMENT_KEY]: elId }));
         }
 
-        const result = await this.sendPowerShellCommand(searchContext.findFirst(TreeScope.DESCENDANTS, condition).buildCommand());
+        const result = await this.sendPowerShellCommand(searchContext.findFirst(TreeScope.SUBTREE, condition).buildCommand());
         const elId = result.trim();
 
         if (!elId) {
