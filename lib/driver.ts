@@ -92,6 +92,7 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         meta: false,
         shift: false,
     };
+    mouseButtonsDown: Set<number> = new Set();
     chromedriver: Chromedriver | null = null;
     proxyReqRes: ((...args: any) => any) | null = null;
     proxyCommand: ExternalDriver['proxyCommand'] | null = null;
@@ -178,12 +179,12 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
         const searchContext = context ? new FoundAutomationElement(context) : AutomationElement.automationRoot;
 
         if (mult) {
-            const result = await this.sendPowerShellCommand(searchContext.findAll(TreeScope.DESCENDANTS, condition).buildCommand());
+            const result = await this.sendPowerShellCommand(searchContext.findAll(TreeScope.SUBTREE, condition).buildCommand());
             const elIds = result.split('\n').map((elId) => elId.trim()).filter(Boolean);
             return elIds.filter(Boolean).map((elId) => ({ [W3C_ELEMENT_KEY]: elId }));
         }
 
-        const result = await this.sendPowerShellCommand(searchContext.findFirst(TreeScope.DESCENDANTS, condition).buildCommand());
+        const result = await this.sendPowerShellCommand(searchContext.findFirst(TreeScope.SUBTREE, condition).buildCommand());
         const elId = result.trim();
 
         if (!elId) {
@@ -242,6 +243,9 @@ export class NovaWindowsDriver extends BaseDriver<NovaWindowsDriverConstraints, 
 
     override async deleteSession(sessionId?: string | null | undefined): Promise<void> {
         this.log.debug('Deleting NovaWindows driver session...');
+
+        // Don't leave modifier keys or mouse buttons stuck after the session ends
+        await this.releaseActions();
 
         if (this.caps.shouldCloseApp && this.caps.app && this.caps.app.toLowerCase() !== 'root') {
             try {
