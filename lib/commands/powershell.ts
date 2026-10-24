@@ -37,6 +37,9 @@ const INIT_ELEMENT_TABLE = /* ps1 */ `$elementTable = New-Object System.Collecti
 const DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER = 10900;
 const DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER = 11000;
 
+// Generous on purpose: Add-Type compiles C# on first use, which can take a while on a cold machine.
+const INIT_COMMAND_TIMEOUT_MS = 60_000;
+
 export async function startPowerShellSession(this: NovaWindowsDriver): Promise<void> {
     const powerShell = spawn('powershell.exe', ['-NoExit', '-Command', '-']);
     powerShell.stdout.setEncoding('utf8');
@@ -52,6 +55,12 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
 
     this.powerShell = powerShell;
 
+    const sendInitCommand = (command: string) => this.sendPowerShellCommand(command, INIT_COMMAND_TIMEOUT_MS);
+
+    // Must be the first command: Windows PowerShell 5.1 fixes the encoding of redirected stdout on first write,
+    // so anything written before this stays in the OEM code page and the 0xF2EE end marker comes out as '?'.
+    await sendInitCommand(SET_UTF8_ENCODING);
+
     if (this.caps.appWorkingDir) {
         const envVarsSet: Set<string> = new Set();
         const matches = this.caps.appWorkingDir.matchAll(/%([^%]+)%/g);
@@ -63,33 +72,31 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
         for (const envVar of envVars) {
             this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
         }
-        this.sendPowerShellCommand(`Set-Location -Path '${this.caps.appWorkingDir}'`);
+        await sendInitCommand(`Set-Location -Path '${escapeSingleQuotes(this.caps.appWorkingDir)}'`);
     }
 
-    await this.sendPowerShellCommand(SET_UTF8_ENCODING);
-
-    const isPerMonitorDpiAware = await this.sendPowerShellCommand(SET_DPI_AWARENESS);
+    const isPerMonitorDpiAware = await sendInitCommand(SET_DPI_AWARENESS);
     if (isPerMonitorDpiAware.toLowerCase() !== 'true') {
         this.log.warn(`Failed to make the PowerShell session per-monitor DPI aware (${isPerMonitorDpiAware}). Element coordinates may be inaccurate on scaled displays.`);
     }
 
-    await this.sendPowerShellCommand(ADD_NECESSARY_ASSEMBLIES);
-    await this.sendPowerShellCommand(USE_UI_AUTOMATION_CLIENT);
-    await this.sendPowerShellCommand(INIT_CACHE_REQUEST);
-    await this.sendPowerShellCommand(INIT_ELEMENT_TABLE);
+    await sendInitCommand(ADD_NECESSARY_ASSEMBLIES);
+    await sendInitCommand(USE_UI_AUTOMATION_CLIENT);
+    await sendInitCommand(INIT_CACHE_REQUEST);
+    await sendInitCommand(INIT_ELEMENT_TABLE);
 
     // initialize functions
-    await this.sendPowerShellCommand(PAGE_SOURCE);
-    await this.sendPowerShellCommand(FIND_CHILDREN_RECURSIVELY);
+    await sendInitCommand(PAGE_SOURCE);
+    await sendInitCommand(FIND_CHILDREN_RECURSIVELY);
 
     if ((!this.caps.app && !this.caps.appTopLevelWindow) || (!this.caps.app || this.caps.app.toLowerCase() === 'none')) {
         this.log.info(`No app or top-level window specified in capabilities. Setting root element to null.`);
-        await this.sendPowerShellCommand(NULL_ROOT_ELEMENT);
+        await sendInitCommand(NULL_ROOT_ELEMENT);
     }
 
     if (this.caps.app && this.caps.app.toLowerCase() === 'root') {
         this.log.info(`'root' specified as app in capabilities. Setting root element to desktop root.`);
-        await this.sendPowerShellCommand(INIT_ROOT_ELEMENT);
+        await sendInitCommand(INIT_ROOT_ELEMENT);
     }
 
     if (this.caps.app && this.caps.app.toLowerCase() !== 'none' && this.caps.app.toLowerCase() !== 'root') {
@@ -114,7 +121,7 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
                 : await findFreePort(DEFAULT_WEBVIEW_DEVTOOLS_PORT_LOWER, DEFAULT_WEBVIEW_DEVTOOLS_PORT_UPPER);
 
             this.log.info(`WebView support is enabled. DevTools will be served on port ${this.webviewDevtoolsPort}`);
-            await this.sendPowerShellCommand(/* ps1 */ `$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=${this.webviewDevtoolsPort}'`);
+            await sendInitCommand(/* ps1 */ `$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=${this.webviewDevtoolsPort}'`);
         }
 
         await this.changeRootElement(this.caps.app);
@@ -166,7 +173,7 @@ export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, com
                 for (const envVar of envVars) {
                     this.caps.appWorkingDir = this.caps.appWorkingDir.replaceAll(`%${envVar}%`, process.env[envVar.toUpperCase()] ?? '');
                 }
-                powerShell.stdin.write(`Set-Location -Path '${this.caps.appWorkingDir}'\n`);
+                powerShell.stdin.write(`Set-Location -Path '${escapeSingleQuotes(this.caps.appWorkingDir)}'\n`);
             }
             powerShell.stdin.write(`${command}\n`);
             powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
@@ -200,7 +207,7 @@ export async function sendIsolatedPowerShellCommand(this: NovaWindowsDriver, com
     }
 }
 
-export async function sendPowerShellCommand(this: NovaWindowsDriver, command: string): Promise<string> {
+export async function sendPowerShellCommand(this: NovaWindowsDriver, command: string, timeoutMs?: number): Promise<string> {
     const magicNumber = 0xF2EE;
 
     if (!this.powerShell) {
@@ -212,8 +219,16 @@ export async function sendPowerShellCommand(this: NovaWindowsDriver, command: st
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const powerShell = this.powerShell!;
 
+        // writing to the stdin of an exited process emits an unhandled 'error' event
+        if (powerShell.killed || powerShell.exitCode !== null) {
+            reject(new errors.UnknownError('PowerShell session is no longer running.'));
+            return;
+        }
+
         this.powerShellStdOut = '';
         this.powerShellStdErr = '';
+
+        let timer: NodeJS.Timeout | undefined;
 
         powerShell.stdin.write(`${command}\n`);
         powerShell.stdin.write(/* ps1 */ `Write-Output $([char]0x${magicNumber.toString(16)})\n`);
@@ -221,6 +236,7 @@ export async function sendPowerShellCommand(this: NovaWindowsDriver, command: st
         const onData: Parameters<typeof powerShell.stdout.on>[1] = ((chunk: any) => {
             const magicChar = String.fromCharCode(magicNumber);
             if (chunk.toString().includes(magicChar)) {
+                clearTimeout(timer);
                 powerShell.stdout.off('data', onData);
                 if (this.powerShellStdErr) {
                     reject(new errors.UnknownError(this.powerShellStdErr));
@@ -231,6 +247,15 @@ export async function sendPowerShellCommand(this: NovaWindowsDriver, command: st
         }).bind(this);
 
         powerShell.stdout.on('data', onData);
+
+        if (timeoutMs) {
+            timer = setTimeout(() => {
+                powerShell.stdout.off('data', onData);
+                // the end marker is lost, so later replies would be out of sync with their commands; the session cannot be reused
+                powerShell.kill();
+                reject(new errors.TimeoutError(`PowerShell command did not complete within ${timeoutMs}ms: ${command.trim().split('\n')[0]}`));
+            }, timeoutMs);
+        }
     });
 
     // commented out for now to avoid cluttering the logs with long command outputs
@@ -268,6 +293,11 @@ export async function terminatePowerShellSession(this: NovaWindowsDriver): Promi
     this.powerShell.kill();
     await waitForClose;
     this.log.debug(`PowerShell session terminated successfully.`);
+}
+
+// an unescaped ' ends the PowerShell string early and leaves the session waiting for the rest of it
+function escapeSingleQuotes(value: string): string {
+    return value.replaceAll(`'`, `''`);
 }
 
 async function findFreePort(start: number, end: number): Promise<number> {
