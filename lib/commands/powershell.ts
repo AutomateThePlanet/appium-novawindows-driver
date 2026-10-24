@@ -3,8 +3,30 @@ import net from 'node:net';
 import { NovaWindowsDriver } from '../driver';
 import { errors } from '@appium/base-driver';
 import { FIND_CHILDREN_RECURSIVELY, PAGE_SOURCE } from './functions';
+import { pwsh } from '../powershell';
 
 const SET_UTF8_ENCODING = /* ps1 */ `$OutputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8`;
+const SET_DPI_AWARENESS = pwsh /* ps1 */ `
+    try {
+        Add-Type -ErrorAction Stop -Namespace NovaWindows -Name DpiAwareness -MemberDefinition '
+            [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+            [DllImport("shcore.dll")] public static extern int SetProcessDpiAwareness(int value);
+            [DllImport("user32.dll")] public static extern IntPtr GetThreadDpiAwarenessContext();
+            [DllImport("user32.dll")] public static extern int GetAwarenessFromDpiAwarenessContext(IntPtr value);
+        '
+
+        try {
+            $null = [NovaWindows.DpiAwareness]::SetProcessDpiAwarenessContext([IntPtr]::new(-4))
+        } catch {
+            $null = [NovaWindows.DpiAwareness]::SetProcessDpiAwareness(2)
+        }
+
+        # DPI_AWARENESS_PER_MONITOR_AWARE
+        [NovaWindows.DpiAwareness]::GetAwarenessFromDpiAwarenessContext([NovaWindows.DpiAwareness]::GetThreadDpiAwarenessContext()) -eq 2
+    } catch {
+        $_.Exception.Message
+    }
+`;
 const ADD_NECESSARY_ASSEMBLIES = /* ps1 */ `Add-Type -AssemblyName UIAutomationClient; Add-Type -AssemblyName System.Drawing; Add-Type -AssemblyName PresentationCore; Add-Type -AssemblyName System.Windows.Forms`;
 const USE_UI_AUTOMATION_CLIENT = /* ps1 */ `using namespace System.Windows.Automation`;
 const INIT_CACHE_REQUEST = /* ps1 */ `($cacheRequest = New-Object System.Windows.Automation.CacheRequest).TreeFilter = [AndCondition]::new([Automation]::ControlViewCondition, [NotCondition]::new([PropertyCondition]::new([AutomationElement]::FrameworkIdProperty, 'Chrome'))); $cacheRequest.Push()`;
@@ -45,6 +67,12 @@ export async function startPowerShellSession(this: NovaWindowsDriver): Promise<v
     }
 
     await this.sendPowerShellCommand(SET_UTF8_ENCODING);
+
+    const isPerMonitorDpiAware = await this.sendPowerShellCommand(SET_DPI_AWARENESS);
+    if (isPerMonitorDpiAware.toLowerCase() !== 'true') {
+        this.log.warn(`Failed to make the PowerShell session per-monitor DPI aware (${isPerMonitorDpiAware}). Element coordinates may be inaccurate on scaled displays.`);
+    }
+
     await this.sendPowerShellCommand(ADD_NECESSARY_ASSEMBLIES);
     await this.sendPowerShellCommand(USE_UI_AUTOMATION_CLIENT);
     await this.sendPowerShellCommand(INIT_CACHE_REQUEST);

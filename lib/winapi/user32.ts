@@ -175,6 +175,11 @@ const easingFunctions = Object.freeze({
 const UINT32_MAX = 0xFFFFFFFF;
 const UINT16_MAX = 0xFFFF;
 
+const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = -3;
+const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4;
+const DPI_AWARENESS_PER_MONITOR_AWARE = 2;
+const PROCESS_PER_MONITOR_DPI_AWARE = 2;
+
 const user32 = load('user32.dll');
 
 const POINT = struct('POINT', {
@@ -289,7 +294,9 @@ type EnumWindowsProc = (hWnd: HWND, lParam: LPARAM) => BOOL;
 // TODO: update all functions to have their parameters aliased properly
 const SendInput = user32.func(/* c */ `unsigned int __stdcall SendInput(unsigned int cInputs, INPUT *pInputs, int cbSize)`) as (cInputs: number, pInouts: Event[], cbSize: number) => number;
 const GetSystemMetrics = user32.func(/* c */ `int __stdcall GetSystemMetrics(int nIndex)`) as (nIndex: SystemMetric) => number;
-const SetProcessDPIAware = user32.func(/* c */ `bool __stdcall SetProcessDPIAware()`) as () => boolean;
+const GetThreadDpiAwarenessContext = user32.func(/* c */ `intptr_t __stdcall GetThreadDpiAwarenessContext()`) as () => number;
+const SetThreadDpiAwarenessContext = user32.func(/* c */ `intptr_t __stdcall SetThreadDpiAwarenessContext(intptr_t dpiContext)`) as (dpiContext: number) => number;
+const GetAwarenessFromDpiAwarenessContext = user32.func(/* c */ `int __stdcall GetAwarenessFromDpiAwarenessContext(intptr_t value)`) as (value: number) => number;
 const GetDpiForSystem = user32.func(/* c */ `unsigned int __stdcall GetDpiForSystem()`) as () => number;
 const GetCursorPos = user32.func(/* c */ `bool __stdcall GetCursorPos(_Out_ POINT *lpPoint)`) as (lpPoint: Point) => boolean;
 const EnumDisplaySettingsA = user32.func(/* c */ `bool __stdcall EnumDisplaySettingsA(str lpszDeviceName, uint iModeNum, _Out_ DEVMODEA *lpDevMode)`) as (lpszDeviceName: string | null, iModeNum: number, lpDevMode: Buffer) => boolean;
@@ -796,10 +803,39 @@ export function getDisplayOrientation(): Orientation {
     return resolution[0] > resolution[1] ? 'LANDSCAPE' : 'PORTRAIT';
 }
 
+function isPerMonitorDpiAware(): boolean {
+    return GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) === DPI_AWARENESS_PER_MONITOR_AWARE;
+}
+
 export function setDpiAwareness() {
-    if (!SetProcessDPIAware()) {
+    // UI Automation coordinates from the PowerShell session are in physical pixels (the session is per-monitor DPI aware as well),
+    // so GetSystemMetrics and GetCursorPos have to report physical pixels too. System DPI awareness (SetProcessDPIAware) is not enough,
+    // since coordinates are still virtualized on monitors whose scale differs from the system DPI.
+    const attempts = [
+        // Windows 10 1703+
+        () => user32.func(/* c */ `bool __stdcall SetProcessDpiAwarenessContext(intptr_t value)`)(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2),
+        // Windows 8.1+
+        () => load('shcore.dll').func(/* c */ `long __stdcall SetProcessDpiAwareness(int value)`)(PROCESS_PER_MONITOR_DPI_AWARE),
+        // the process DPI awareness can only be set once, so if something else already set it, override it for the current thread,
+        // which is the thread all user32 functions in this module are called on
+        () => SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE),
+    ];
+
+    for (const attempt of attempts) {
+        if (isPerMonitorDpiAware()) {
+            return;
+        }
+
+        try {
+            attempt();
+        } catch {
+            // the function is not available on this version of Windows
+        }
+    }
+
+    if (!isPerMonitorDpiAware()) {
         throw new errors.UnknownError('An error occurred while trying to set DPI awareness.');
-    };
+    }
 }
 
 export function getWindowAllHandlesForProcessIds(processIds: number[]): number[] {
