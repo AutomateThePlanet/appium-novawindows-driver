@@ -113,12 +113,12 @@ describe('setWindowRect', () => {
     });
 
     it('moves only (preserves size) when width and height are null', async () => {
-        await calc.setWindowRect(100, 100, 800, 600);
+        const before = await calc.setWindowRect(100, 100, 800, 600);
         const rect = await calc.setWindowRect(250, 250, null, null);
         expect(rect.x).toBe(250);
         expect(rect.y).toBe(250);
-        expect(rect.width).toBe(800);
-        expect(rect.height).toBe(600);
+        expect(rect.width).toBe(before.width);
+        expect(rect.height).toBe(before.height);
     });
 });
 

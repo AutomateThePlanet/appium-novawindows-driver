@@ -57,8 +57,12 @@ describe('windows: keys, click, hover, scroll, clickAndDrag extension commands',
                 actions: [{ text: 'unicodetest' }, { pause: 100 }],
                 forceUnicode: true,
             }]);
-            const text = await textArea.getText();
-            expect(text).toContain('unicodetest');
+            // notepad can still be processing the last characters when the keys command returns
+            await notepad.waitUntil(async () => (await textArea.getText()).includes('unicodetest'), {
+                timeout: 3000,
+                timeoutMsg: 'Notepad text did not contain "unicodetest" within 3 s',
+            });
+            expect(await textArea.getText()).toContain('unicodetest');
         });
 
         it('sends virtualKeyCode for Delete key to clear Notepad input', async () => {
