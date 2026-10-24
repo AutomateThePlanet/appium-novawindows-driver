@@ -1,4 +1,4 @@
-import { Orientation } from '@appium/types';
+import { Orientation, Rect } from '@appium/types';
 import {
     load,
     struct,
@@ -173,7 +173,12 @@ const easingFunctions = Object.freeze({
 } as const);
 
 const UINT32_MAX = 0xFFFFFFFF;
-const UINT16_MAX = 0xFFFF;
+const NORMALIZED_SCREEN_SIZE = 0x10000;
+
+const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = -3;
+const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4;
+const DPI_AWARENESS_PER_MONITOR_AWARE = 2;
+const PROCESS_PER_MONITOR_DPI_AWARE = 2;
 
 const user32 = load('user32.dll');
 
@@ -289,7 +294,9 @@ type EnumWindowsProc = (hWnd: HWND, lParam: LPARAM) => BOOL;
 // TODO: update all functions to have their parameters aliased properly
 const SendInput = user32.func(/* c */ `unsigned int __stdcall SendInput(unsigned int cInputs, INPUT *pInputs, int cbSize)`) as (cInputs: number, pInouts: Event[], cbSize: number) => number;
 const GetSystemMetrics = user32.func(/* c */ `int __stdcall GetSystemMetrics(int nIndex)`) as (nIndex: SystemMetric) => number;
-const SetProcessDPIAware = user32.func(/* c */ `bool __stdcall SetProcessDPIAware()`) as () => boolean;
+const GetThreadDpiAwarenessContext = user32.func(/* c */ `intptr_t __stdcall GetThreadDpiAwarenessContext()`) as () => number;
+const SetThreadDpiAwarenessContext = user32.func(/* c */ `intptr_t __stdcall SetThreadDpiAwarenessContext(intptr_t dpiContext)`) as (dpiContext: number) => number;
+const GetAwarenessFromDpiAwarenessContext = user32.func(/* c */ `int __stdcall GetAwarenessFromDpiAwarenessContext(intptr_t value)`) as (value: number) => number;
 const GetDpiForSystem = user32.func(/* c */ `unsigned int __stdcall GetDpiForSystem()`) as () => number;
 const GetCursorPos = user32.func(/* c */ `bool __stdcall GetCursorPos(_Out_ POINT *lpPoint)`) as (lpPoint: Point) => boolean;
 const EnumDisplaySettingsA = user32.func(/* c */ `bool __stdcall EnumDisplaySettingsA(str lpszDeviceName, uint iModeNum, _Out_ DEVMODEA *lpDevMode)`) as (lpszDeviceName: string | null, iModeNum: number, lpDevMode: Buffer) => boolean;
@@ -429,11 +436,11 @@ function makeMouseMoveEvents(args: {
         wheel: boolean,
         /** Set to true if the event is a mouse move with relative coordinates. This argument is ignored for mouse wheel move. */
         relative?: boolean,
-        /** Set to screen resolution [width, height] when the mouse move is absolute. */
-        screenResolutionAndRefreshRate?: ReturnType<typeof getScreenResolutionAndRefreshRate>;
+        /** Set to the virtual screen bounds (the bounding rectangle of all monitors) when the mouse move is absolute. */
+        virtualScreen?: Rect;
     }
 ): MouseEvent[] {
-    const { x, y, wheel, relative, screenResolutionAndRefreshRate} = args;
+    const { x, y, wheel, relative, virtualScreen } = args;
 
     if (wheel) {
         const mouseEvents: MouseEvent[] = [];
@@ -457,21 +464,29 @@ function makeMouseMoveEvents(args: {
 
     const mouseEvent: MouseEvent = makeEmptyMouseEvent();
 
-    if (!screenResolutionAndRefreshRate) {
-        throw new errors.InvalidArgumentError('screenResolution parameter must be set for absolute mouse move.');
+    if (!virtualScreen) {
+        throw new errors.InvalidArgumentError('virtualScreen parameter must be set for absolute mouse move.');
     }
 
-    const [screenWidth, screenHeight] = screenResolutionAndRefreshRate;
-
-    mouseEvent.u.mi.dx = relative ? Math.trunc(x) : Math.trunc((x * UINT16_MAX) / screenWidth);
-    mouseEvent.u.mi.dy = relative ? Math.trunc(y) : Math.trunc((y * UINT16_MAX) / screenHeight);
+    mouseEvent.u.mi.dx = relative ? Math.trunc(x) : normalizeAbsoluteCoordinate(x, virtualScreen.x, virtualScreen.width);
+    mouseEvent.u.mi.dy = relative ? Math.trunc(y) : normalizeAbsoluteCoordinate(y, virtualScreen.y, virtualScreen.height);
     mouseEvent.u.mi.dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE;
 
     if (!relative) {
-        mouseEvent.u.mi.dwFlags |= MouseEventFlags.MOUSEEVENTF_ABSOLUTE;
+        // without MOUSEEVENTF_VIRTUALDESK the normalized coordinates map to the primary monitor only
+        mouseEvent.u.mi.dwFlags |= MouseEventFlags.MOUSEEVENTF_ABSOLUTE | MouseEventFlags.MOUSEEVENTF_VIRTUALDESK;
     }
 
     return [mouseEvent];
+}
+
+function normalizeAbsoluteCoordinate(coordinate: number, virtualScreenStart: number, virtualScreenSize: number): number {
+    // keep the coordinate on the virtual screen, since normalized coordinates outside of [0, 65535] are not supported
+    const pixel = Math.min(Math.max(Math.floor(coordinate), virtualScreenStart), virtualScreenStart + virtualScreenSize - 1) - virtualScreenStart;
+
+    // each pixel maps to a range of normalized coordinates, so target the middle of the range,
+    // since targeting its start can get rounded into the previous pixel
+    return Math.round(((pixel + 0.5) * NORMALIZED_SCREEN_SIZE) / virtualScreenSize);
 }
 
 function charToKeyboardEvents(char: string, down: boolean, forceUnicode: boolean = false): KeyboardEvent[] {
@@ -651,8 +666,8 @@ function sendMouseButtonInput(button: number, down: boolean) {
 async function sendMouseMoveInput(args: { x: number, y: number, relative: boolean, duration: number, easingFunction?: string }): Promise<void> {
     const { duration } = args;
     let { x, y, easingFunction, relative } = args;
-    const screenResolutionAndRefreshRate = getScreenResolutionAndRefreshRate();
-    const [, , refreshRate] = screenResolutionAndRefreshRate;
+    const [, , refreshRate] = getScreenResolutionAndRefreshRate();
+    const virtualScreen = getVirtualScreenRect();
     const updateInterval = 1000 / refreshRate;
     const iterations = Math.max(Math.floor(duration / updateInterval), 1);
 
@@ -660,17 +675,18 @@ async function sendMouseMoveInput(args: { x: number, y: number, relative: boolea
         x: 0,
         y: 0,
     } satisfies Point;
+    const hasCursorPosition = GetCursorPos(cursorPosition);
 
-    if (GetCursorPos(cursorPosition) && iterations > 1) {
-        if (relative) {
-            x += cursorPosition.x;
-            y += cursorPosition.y;
-        }
-
-        // setting relative to false since coordinates are now absolute
+    if (hasCursorPosition && relative) {
+        // relative input is affected by the pointer speed and acceleration settings,
+        // so it's converted to absolute coordinates whenever the cursor position is known
+        x += cursorPosition.x;
+        y += cursorPosition.y;
         relative = false;
-    } else {
-        // ignore easing function of it can't retrieve current cursor position
+    }
+
+    if (!hasCursorPosition || iterations === 1) {
+        // ignore easing function if it can't retrieve current cursor position or there is nothing to interpolate
         // this is preventing the method from failing
         easingFunction = undefined;
     }
@@ -695,14 +711,14 @@ async function sendMouseMoveInput(args: { x: number, y: number, relative: boolea
                 const interpolatedX = cursorPosition.x + (x - cursorPosition.x) * easedProgress;
                 const interpolatedY = cursorPosition.y + (y - cursorPosition.y) * easedProgress;
 
-                const events = makeMouseMoveEvents({ x: interpolatedX, y: interpolatedY, wheel: false, screenResolutionAndRefreshRate });
+                const events = makeMouseMoveEvents({ x: interpolatedX, y: interpolatedY, wheel: false, virtualScreen });
                 const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
                 assertSuccessSendInputReturnCode(returnCode);
             }, i * updateInterval);
         }
     } else {
-        const events = makeMouseMoveEvents({ x, y, wheel: false, screenResolutionAndRefreshRate });
+        const events = makeMouseMoveEvents({ x, y, wheel: false, relative, virtualScreen });
         const returnCode = SendInput(events.length, events, sizeof(INPUT));
 
         assertSuccessSendInputReturnCode(returnCode);
@@ -734,6 +750,15 @@ function getResolutionScalingFactor(): number {
     getResolutionScalingFactor = () => scalingFactor;
 
     return scalingFactor;
+}
+
+function getVirtualScreenRect(): Rect {
+    return {
+        x: GetSystemMetrics(SystemMetric.SM_XVIRTUALSCREEN),
+        y: GetSystemMetrics(SystemMetric.SM_YVIRTUALSCREEN),
+        width: GetSystemMetrics(SystemMetric.SM_CXVIRTUALSCREEN),
+        height: GetSystemMetrics(SystemMetric.SM_CYVIRTUALSCREEN),
+    };
 }
 
 function getScreenResolutionAndRefreshRate(): [number, number, number] {
@@ -796,10 +821,39 @@ export function getDisplayOrientation(): Orientation {
     return resolution[0] > resolution[1] ? 'LANDSCAPE' : 'PORTRAIT';
 }
 
+function isPerMonitorDpiAware(): boolean {
+    return GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) === DPI_AWARENESS_PER_MONITOR_AWARE;
+}
+
 export function setDpiAwareness() {
-    if (!SetProcessDPIAware()) {
+    // UI Automation coordinates from the PowerShell session are in physical pixels (the session is per-monitor DPI aware as well),
+    // so GetSystemMetrics and GetCursorPos have to report physical pixels too. System DPI awareness (SetProcessDPIAware) is not enough,
+    // since coordinates are still virtualized on monitors whose scale differs from the system DPI.
+    const attempts = [
+        // Windows 10 1703+
+        () => user32.func(/* c */ `bool __stdcall SetProcessDpiAwarenessContext(intptr_t value)`)(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2),
+        // Windows 8.1+
+        () => load('shcore.dll').func(/* c */ `long __stdcall SetProcessDpiAwareness(int value)`)(PROCESS_PER_MONITOR_DPI_AWARE),
+        // the process DPI awareness can only be set once, so if something else already set it, override it for the current thread,
+        // which is the thread all user32 functions in this module are called on
+        () => SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE),
+    ];
+
+    for (const attempt of attempts) {
+        if (isPerMonitorDpiAware()) {
+            return;
+        }
+
+        try {
+            attempt();
+        } catch {
+            // the function is not available on this version of Windows
+        }
+    }
+
+    if (!isPerMonitorDpiAware()) {
         throw new errors.UnknownError('An error occurred while trying to set DPI awareness.');
-    };
+    }
 }
 
 export function getWindowAllHandlesForProcessIds(processIds: number[]): number[] {

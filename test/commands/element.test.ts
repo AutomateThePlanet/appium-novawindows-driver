@@ -16,7 +16,7 @@ import {
     getElementScreenshot,
 } from '../../lib/commands/element';
 import { createMockDriver } from '../fixtures/driver';
-import { W3C_ELEMENT_KEY } from '@appium/base-driver';
+import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
 
 vi.mock('../../lib/winapi/user32', () => ({
     mouseDown: vi.fn(),
@@ -145,6 +145,13 @@ describe('getElementRect', () => {
 
         const result = await getElementRect.call(driver, ELEMENT_ID);
         expect(result.x).toBe(0x7FFFFFFF);
+    });
+
+    it('throws NoSuchElementError when the element rect is empty', async () => {
+        const driver = createMockDriver() as any;
+        driver.sendPowerShellCommand.mockResolvedValueOnce('');
+
+        await expect(getElementRect.call(driver, ELEMENT_ID)).rejects.toThrow(errors.NoSuchElementError);
     });
 });
 

@@ -1,3 +1,14 @@
+## [1.4.6](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.5...v1.4.6) (2026-10-24)
+
+### Bug Fixes
+
+* action tick execution – Thanks to [@y-schwab](https://github.com/y-schwab) ([3bd71b9](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/3bd71b95897d1ca9e2aad93d3e619b2d3abd55bf))
+* added a way to get intermediate toggle state ([afbd611](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/afbd611beeb1a415c2802969fd798896adc4483d))
+* Fix DPI-aware mouse inputs ([e6f5c01](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/e6f5c01b0b724e46e36d56ea1afff6befa9b0bfc))
+* fixed failing to set foreground windows by name ([2f7152a](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/2f7152a291fff836ea978c659c5eb6cf73014085))
+* Fixed multi-monitor mouse input ([7222978](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/7222978820ace742c1ad20af77e2e28656f4e690))
+* Fixed unescape quotation mark causing the session to hang ([739c819](https://github.com/AutomateThePlanet/appium-novawindows-driver/commit/739c81992ac42a0dbc2cecca4c751e84b4e4ab0a))
+
 ## [1.4.5](https://github.com/AutomateThePlanet/appium-novawindows-driver/compare/v1.4.4...v1.4.5) (2026-08-27)
 
 ### Bug Fixes
