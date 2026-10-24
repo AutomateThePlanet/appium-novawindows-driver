@@ -18,6 +18,7 @@ import {
     patternRemoveFromSelection,
     patternSelect,
     patternToggle,
+    patternGetToggleState,
     patternSetValue,
     patternGetValue,
     focusElement,
@@ -109,6 +110,38 @@ describe('pattern commands', () => {
         const decoded = Buffer.from(base64Match?.[1] ?? '', 'base64').toString();
         expect(decoded).toContain('ValuePattern');
         expect(decoded).toContain('.Value');
+    });
+
+    it('patternGetToggleState sends getToggleState command', async () => {
+        const driver = createMockDriver() as any;
+        driver.sendPowerShellCommand.mockResolvedValue('On');
+        await patternGetToggleState.call(driver, MOCK_ELEMENT);
+        expect(driver.sendPowerShellCommand).toHaveBeenCalledTimes(1);
+        const callArg = driver.sendPowerShellCommand.mock.calls[0][0];
+        const base64Match = callArg.match(/FromBase64String\('([^']+)'\)/);
+        const decoded = Buffer.from(base64Match?.[1] ?? '', 'base64').toString();
+        expect(decoded).toContain('TogglePattern');
+        expect(decoded).toContain('.ToggleState');
+    });
+
+    it.each([
+        { result: 'Off', expected: 'Off' },
+        { result: 'On', expected: 'On' },
+        { result: 'Indeterminate', expected: 'Indeterminate' },
+        { result: 'on', expected: 'On' },
+        { result: '0', expected: 'Off' },
+        { result: '1', expected: 'On' },
+        { result: '2', expected: 'Indeterminate' },
+    ])('patternGetToggleState returns $expected when result is $result', async ({ result, expected }) => {
+        const driver = createMockDriver() as any;
+        driver.sendPowerShellCommand.mockResolvedValue(result);
+        await expect(patternGetToggleState.call(driver, MOCK_ELEMENT)).resolves.toBe(expected);
+    });
+
+    it.each(['', '3', 'Unknown'])('patternGetToggleState throws when result is \'%s\'', async (result) => {
+        const driver = createMockDriver() as any;
+        driver.sendPowerShellCommand.mockResolvedValue(result);
+        await expect(patternGetToggleState.call(driver, MOCK_ELEMENT)).rejects.toThrow();
     });
 
     it('focusElement sends setFocus command', async () => {

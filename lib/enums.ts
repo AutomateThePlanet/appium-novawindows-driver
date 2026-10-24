@@ -94,3 +94,11 @@ export const ClickType = Object.freeze({
 });
 
 export type ClickType = Enum<typeof ClickType>;
+
+export const ToggleState = Object.freeze({
+    OFF: 'Off',
+    ON: 'On',
+    INDETERMINATE: 'Indeterminate',
+});
+
+export type ToggleState = Enum<typeof ToggleState>;

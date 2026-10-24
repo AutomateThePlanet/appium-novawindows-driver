@@ -17,7 +17,7 @@ import {
 import { errors, W3C_ELEMENT_KEY } from '@appium/base-driver';
 import { mouseDown, mouseMoveAbsolute, mouseUp } from '../winapi/user32';
 import { Key } from '../enums';
-import { sleep } from '../util';
+import { fetchElementRect, sleep } from '../util';
 
 export async function getProperty(this: NovaWindowsDriver, propertyName: string, elementId: string): Promise<string> {
     return await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetPropertyCommand(propertyName));
@@ -164,10 +164,8 @@ export async function setValue(this: NovaWindowsDriver, value: string | string[]
 }
 
 export async function getElementRect(this: NovaWindowsDriver, elementId: string): Promise<Rect> {
-    const result = await this.sendPowerShellCommand(new FoundAutomationElement(elementId).buildGetElementRectCommand());
-    const rootRectJson = await this.sendPowerShellCommand(AutomationElement.automationRoot.buildGetElementRectCommand());
-    const rootRect = JSON.parse(rootRectJson.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
-    const rect = JSON.parse(result.replaceAll(/(?:infinity)/gi, 0x7FFFFFFF.toString())) as Rect;
+    const rect = await fetchElementRect(this, new FoundAutomationElement(elementId));
+    const rootRect = await fetchElementRect(this, AutomationElement.automationRoot);
     rect.x -= rootRect.x;
     rect.y -= rootRect.y;
     rect.x = Math.min(0x7FFFFFFF, rect.x);

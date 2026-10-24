@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { MODIFY_FS_FEATURE, POWER_SHELL_FEATURE } from '../constants';
 import { NovaWindowsDriver } from '../driver';
-import { ClickType, Enum, Key } from '../enums';
+import { ClickType, Enum, Key, ToggleState } from '../enums';
 import {
     AutomationElement,
     AutomationElementMode,
@@ -45,6 +45,7 @@ const EXTENSION_COMMANDS = Object.freeze({
     removeFromSelection: 'patternRemoveFromSelection',
     select: 'patternSelect',
     toggle: 'patternToggle',
+    getToggleState: 'patternGetToggleState',
     setValue: 'patternSetValue',
     getValue: 'patternGetValue',
     maximize: 'patternMaximize',
@@ -245,6 +246,20 @@ export async function patternSelect(this: NovaWindowsDriver, element: Element): 
 
 export async function patternToggle(this: NovaWindowsDriver, element: Element): Promise<void> {
     await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildToggleCommand());
+}
+
+export async function patternGetToggleState(this: NovaWindowsDriver, element: Element): Promise<ToggleState> {
+    const result = await this.sendPowerShellCommand(new FoundAutomationElement(element[W3C_ELEMENT_KEY]).buildGetToggleStateCommand());
+    const toggleStates = Object.values(ToggleState);
+    const toggleState = /^\d+$/.test(result)
+        ? toggleStates[Number(result)]
+        : toggleStates.find((state) => state.toLowerCase() === result.toLowerCase());
+
+    if (!toggleState) {
+        throw new errors.UnknownError(`Unexpected toggle state '${result}' returned for the element.`);
+    }
+
+    return toggleState;
 }
 
 export async function patternSetValue(this: NovaWindowsDriver, element: Element, value: string): Promise<void> {

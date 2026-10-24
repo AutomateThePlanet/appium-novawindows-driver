@@ -181,6 +181,12 @@ describe('windows: pattern extension commands', () => {
             ).resolves.not.toThrow();
         });
 
+        it('getToggleState returns the toggle state of a task checkbox in To-Do', async () => {
+            const checkbox = await todo.$('~CompleteTodoCheckBox');
+            const result = await todo.executeScript('windows: getToggleState', [checkbox]);
+            expect(['Off', 'On', 'Indeterminate']).toContain(result);
+        });
+
         it('select selects a task item in the To-Do list', async () => {
             const item = await todo.$('//Custom/Group/List/ListItem[1]');
             await expect(
