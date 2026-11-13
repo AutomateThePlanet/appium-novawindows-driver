@@ -1,5 +1,6 @@
 import { pwsh } from '../powershell';
 
+// Modified to keep the optional self match local to each recursive call.
 export const FIND_CHILDREN_RECURSIVELY = pwsh /* ps1 */ `
     function Find-ChildrenRecursively {
         param (
@@ -48,6 +49,7 @@ export const FIND_CHILDREN_RECURSIVELY = pwsh /* ps1 */ `
         $children = $element.FindAll([TreeScope]::Children, [Condition]::TrueCondition)
         $validChildren = @($children | Where-Object { $_.FindFirst([TreeScope]::Element, $condition) -ne $null })
 
+        $self = $null
         if ($includeSelf) {
             $self = $element.FindFirst([TreeScope]::Element, $condition)
         }
